@@ -1,5 +1,5 @@
 import type { Ctx } from "@keel/core";
-import { config, view, NotFoundException } from "@keel/core";
+import { config, view, json, param, NotFoundException } from "@keel/core";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
 export class HomeController {
@@ -17,8 +17,9 @@ export class HomeController {
     return view(WelcomePage, { appName: config("app.name", "Keel") });
   }
 
-  show(c: Ctx) {
-    return c.json({ id: c.req.param("id") });
+  // No `c` needed — the request helpers reach it for you.
+  show() {
+    return json({ id: param("id") });
   }
 
   /** Throws a semantic 404. */

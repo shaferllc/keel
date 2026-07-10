@@ -5,6 +5,7 @@
  */
 
 import { Hono } from "hono";
+import { contextStorage } from "hono/context-storage";
 import type { Context, MiddlewareHandler } from "hono";
 import type { Application } from "../application.js";
 import { Config } from "../config.js";
@@ -42,6 +43,10 @@ export class HttpKernel {
   build(): Hono {
     const hono = new Hono();
     const router = this.app.make(Router);
+
+    // Store the context per-request so the request helpers (json, param, …)
+    // can reach it without being handed `c`.
+    hono.use("*", contextStorage());
 
     // Make the container reachable from any handler via c.get("app").
     hono.use("*", async (c, next) => {
