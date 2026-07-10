@@ -33,6 +33,43 @@ function maybeCtx(): Context | undefined {
   }
 }
 
+/** Parse the FormData once per request (web-standard, edge-safe). */
+const FORM_CACHE = new WeakMap<Request, FormData | null>();
+async function cachedFormData(): Promise<FormData | null> {
+  const raw = ctx().req.raw;
+  if (FORM_CACHE.has(raw)) return FORM_CACHE.get(raw)!;
+  let fd: FormData | null = null;
+  try {
+    fd = await raw.formData();
+  } catch {
+    fd = null;
+  }
+  FORM_CACHE.set(raw, fd);
+  return fd;
+}
+
+/** Parse an Accept-style header into values ordered by q-weight. */
+function parseAccept(header: string | undefined): string[] {
+  if (!header) return [];
+  return header
+    .split(",")
+    .map((part) => {
+      const [value, ...params] = part.trim().split(";");
+      const q = params.find((p) => p.trim().startsWith("q="));
+      return { value: value!.trim(), q: q ? parseFloat(q.split("=")[1]!) : 1 };
+    })
+    .filter((x) => x.q > 0)
+    .sort((a, b) => b.q - a.q)
+    .map((x) => x.value);
+}
+
+function negotiate(headerName: string, offered: string[]): string | null {
+  const accepted = parseAccept(ctx().req.header(headerName));
+  if (accepted.includes("*/*") || accepted.includes("*")) return offered[0] ?? null;
+  for (const a of accepted) if (offered.includes(a)) return a;
+  return null;
+}
+
 /* ------------------------------ responses ------------------------------ */
 /* These work inside a handler AND standalone (e.g. as a static route value).
  * Inside a request they build on the context (merging any headers); outside a
@@ -94,12 +131,22 @@ interface ResponseHelper {
   status(code: number): ResponseHelper;
   /** Set a response header (chainable). */
   header(name: string, value: string): ResponseHelper;
+  /** Set the Content-Type (chainable). */
+  type(mime: string): ResponseHelper;
+  /** Append a value to a (possibly multi-value) header (chainable). */
+  append(name: string, value: string): ResponseHelper;
+  /** Remove a response header (chainable). */
+  removeHeader(name: string): ResponseHelper;
   /** Queue a Set-Cookie on the response (chainable). */
   cookie(name: string, value: string, options?: CookieOptions): ResponseHelper;
   /** Clear a cookie (chainable). */
   clearCookie(name: string, options?: CookieOptions): ResponseHelper;
   /** Abort the request with an HTTP exception. */
   abort(message: string, status?: number): never;
+  /** Abort only if the condition is truthy. */
+  abortIf(condition: unknown, message: string, status?: number): void;
+  /** Abort unless the condition is truthy. */
+  abortUnless(condition: unknown, message: string, status?: number): void;
 }
 
 export const response: ResponseHelper = {
@@ -128,6 +175,18 @@ export const response: ResponseHelper = {
     ctx().header(name, value);
     return response;
   },
+  type(mime) {
+    ctx().header("content-type", mime);
+    return response;
+  },
+  append(name, value) {
+    ctx().header(name, value, { append: true });
+    return response;
+  },
+  removeHeader(name) {
+    ctx().res.headers.delete(name);
+    return response;
+  },
   cookie(name, value, options) {
     setCookie(ctx(), name, value, options);
     return response;
@@ -138,6 +197,12 @@ export const response: ResponseHelper = {
   },
   abort(message, status = 400): never {
     throw new HttpException(status, message);
+  },
+  abortIf(condition, message, status = 400): void {
+    if (condition) throw new HttpException(status, message);
+  },
+  abortUnless(condition, message, status = 400): void {
+    if (!condition) throw new HttpException(status, message);
   },
 };
 
@@ -214,18 +279,81 @@ export const request = {
   async all(): Promise<Record<string, unknown>> {
     const c = ctx();
     const query = c.req.query();
-    let body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = {};
+    const ct = c.req.header("content-type") ?? "";
     try {
-      const ct = c.req.header("content-type") ?? "";
       if (ct.includes("application/json")) {
-        body = (await c.req.json()) as Record<string, unknown>;
+        Object.assign(body, await c.req.json());
       } else if (ct.includes("form")) {
-        body = (await c.req.parseBody()) as Record<string, unknown>;
+        const fd = await cachedFormData();
+        if (fd) for (const [k, v] of fd.entries()) if (!(v instanceof File)) body[k] = v;
       }
     } catch {
       /* no or invalid body — ignore */
     }
     return { ...query, ...body };
+  },
+
+  /** An uploaded file by field name (a web `File`), or undefined. */
+  async file(name: string): Promise<File | undefined> {
+    const fd = await cachedFormData();
+    const value = fd?.get(name);
+    return value instanceof File ? value : undefined;
+  },
+
+  /** All uploaded files for a field name. */
+  async files(name: string): Promise<File[]> {
+    const fd = await cachedFormData();
+    return (fd?.getAll(name) ?? []).filter((v): v is File => v instanceof File);
+  },
+
+  /** Every uploaded file, grouped by field name. */
+  async allFiles(): Promise<Record<string, File | File[]>> {
+    const fd = await cachedFormData();
+    const out: Record<string, File | File[]> = {};
+    if (!fd) return out;
+    for (const [key, value] of fd.entries()) {
+      if (!(value instanceof File)) continue;
+      const existing = out[key];
+      if (existing === undefined) out[key] = value;
+      else if (Array.isArray(existing)) existing.push(value);
+      else out[key] = [existing, value];
+    }
+    return out;
+  },
+
+  /** True if the request declares a body. */
+  hasBody(): boolean {
+    const c = ctx();
+    return !!(c.req.header("content-length") || c.req.header("transfer-encoding"));
+  },
+
+  /** All request headers as an object. */
+  headers(): Record<string, string> {
+    return Object.fromEntries(ctx().req.raw.headers);
+  },
+
+  /** The full X-Forwarded-For chain (client first). */
+  ips(): string[] {
+    const xff = ctx().req.header("x-forwarded-for");
+    return xff ? xff.split(",").map((s) => s.trim()) : [];
+  },
+
+  /** The best of the offered content types per the Accept header, or null. */
+  accepts(types: string[]): string | null {
+    return negotiate("accept", types);
+  },
+  /** Accepted content types, ordered by preference. */
+  types(): string[] {
+    return parseAccept(ctx().req.header("accept"));
+  },
+  /** The best of the offered languages per Accept-Language, or null. */
+  language(languages: string[]): string | null {
+    return negotiate("accept-language", languages);
+  },
+  /** Accepted languages, ordered by preference. */
+  languages(): string[] {
+    return parseAccept(ctx().req.header("accept-language"));
   },
 
   /** A single input (from query or body), with an optional fallback (async). */

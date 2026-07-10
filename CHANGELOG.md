@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] — 2026-07-10
+
+### Added
+
+- **File uploads.** `request.file(name)`, `request.files(name)`, and
+  `request.allFiles()` return web-standard `File` objects (edge-safe, no temp
+  dir). The parsed `FormData` is cached per request, so file access and
+  `request.all()` coexist.
+- **Content negotiation.** `request.accepts([...])`, `request.types()`,
+  `request.language([...])`, `request.languages()`.
+- **Request meta.** `request.hasBody()`, `request.headers()`, `request.ips()`.
+- **Response helpers.** `response.type(mime)`, `response.append(name, value)`,
+  `response.removeHeader(name)`, and the guards `response.abortIf(cond, …)` /
+  `response.abortUnless(cond, …)`.
+
+[0.19.0]: https://github.com/shaferllc/keel/releases/tag/v0.19.0
+
 ## [0.18.0] — 2026-07-10
 
 ### Added

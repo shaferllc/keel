@@ -21,8 +21,43 @@ await request.except(["password"]);     // everything but these
 ```
 
 `request` also exposes `request.method`, `request.path`, `request.url`,
-`request.status`, `request.ip()`, and `request.raw` (the underlying web
-`Request`).
+`request.status`, `request.ip()`, `request.ips()`, `request.hasBody()`,
+`request.headers()`, and `request.raw` (the underlying web `Request`).
+
+## File uploads
+
+Uploaded files come back as web-standard `File` objects (works on Node and the
+edge — no temp directory, no streaming to disk):
+
+```ts
+const avatar = await request.file("avatar");   // File | undefined
+const docs = await request.files("docs");       // File[]
+const all = await request.allFiles();           // { field: File | File[] }
+
+if (avatar) {
+  avatar.name;                 // "photo.png"
+  avatar.size;                 // bytes
+  avatar.type;                 // "image/png" (client-supplied)
+  const bytes = await avatar.arrayBuffer();  // persist via R2/S3/fs yourself
+}
+```
+
+Validate a file with your schema (Keel stays schema-agnostic):
+
+```ts
+const Upload = z.object({
+  avatar: z.instanceof(File).refine((f) => f.size < 2_000_000, "Too large"),
+});
+```
+
+## Content negotiation
+
+```ts
+request.accepts(["application/json", "text/html"]); // best match, or null
+request.types();                                     // accepted types, ordered
+request.language(["en", "fr"]);                       // best language, or null
+request.languages();
+```
 
 ## Cookies
 
@@ -47,17 +82,21 @@ response.send(anything);              // objects → JSON, else text
 
 response.status(201).json(created);   // chainable
 response.header("x-total", "42").json(rows);
+response.type("text/csv").append("vary", "accept");
+response.removeHeader("x-powered-by");
 response.cookie("flash", "saved").redirect("/");
 ```
 
-## Aborting
-
-`response.abort()` throws an `HttpException`, which the kernel renders (see
-[Errors](./errors.md)):
+## Aborting with guards
 
 ```ts
-if (!user) response.abort("Not found", 404);
+response.abort("Not found", 404);              // always
+response.abortIf(!user, "Not found", 404);     // if truthy
+response.abortUnless(user.isAdmin, "Forbidden", 403);
 ```
+
+`abort()` throws an `HttpException`, which the kernel renders (see
+[Errors](./errors.md)).
 
 ## Standalone shortcuts
 
