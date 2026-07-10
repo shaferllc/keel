@@ -7,5 +7,6 @@ declare module "hono" {
     app: Application;
     route?: { name?: string; pattern: string; methods: Method[] };
     subdomains?: Record<string, string>;
+    session?: Record<string, unknown>;
   }
 }

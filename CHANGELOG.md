@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] — 2026-07-10
+
+### Added
+
+- **Sessions.** A cookie-backed session store (edge-safe, no external service):
+  `session().get/put/has/forget/pull/increment/clear/all`, plus **flash**
+  messages (`session().flash()` / `session().flashed()`) that survive one
+  request. Enable with `sessionMiddleware()` in your HTTP kernel. See
+  [docs/sessions.md](./docs/sessions.md).
+
+[0.15.0]: https://github.com/shaferllc/keel/releases/tag/v0.15.0
+
 ## [0.14.0] — 2026-07-10
 
 ### Added
