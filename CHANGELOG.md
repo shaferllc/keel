@@ -4,6 +4,33 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] — 2026-07-10
+
+### Added
+
+- **Inertia.js server adapter.** `inertia("Page", props)` and
+  `router.on(path).renderInertia(...)` — full HTML on first load, JSON page
+  object on XHR navigations, asset-version 409s, and partial reloads. Configure
+  an `Inertia` instance (root view + version) in a provider. See
+  [docs/inertia.md](./docs/inertia.md).
+- **Domain / subdomain routing.** `route.domain(pattern)` and
+  `group(...).domain(":tenant.example.com")`, dispatched by `Host`; subdomain
+  params via `request.subdomain(name)`.
+- **Route matchers & global constraints.** `router.matchers.number()/uuid()/slug()/alpha()`,
+  a global `router.where(param, matcher)`, group `.where()`, and the `{ match }`
+  matcher form.
+- **Brisk-route helpers.** `on().renderInertia()`, `on().redirectToPath()`, and
+  `on().redirectToRoute(name, params, { qs })`.
+- **Current route.** `request.route` (`{ name, pattern, methods }`) and
+  `request.routeIs(name)`.
+- **`.use()`** middleware alias on routes and groups (matches AdonisJS).
+
+### Tests
+
+- Suite grown to 45 tests; ~99% line coverage maintained.
+
+[0.12.0]: https://github.com/shaferllc/keel/releases/tag/v0.12.0
+
 ## [0.11.0] — 2026-07-10
 
 ### Added

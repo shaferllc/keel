@@ -33,8 +33,10 @@ export { View } from "./view.js";
 export type { Renderable, ViewConfig } from "./view.js";
 export { ServiceProvider } from "./provider.js";
 export type { ProviderClass } from "./provider.js";
-export { Router, Route, RouteGroup, RouteResource } from "./http/router.js";
-export type { Ctx, RouteHandler, RouteDefinition, Method } from "./http/router.js";
+export { Router, Route, RouteGroup, RouteResource, matchers } from "./http/router.js";
+export type { Ctx, RouteHandler, RouteDefinition, Method, Matcher } from "./http/router.js";
+export { Inertia, inertia, inertiaPageAttr } from "./inertia.js";
+export type { InertiaPage, InertiaOptions } from "./inertia.js";
 export { HttpKernel } from "./http/kernel.js";
 export {
   HttpException,

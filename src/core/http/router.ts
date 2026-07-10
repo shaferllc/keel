@@ -10,9 +10,27 @@ import type { Context as HonoContext, MiddlewareHandler } from "hono";
 import type { Container, Constructor } from "../container.js";
 import { view } from "../helpers.js";
 import { redirect as makeRedirect } from "../request.js";
+import { inertia } from "../inertia.js";
 
 /** The request context handed to every route handler and middleware. */
 export type Ctx = HonoContext;
+
+/** A route-parameter constraint: a regex, a source string, or `{ match }`. */
+export type Matcher = RegExp | string | { match: RegExp };
+
+function matcherSource(m: Matcher): string {
+  if (typeof m === "string") return m;
+  if (m instanceof RegExp) return m.source;
+  return m.match.source;
+}
+
+/** Built-in parameter matchers, à la `router.matchers.number()`. */
+export const matchers = {
+  number: () => /\d+/,
+  uuid: () => /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+  slug: () => /[a-z0-9]+(?:-[a-z0-9]+)*/,
+  alpha: () => /[a-zA-Z]+/,
+};
 
 export type HandlerFn = (c: Ctx) => Response | Promise<Response> | string | Promise<string>;
 export type ControllerAction = [Constructor, string];
@@ -29,6 +47,8 @@ export interface RouteDefinition {
   name?: string;
   middleware: MiddlewareHandler[];
   wheres: Record<string, string>;
+  /** Host pattern this route is bound to, e.g. ":tenant.example.com". */
+  domain?: string;
 }
 
 /** A single registered route — chain to name it, guard it, or constrain params. */
@@ -50,10 +70,20 @@ export class Route {
     this.def.middleware.push(...(Array.isArray(mw) ? mw : [mw]));
     return this;
   }
+  /** Alias for middleware(), matching AdonisJS. */
+  use(mw: MiddlewareHandler | MiddlewareHandler[]): this {
+    return this.middleware(mw);
+  }
 
-  /** Constrain a route parameter with a regular expression. */
-  where(param: string, matcher: RegExp | string): this {
-    this.def.wheres[param] = matcher instanceof RegExp ? matcher.source : matcher;
+  /** Constrain a route parameter with a regex, source string, or matcher. */
+  where(param: string, matcher: Matcher): this {
+    this.def.wheres[param] = matcherSource(matcher);
+    return this;
+  }
+
+  /** Bind this route to a host pattern (supports `:subdomain` segments). */
+  domain(pattern: string): this {
+    this.def.domain = pattern;
     return this;
   }
 }
@@ -73,9 +103,27 @@ export class RouteGroup {
     for (const r of this.routes) r.middleware.unshift(...list); // group runs first
     return this;
   }
+  /** Alias for middleware(), matching AdonisJS. */
+  use(mw: MiddlewareHandler | MiddlewareHandler[]): this {
+    return this.middleware(mw);
+  }
+
+  /** Constrain a parameter across every route in the group. */
+  where(param: string, matcher: Matcher): this {
+    for (const r of this.routes) {
+      if (!(param in r.wheres)) r.wheres[param] = matcherSource(matcher);
+    }
+    return this;
+  }
 
   as(namePrefix: string): this {
     for (const r of this.routes) if (r.name) r.name = `${namePrefix}.${r.name}`;
+    return this;
+  }
+
+  /** Bind every route in the group to a host pattern. */
+  domain(pattern: string): this {
+    for (const r of this.routes) r.domain = pattern;
     return this;
   }
 }
@@ -105,12 +153,41 @@ export class RouteResource {
 class RouteMatcher {
   constructor(private router: Router, private path: string) {}
 
+  /** Redirect to a path or URL. */
   redirect(to: string, status = 302): Route {
     return this.router.get(this.path, () => makeRedirect(to, status));
   }
+  /** Alias for redirect(), matching AdonisJS. */
+  redirectToPath(to: string, status = 302): Route {
+    return this.redirect(to, status);
+  }
 
+  /** Redirect to a named route, optionally with params and a query string. */
+  redirectToRoute(
+    name: string,
+    params: Record<string, string | number> = {},
+    options: { qs?: Record<string, string | number>; status?: number } = {},
+  ): Route {
+    return this.router.get(this.path, () => {
+      let url = this.router.url(name, params);
+      if (options.qs) {
+        const qs = new URLSearchParams(
+          Object.fromEntries(Object.entries(options.qs).map(([k, v]) => [k, String(v)])),
+        );
+        url += `?${qs}`;
+      }
+      return makeRedirect(url, options.status ?? 302);
+    });
+  }
+
+  /** Render a view component directly. */
   render(component: (props?: any) => unknown, props?: any): Route {
     return this.router.get(this.path, () => view(component as never, props));
+  }
+
+  /** Render an Inertia page component directly. */
+  renderInertia(component: string, props?: Record<string, unknown>): Route {
+    return this.router.get(this.path, () => inertia(component, props));
   }
 }
 
@@ -118,6 +195,10 @@ export class Router {
   private routes: RouteDefinition[] = [];
   private group_prefix = "";
   private group_mw: MiddlewareHandler[] = [];
+  private globalWheres: Record<string, string> = {};
+
+  /** Built-in parameter matchers: `router.matchers.number()`. */
+  readonly matchers = matchers;
 
   constructor(private container: Container) {}
 
@@ -197,8 +278,21 @@ export class Router {
     return new Route(def);
   }
 
+  /** Register a global parameter constraint, applied to every matching route. */
+  where(param: string, matcher: Matcher): this {
+    this.globalWheres[param] = matcherSource(matcher);
+    return this;
+  }
+
   /** All registered routes (excluding those trimmed to zero methods). */
   all(): RouteDefinition[] {
+    for (const r of this.routes) {
+      for (const [param, src] of Object.entries(this.globalWheres)) {
+        if (!(param in r.wheres) && r.path.includes(`:${param}`)) {
+          r.wheres[param] = src;
+        }
+      }
+    }
     return this.routes.filter((r) => r.methods.length > 0);
   }
 

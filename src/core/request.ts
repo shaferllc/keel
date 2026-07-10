@@ -154,6 +154,18 @@ export const request = {
   get raw(): Request {
     return ctx().req.raw;
   },
+  /** The matched route: `{ name, pattern, methods }`. */
+  get route() {
+    return ctx().get("route");
+  },
+  /** Whether the matched route has the given name. */
+  routeIs(name: string): boolean {
+    return ctx().get("route")?.name === name;
+  },
+  /** A subdomain parameter captured from a domain-bound route. */
+  subdomain(name: string): string | undefined {
+    return ctx().get("subdomains")?.[name];
+  },
 };
 
 /* --------- standalone shortcuts for the most common accessors ---------- */

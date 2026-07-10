@@ -170,6 +170,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |
 | [Validation](./docs/validation.md) | `validate()` with Zod, auto-422 field errors |
+| [Inertia](./docs/inertia.md) | Server-side Inertia.js adapter |
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
 
@@ -204,6 +205,7 @@ config, and the console. On deck:
 - [x] Request/response + container helpers — **v0.6.0–v0.9.0**
 - [x] Validation (Zod-compatible) — **v0.10.0**
 - [x] First-class routing (groups, resources, named routes) — **v0.11.0**
+- [x] Domain routing, matchers, Inertia adapter — **v0.12.0**
 - [x] Test suite (~99% coverage)
 - [ ] ORM / query builder + migrations (wrapping Drizzle)
 - [ ] Queues (BullMQ), events, and mail

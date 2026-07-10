@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { Container } from "../src/core/container.js";
-import { Router } from "../src/core/http/router.js";
+import { Router, matchers } from "../src/core/http/router.js";
 
 function router() {
   return new Router(new Container());
@@ -80,6 +80,51 @@ test("router: where sets a param constraint", () => {
   const r = router();
   r.get("/n/:id", () => new Response("n")).where("id", /\d+/);
   assert.equal(r.all()[0]!.wheres.id, "\\d+");
+});
+
+test("router: matchers, use alias, where forms, domain, global where, redirects", () => {
+  assert.equal(matchers.number().source, "\\d+");
+  assert.ok(matchers.uuid().source.includes("[0-9a-fA-F]"));
+  assert.ok(matchers.slug().source.length > 0);
+  assert.ok(matchers.alpha().source.includes("a-zA-Z"));
+
+  const mw = async (_c: never, next: () => Promise<void>) => next();
+
+  const r = router();
+  r.get("/a/:id", () => new Response("a"))
+    .use(mw)
+    .where("id", { match: /\d+/ })
+    .domain("api.example.com");
+  const a = r.all()[0]!;
+  assert.equal(a.middleware.length, 1);
+  assert.equal(a.wheres.id, "\\d+");
+  assert.equal(a.domain, "api.example.com");
+
+  const r2 = router();
+  r2.group(() => {
+    r2.get("/b/:id", () => new Response("b"));
+  })
+    .use(mw)
+    .where("id", "slug")
+    .domain(":t.example.com");
+  const b = r2.all()[0]!;
+  assert.equal(b.middleware.length, 1);
+  assert.equal(b.wheres.id, "slug");
+  assert.equal(b.domain, ":t.example.com");
+
+  const r3 = router();
+  r3.where("id", matchers.number());
+  r3.get("/c/:id", () => new Response("c")).where("x", "[0-9]+");
+  assert.equal(r3.all()[0]!.wheres.id, "\\d+");
+  assert.equal(r3.all()[0]!.wheres.x, "[0-9]+");
+
+  const r4 = router();
+  r4.get("/articles", () => new Response("x")).name("articles.index");
+  r4.on("/posts").redirectToRoute("articles.index", {}, { qs: { page: 1 } });
+  r4.on("/ext").redirectToPath("https://x.com");
+  r4.on("/v").render(() => "V");
+  const paths = r4.all().map((x) => x.path);
+  assert.ok(["/posts", "/ext", "/v"].every((p) => paths.includes(p)));
 });
 
 test("router: resolve handles Response, controller tuples, and functions", async () => {

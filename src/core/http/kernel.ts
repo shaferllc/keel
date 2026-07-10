@@ -15,9 +15,28 @@ import {
   ValidationException,
   STATUS_TEXT,
 } from "../exceptions.js";
-import { Router, type HandlerFn } from "./router.js";
+import { Router, type HandlerFn, type RouteDefinition } from "./router.js";
 
 type ErrorHandler = (err: unknown, c: Context) => Response | Promise<Response>;
+
+/** Per-request stash of subdomain params, keyed by the raw Request. */
+const SUBDOMAINS = new WeakMap<Request, Record<string, string>>();
+
+/** Compile a host pattern like ":tenant.example.com" into a matcher. */
+function domainMatcher(pattern: string): { regex: RegExp; keys: string[] } {
+  const keys: string[] = [];
+  const source = pattern
+    .split(".")
+    .map((seg) => {
+      if (seg.startsWith(":")) {
+        keys.push(seg.slice(1));
+        return "([^.]+)";
+      }
+      return seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .join("\\.");
+  return { regex: new RegExp(`^${source}$`), keys };
+}
 
 export class HttpKernel {
   /** Global middleware, run on every request in order. */
@@ -39,18 +58,63 @@ export class HttpKernel {
     return this;
   }
 
-  /** Build the Hono app: bind container to context, apply middleware, mount routes. */
+  /** Build the Hono app: mount routes, dispatch domain routes by host. */
   build(): Hono {
+    const router = this.app.make(Router);
+    const routes = router.all();
+    const domainRoutes = routes.filter((r) => r.domain);
+    const defaultRoutes = routes.filter((r) => !r.domain);
+
+    // No domain routing — the common case.
+    if (domainRoutes.length === 0) {
+      return this.compile(defaultRoutes);
+    }
+
+    // Compile a Hono per distinct host pattern, plus a host dispatcher that
+    // runs before everything else on the default app.
+    const byDomain = new Map<string, RouteDefinition[]>();
+    for (const r of domainRoutes) {
+      const list = byDomain.get(r.domain!) ?? [];
+      list.push(r);
+      byDomain.set(r.domain!, list);
+    }
+    const compiled = [...byDomain.entries()].map(([pattern, rs]) => ({
+      ...domainMatcher(pattern),
+      hono: this.compile(rs),
+    }));
+
+    const dispatch: MiddlewareHandler = async (c, next) => {
+      const host = (c.req.header("host") ?? "").split(":")[0]!;
+      for (const d of compiled) {
+        const m = host.match(d.regex);
+        if (m) {
+          const subs: Record<string, string> = {};
+          d.keys.forEach((k, i) => (subs[k] = m[i + 1]!));
+          SUBDOMAINS.set(c.req.raw, subs);
+          return d.hono.fetch(c.req.raw, c.env);
+        }
+      }
+      await next();
+    };
+
+    return this.compile(defaultRoutes, dispatch);
+  }
+
+  /** Compile a set of routes onto a fresh Hono instance. */
+  private compile(routes: RouteDefinition[], firstMiddleware?: MiddlewareHandler): Hono {
     const hono = new Hono();
     const router = this.app.make(Router);
 
-    // Store the context per-request so the request helpers (json, param, …)
-    // can reach it without being handed `c`.
+    if (firstMiddleware) hono.use("*", firstMiddleware);
+
+    // Store the context per-request so the request helpers reach it.
     hono.use("*", contextStorage());
 
-    // Make the container reachable from any handler via c.get("app").
+    // Bind the container and any subdomain params onto the context.
     hono.use("*", async (c, next) => {
       c.set("app", this.app);
+      const subs = SUBDOMAINS.get(c.req.raw);
+      if (subs) c.set("subdomains", subs);
       await next();
     });
 
@@ -58,9 +122,10 @@ export class HttpKernel {
       hono.use("*", mw);
     }
 
-    for (const route of router.all()) {
+    for (const route of routes) {
       const fn: HandlerFn = router.resolve(route.handler);
       const honoHandler = async (c: Context) => {
+        c.set("route", { name: route.name, pattern: route.path, methods: route.methods });
         const result = await fn(c);
         return typeof result === "string" ? c.html(result) : result;
       };
@@ -71,11 +136,9 @@ export class HttpKernel {
         path = path.replace(new RegExp(`:${param}(\\??)`), `:${param}{${rgx}}$1`);
       }
 
-      // hono.on(methods, path, ...middleware, handler) — middleware runs first.
       hono.on(route.methods, [path], ...route.middleware, honoHandler);
     }
 
-    // Unmatched routes and thrown errors both flow through the handler.
     hono.notFound((c) =>
       this.handle(new NotFoundException(`No route for ${c.req.method} ${c.req.path}`), c),
     );

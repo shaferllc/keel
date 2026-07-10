@@ -30,6 +30,9 @@ export default function routes(router: Router): void {
   // Redirect convenience.
   router.on("/home").redirect("/");
 
+  // Render an Inertia page directly from a route.
+  router.on("/dashboard").renderInertia("Dashboard", { title: "Welcome" });
+
   // Group: shared prefix + name prefix → GET /api/status named "api.status".
   router
     .group(() => {

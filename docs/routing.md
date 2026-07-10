@@ -152,12 +152,22 @@ HTML-form `create`/`edit` actions).
 
 ## Param constraints
 
-Constrain a parameter with a regular expression — non-matching requests fall
-through to a 404:
+Constrain a parameter with a regex, a matcher, or a `{ match }` object —
+non-matching requests fall through to a 404:
 
 ```ts
 router.get("/users/:id", [UserController, "show"]).where("id", /\d+/);
+
+// built-in matchers
+router.get("/u/:id", handler).where("id", router.matchers.number());
+router.get("/a/:id", handler).where("id", router.matchers.uuid());
+router.get("/s/:slug", handler).where("slug", router.matchers.slug());
+
+// a global constraint applied to every matching :id
+router.where("id", router.matchers.number());
 ```
+
+Groups take constraints too: `group(...).where("id", router.matchers.uuid())`.
 
 ## Per-route middleware
 
@@ -165,13 +175,46 @@ router.get("/users/:id", [UserController, "show"]).where("id", /\d+/);
 router.get("/dashboard", [DashboardController, "index"]).middleware([auth]);
 ```
 
-## Redirects & views
+## Brisk routes: redirects, views & Inertia
 
 `on()` is a shortcut for routes with no controller:
 
 ```ts
-router.on("/old").redirect("/new");        // 302 redirect
-router.on("/about").render(AboutPage);      // render a view directly
+router.on("/old").redirect("/new");                 // path/URL redirect
+router.on("/ext").redirectToPath("https://x.com");   // alias of redirect
+router.on("/posts").redirectToRoute("articles.index", {}, { qs: { page: 1 } });
+
+router.on("/about").render(AboutPage, { title: "About" }); // render a view
+router.on("/dashboard").renderInertia("Dashboard", { user }); // Inertia page
+```
+
+See [Inertia](./inertia.md) for the full Inertia adapter.
+
+## Domain & subdomain routing
+
+Bind routes (or a group) to a host pattern. `:segments` capture subdomain
+params, readable with `request.subdomain()`:
+
+```ts
+router
+  .group(() => {
+    router.get("/", () => json({ tenant: request.subdomain("tenant") }));
+  })
+  .domain(":tenant.example.com");
+
+router.get("/", [BlogController, "index"]).domain("blog.example.com");
+```
+
+Requests are dispatched by their `Host` header; non-matching hosts fall through
+to your default (undomained) routes.
+
+## The current route
+
+`request.route` exposes the matched route, and `request.routeIs()` checks it:
+
+```ts
+request.route;                 // { name, pattern, methods }
+request.routeIs("posts.show"); // boolean
 ```
 
 ## More verbs
