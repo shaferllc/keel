@@ -32,9 +32,20 @@ export const matchers = {
   alpha: () => /[a-zA-Z]+/,
 };
 
-export type HandlerFn = (c: Ctx) => Response | Promise<Response> | string | Promise<string>;
-export type ControllerAction = [Constructor, string];
-/** A function, a [Controller, method] tuple, or a ready-made Response. */
+export type HandlerFn = (c: Ctx) => Response | string | Promise<Response | string>;
+
+/** A controller class, or a lazy `() => import(...)` loader of one. */
+export type LazyController = () => Promise<{ default: Constructor } | Constructor>;
+export type ControllerRef = Constructor | LazyController;
+
+/**
+ * A controller action: `[Controller, "method"]`, or `[Controller]` for a
+ * single-action controller (calls `handle`). The controller may be a lazy
+ * `() => import(...)` loader.
+ */
+export type ControllerAction = [ControllerRef] | [ControllerRef, string];
+
+/** A function, a controller action, or a ready-made Response. */
 export type RouteHandler = HandlerFn | ControllerAction | Response;
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD";
@@ -128,9 +139,19 @@ export class RouteGroup {
   }
 }
 
-/** RESTful resource routes; chain to trim the action set. */
+function singular(s: string): string {
+  if (s.endsWith("ies")) return s.slice(0, -3) + "y";
+  if (s.endsWith("s")) return s.slice(0, -1);
+  return s;
+}
+
+/** RESTful resource routes; chain to trim, rename, or guard actions. */
 export class RouteResource {
-  constructor(private byAction: Map<string, RouteDefinition>) {}
+  constructor(
+    private byAction: Map<string, RouteDefinition>,
+    private resourceName: string,
+    private child: string,
+  ) {}
 
   only(actions: string[]): this {
     for (const [a, def] of this.byAction) if (!actions.includes(a)) def.methods = [];
@@ -146,6 +167,35 @@ export class RouteResource {
   /** Drop the HTML-form actions (create, edit). */
   apiOnly(): this {
     return this.except(["create", "edit"]);
+  }
+
+  /** Rename the route-name prefix, e.g. `.as("articles")` → `articles.index`. */
+  as(name: string): this {
+    for (const [action, def] of this.byAction) def.name = `${name}.${action}`;
+    return this;
+  }
+
+  /** Rename a route parameter, e.g. `.params({ posts: "post" })`. */
+  params(map: Record<string, string>): this {
+    for (const [segment, newParam] of Object.entries(map)) {
+      const oldParam =
+        segment === this.child || segment === this.resourceName
+          ? "id"
+          : `${singular(segment)}_id`;
+      for (const def of this.byAction.values()) {
+        def.path = def.path.replace(`:${oldParam}`, `:${newParam}`);
+      }
+    }
+    return this;
+  }
+
+  /** Attach middleware to specific actions (or "*" for all). */
+  use(actions: string[] | "*", mw: MiddlewareHandler | MiddlewareHandler[]): this {
+    const list = Array.isArray(mw) ? mw : [mw];
+    for (const [action, def] of this.byAction) {
+      if (actions === "*" || actions.includes(action)) def.middleware.push(...list);
+    }
+    return this;
   }
 }
 
@@ -245,10 +295,18 @@ export class Router {
    * RESTful resource routes for a controller:
    *   index, create, store, show, edit, update, destroy.
    */
-  resource(name: string, controller: Constructor): RouteResource {
-    const base = "/" + name.replace(/^\/|\/$/g, "");
-    const p = base;
-    const id = `${base}/:id`;
+  resource(name: string, controller: ControllerRef): RouteResource {
+    // Dotted names nest resources: "posts.comments" -> /posts/:post_id/comments.
+    const segments = name.split(".");
+    const child = segments.pop()!.replace(/^\/|\/$/g, "");
+    let prefix = "";
+    for (const seg of segments) {
+      const s = seg.replace(/^\/|\/$/g, "");
+      prefix += `/${s}/:${singular(s)}_id`;
+    }
+    const p = `${prefix}/${child}`;
+    const id = `${p}/:id`;
+
     const defs = new Map<string, RouteDefinition>();
     const reg = (action: string, methods: Method[], path: string) => {
       const route = this.add(methods, path, [controller, action]);
@@ -262,7 +320,7 @@ export class Router {
     reg("edit", ["GET"], `${id}/edit`);
     reg("update", ["PUT", "PATCH"], id);
     reg("destroy", ["DELETE"], id);
-    return new RouteResource(defs);
+    return new RouteResource(defs, name, child);
   }
 
   private add(methods: Method[], path: string, handler: RouteHandler): Route {
@@ -314,12 +372,18 @@ export class Router {
       return () => res.clone();
     }
     if (Array.isArray(handler)) {
-      const [ControllerClass, method] = handler;
-      return (c: Ctx) => {
-        const controller = this.container.make(ControllerClass) as Record<string, HandlerFn>;
+      const [ref, method = "handle"] = handler as [ControllerRef, string?];
+      const isLazy = !(ref as { prototype?: unknown }).prototype; // arrow = lazy loader
+      return async (c: Ctx) => {
+        let ctor = ref as Constructor;
+        if (isLazy) {
+          const mod = await (ref as LazyController)();
+          ctor = ((mod as { default?: Constructor }).default ?? mod) as Constructor;
+        }
+        const controller = this.container.make(ctor) as Record<string, HandlerFn>;
         const action = controller[method];
         if (typeof action !== "function") {
-          throw new Error(`Controller [${ControllerClass.name}] has no method [${method}].`);
+          throw new Error(`Controller [${ctor.name}] has no method [${method}].`);
         }
         return action.call(controller, c);
       };

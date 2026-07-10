@@ -67,6 +67,28 @@ test("router: resource generates RESTful routes; only/except/apiOnly trim", () =
   assert.ok(!apiR.all().some((x) => x.path.endsWith("/create")));
 });
 
+test("router: resource nesting, as, params, and use", () => {
+  class Ctrl {}
+  const nested = router();
+  nested.resource("posts.comments", Ctrl);
+  const show = nested.all().find((x) => x.name === "posts.comments.show");
+  assert.equal(show!.path, "/posts/:post_id/comments/:id");
+
+  const renamed = router();
+  renamed.resource("posts", Ctrl).as("articles");
+  assert.ok(renamed.all().some((x) => x.name === "articles.index"));
+
+  const reparam = router();
+  reparam.resource("posts", Ctrl).params({ posts: "post" });
+  assert.ok(reparam.all().some((x) => x.path === "/posts/:post"));
+
+  const guarded = router();
+  const mw = async (_c: never, next: () => Promise<void>) => next();
+  guarded.resource("posts", Ctrl).use(["store", "update"], mw);
+  assert.equal(guarded.all().find((x) => x.name === "posts.store")!.middleware.length, 1);
+  assert.equal(guarded.all().find((x) => x.name === "posts.index")!.middleware.length, 0);
+});
+
 test("router: on().redirect and on().render register GET routes", () => {
   const r = router();
   r.on("/old").redirect("/new");
@@ -142,12 +164,15 @@ test("router: resolve handles Response, controller tuples, and functions", async
   const r1 = staticFn({} as never) as Response;
   assert.equal(await r1.text(), "static");
 
-  // controller tuple
+  // controller tuple (resolve is async — supports lazy loaders)
   const ctrlFn = r.resolve([Ctrl, "hi"]);
-  assert.equal(await (ctrlFn({} as never) as Response).text(), "hello");
+  assert.equal(await ((await ctrlFn({} as never)) as Response).text(), "hello");
 
-  // missing method throws
-  assert.throws(() => r.resolve([Ctrl, "nope"])({} as never), /has no method/);
+  // missing method rejects
+  await assert.rejects(
+    () => r.resolve([Ctrl, "nope"])({} as never) as Promise<unknown>,
+    /has no method/,
+  );
 
   // plain function passthrough
   const fn = () => new Response("fn");

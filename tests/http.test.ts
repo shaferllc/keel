@@ -183,6 +183,25 @@ test("routing: groups, param constraints, redirect, resource, url", async () => 
   assert.equal(red.headers.get("location"), "/new");
 });
 
+test("single-action and lazy-loaded controllers", async () => {
+  class Invokable {
+    handle() {
+      return json({ via: "handle" });
+    }
+  }
+  class Lazy {
+    show() {
+      return json({ via: "lazy" });
+    }
+  }
+  const hono = await build((r) => {
+    r.get("/single", [Invokable]); // no method → handle
+    r.get("/lazy", [() => Promise.resolve({ default: Lazy }), "show"]);
+  });
+  assert.deepEqual(await (await hono.request("/single")).json(), { via: "handle" });
+  assert.deepEqual(await (await hono.request("/lazy")).json(), { via: "lazy" });
+});
+
 test("middleware runs in order and can short-circuit", async () => {
   const guard: MiddlewareHandler = async (c, next) => {
     if (c.req.header("x-key") !== "ok") return c.json({ error: "denied" }, 401);

@@ -165,7 +165,8 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [The Service Container](./docs/container.md) | Binding and resolving services, DI |
 | [Service Providers](./docs/providers.md) | The register/boot lifecycle |
 | [Configuration](./docs/configuration.md) | `config/*.ts`, dot-notation, `env()` |
-| [Routing](./docs/routing.md) | Closures, controller tuples, parameters |
+| [Routing](./docs/routing.md) | Closures, controller tuples, groups, resources, domains |
+| [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |

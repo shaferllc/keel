@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] — 2026-07-10
+
+### Added
+
+- **Single-action controllers.** `router.post("/publish", [PublishPost])` calls
+  the controller's `handle` method.
+- **Lazy-loaded controllers.** `[() => import("../Controllers/X.js"), "index"]`
+  — the controller is imported only when its route is first hit.
+- **Richer resources.** `RouteResource` gained `.as(name)`, `.params({ … })`,
+  and `.use(actions, mw)`; `router.resource("posts.comments", C)` nests
+  resources (`/posts/:post_id/comments/:id`).
+- **`make:controller --resource`** generates a controller with all seven RESTful
+  actions.
+- See [docs/controllers.md](./docs/controllers.md).
+
+[0.13.0]: https://github.com/shaferllc/keel/releases/tag/v0.13.0
+
 ## [0.12.0] — 2026-07-10
 
 ### Added

@@ -11,6 +11,19 @@ export class ${name} {
 `;
 }
 
+export function resourceControllerStub(name: string): string {
+  const actions = ["index", "create", "store", "show", "edit", "update", "destroy"];
+  const body = actions
+    .map((a) => `  ${a}(c: Ctx) {\n    return c.json({ action: "${a}" });\n  }`)
+    .join("\n\n");
+  return `import type { Ctx } from "@keel/core";
+
+export class ${name} {
+${body}
+}
+`;
+}
+
 export function providerStub(name: string): string {
   return `import { ServiceProvider } from "@keel/core";
 

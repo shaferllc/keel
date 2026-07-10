@@ -17,7 +17,12 @@ import { Command } from "commander";
 import { createApplication } from "../../../bootstrap/app.js";
 import { HttpKernel } from "../http/kernel.js";
 import { Router } from "../http/router.js";
-import { controllerStub, providerStub, middlewareStub } from "./stubs.js";
+import {
+  controllerStub,
+  resourceControllerStub,
+  providerStub,
+  middlewareStub,
+} from "./stubs.js";
 
 const basePath = process.cwd();
 
@@ -92,9 +97,11 @@ export async function run(argv: string[]): Promise<void> {
   program
     .command("make:controller <name>")
     .description("Generate a controller")
-    .action(async (name: string) => {
+    .option("-r, --resource", "generate a RESTful resource controller")
+    .action(async (name: string, opts: { resource?: boolean }) => {
       const cls = className(name, "Controller");
-      await generate(`app/Controllers/${cls}.ts`, controllerStub(cls), "Controller");
+      const stub = opts.resource ? resourceControllerStub(cls) : controllerStub(cls);
+      await generate(`app/Controllers/${cls}.ts`, stub, "Controller");
     });
 
   program
