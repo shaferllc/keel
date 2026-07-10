@@ -173,6 +173,20 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
 
+## Testing
+
+The core has a test suite (Node's built-in runner + `tsx`, no extra tooling):
+
+```bash
+npm test              # run the suite
+npm run test:coverage # with v8 coverage
+```
+
+Unit tests cover the container, config, view, exceptions, and validation; an
+integration suite drives the HTTP kernel end-to-end (routing, request/response
+helpers, error rendering, middleware, validation). Coverage sits at **~99%
+lines / ~91% branches**.
+
 ## Requirements
 
 - Node.js **≥ 22**
@@ -189,6 +203,8 @@ config, and the console. On deck:
 - [x] Error & exception handling — **v0.5.0**
 - [x] Request/response + container helpers — **v0.6.0–v0.9.0**
 - [x] Validation (Zod-compatible) — **v0.10.0**
+- [x] First-class routing (groups, resources, named routes) — **v0.11.0**
+- [x] Test suite (~99% coverage)
 - [ ] ORM / query builder + migrations (wrapping Drizzle)
 - [ ] Queues (BullMQ), events, and mail
 - [ ] Publish `src/core` as the `@keel/core` package
