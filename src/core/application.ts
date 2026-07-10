@@ -1,34 +1,42 @@
 /**
  * The Application is the container plus a lifecycle: it loads env + config,
  * registers service providers, then boots them. This is Keel's kernel.
+ *
+ * The core is platform-neutral: Node built-ins (fs/path/url) and dotenv are
+ * imported dynamically and only when filesystem discovery is enabled, so the
+ * same Application runs under Node and on Cloudflare Workers. On Workers, call
+ * `boot(providers, { discoverConfig: false, config })` and pass config inline.
  */
 
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { config as loadDotenv } from "dotenv";
-
 import { Container } from "./container.js";
-import { Config } from "./config.js";
+import { Config, type ConfigData } from "./config.js";
 import { Router } from "./http/router.js";
+import { View } from "./view.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
+
+export interface BootOptions {
+  /** Auto-load .env and config/*.ts from the filesystem. Default: true (Node). */
+  discoverConfig?: boolean;
+  /** Config to merge in directly — the way to configure on Workers. */
+  config?: ConfigData;
+}
 
 export class Application extends Container {
   private providers: ServiceProvider[] = [];
   private booted = false;
 
-  constructor(public readonly basePath: string) {
+  constructor(public readonly basePath: string = ".") {
     super();
-    loadDotenv({ path: join(basePath, ".env") });
 
-    // Core framework bindings.
+    // Core framework bindings (all platform-neutral).
     this.instance(Application, this);
     this.singleton(Config, () => new Config());
     this.singleton(Router, (app) => new Router(app));
+    this.singleton(View, () => new View());
   }
 
   path(...segments: string[]): string {
-    return join(this.basePath, ...segments);
+    return [this.basePath, ...segments].join("/");
   }
 
   config(): Config {
@@ -39,22 +47,52 @@ export class Application extends Container {
     return this.make(Router);
   }
 
-  /** Load every /config/*.ts file under its filename key. */
-  private async loadConfig(): Promise<void> {
-    const dir = this.path("config");
-    const repo = this.make(Config);
-    let files: string[];
-    try {
-      files = await readdir(dir);
-    } catch {
-      return; // no config dir yet — fine
-    }
+  view(): View {
+    return this.make(View);
+  }
 
-    for (const file of files) {
-      if (!/\.(ts|js|mjs)$/.test(file)) continue;
-      const key = file.replace(/\.(ts|js|mjs)$/, "");
-      const mod = await import(pathToFileURL(join(dir, file)).href);
-      repo.set(key, mod.default ?? mod);
+  /** Merge a config object into the repository under its top-level keys. */
+  private mergeConfig(data: ConfigData): void {
+    const repo = this.make(Config);
+    for (const [key, value] of Object.entries(data)) {
+      repo.set(key, value);
+    }
+  }
+
+  /** Load .env via dotenv (Node only; no-op elsewhere). */
+  private async loadEnv(): Promise<void> {
+    try {
+      const [{ config }, { join }] = await Promise.all([
+        import("dotenv"),
+        import("node:path"),
+      ]);
+      config({ path: join(this.basePath, ".env") });
+    } catch {
+      // Not on Node / no dotenv — fine.
+    }
+  }
+
+  /** Load every /config/*.ts file under its filename key (Node only). */
+  private async loadConfig(): Promise<void> {
+    try {
+      const [{ readdir }, { join }, { pathToFileURL }] = await Promise.all([
+        import("node:fs/promises"),
+        import("node:path"),
+        import("node:url"),
+      ]);
+
+      const dir = this.path("config");
+      const repo = this.make(Config);
+      const files = await readdir(dir);
+
+      for (const file of files) {
+        if (!/\.(ts|js|mjs)$/.test(file)) continue;
+        const key = file.replace(/\.(ts|js|mjs)$/, "");
+        const mod = await import(pathToFileURL(join(dir, file)).href);
+        repo.set(key, mod.default ?? mod);
+      }
+    } catch {
+      // No config dir or not on Node — fine.
     }
   }
 
@@ -66,10 +104,21 @@ export class Application extends Container {
   }
 
   /** Load config, register providers, then boot them. */
-  async boot(providers: ProviderClass[] = []): Promise<this> {
+  async boot(
+    providers: ProviderClass[] = [],
+    options: BootOptions = {},
+  ): Promise<this> {
     if (this.booted) return this;
 
-    await this.loadConfig();
+    const { discoverConfig = true, config } = options;
+
+    if (discoverConfig) {
+      await this.loadEnv();
+      await this.loadConfig();
+    }
+    if (config) {
+      this.mergeConfig(config);
+    }
 
     for (const Provider of providers) {
       this.register(Provider);

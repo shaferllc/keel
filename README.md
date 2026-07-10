@@ -143,6 +143,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Service Providers](./docs/providers.md) | The register/boot lifecycle |
 | [Configuration](./docs/configuration.md) | `config/*.ts`, dot-notation, `env()` |
 | [Routing](./docs/routing.md) | Closures, controller tuples, parameters |
+| [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
@@ -157,9 +158,10 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 Keel's first release is the **MVP core**: container, routing, middleware,
 config, and the console. On deck:
 
+- [x] View / templating layer (Hono JSX) — **v0.2.0**
+- [x] Cloudflare Workers–safe core — **v0.2.0**
 - [ ] ORM / query builder + migrations (wrapping Drizzle)
 - [ ] Validation (Zod)
-- [ ] View / templating layer
 - [ ] Queues (BullMQ), events, and mail
 - [ ] Publish `src/core` as the `@keel/core` package
 

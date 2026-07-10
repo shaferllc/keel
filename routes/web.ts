@@ -8,6 +8,8 @@ import { HomeController } from "../app/Controllers/HomeController.js";
 export default function routes(router: Router): void {
   router.get("/", [HomeController, "index"]);
 
+  router.get("/welcome", [HomeController, "welcome"]);
+
   router.get("/users/:id", [HomeController, "show"]);
 
   router.get("/ping", (c: Ctx) => c.json({ pong: true }));

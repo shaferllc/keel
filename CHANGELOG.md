@@ -4,6 +4,29 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-07-10
+
+Views, and a core that runs on the edge.
+
+### Added
+
+- **View layer** — a `View` service that renders [Hono JSX](https://hono.dev)
+  components to HTML. Views live in `resources/views/`; layouts are just
+  components. Platform-neutral, so the same views run on Node and Cloudflare
+  Workers. See [docs/views.md](./docs/views.md).
+- **`keel/core` package export** — the framework core is now installable by
+  other apps (`import { Application } from "keel/core"`). Only `src/core` ships
+  in the published package.
+
+### Changed
+
+- **Workers-safe core** — `Application` no longer statically imports Node
+  built-ins or dotenv; they're loaded dynamically only when filesystem config
+  discovery runs. `boot(providers, { discoverConfig: false, config })` lets you
+  configure inline on runtimes without a filesystem (e.g. Cloudflare Workers).
+
+[0.2.0]: https://github.com/shaferllc/keel/releases/tag/v0.2.0
+
 ## [0.1.0] — 2026-07-10
 
 The first release: the **MVP core**. Enough of a framework to build and serve a
