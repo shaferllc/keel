@@ -14,6 +14,8 @@ export default function routes(router: Router): void {
 
   router.get("/users/:id", [HomeController, "show"]);
 
+  router.post("/users", [HomeController, "store"]);
+
   router.get("/missing", [HomeController, "missing"]);
 
   router.get("/boom", [HomeController, "boom"]);

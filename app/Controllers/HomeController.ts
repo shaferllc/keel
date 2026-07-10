@@ -1,6 +1,12 @@
 import type { Ctx } from "@keel/core";
-import { config, view, json, param, make, NotFoundException } from "@keel/core";
+import { config, view, json, param, make, validate, NotFoundException } from "@keel/core";
+import { z } from "zod";
 import { WelcomePage } from "../../resources/views/welcome.js";
+
+const NewUser = z.object({
+  email: z.string().email(),
+  age: z.number().min(18),
+});
 
 export class HomeController {
   index(c: Ctx) {
@@ -25,6 +31,12 @@ export class HomeController {
   // make() resolves the "clock" binding registered in AppServiceProvider.
   clock() {
     return json({ now: make<string>("clock") });
+  }
+
+  // validate() parses the JSON body; invalid input -> automatic 422.
+  async store() {
+    const data = await validate(NewUser); // { email: string; age: number }
+    return json({ created: data.email, age: data.age }, 201);
   }
 
   /** Throws a semantic 404. */

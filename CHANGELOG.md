@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — 2026-07-10
+
+### Added
+
+- **Request validation.** `validate(schema, data?)` parses input (the JSON body
+  by default) and returns typed data, or throws a `ValidationException` that the
+  kernel renders as a 422 with per-field `errors`. Schema-agnostic — works with
+  any Zod-style `safeParse` schema, so the framework doesn't bundle a validation
+  library. See [docs/validation.md](./docs/validation.md).
+
+[0.10.0]: https://github.com/shaferllc/keel/releases/tag/v0.10.0
+
 ## [0.9.0] — 2026-07-10
 
 ### Added
