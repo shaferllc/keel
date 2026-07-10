@@ -35,6 +35,8 @@ export type { RateLimiterOptions } from "./rate-limit.js";
 export { db, setConnection, QueryBuilder } from "./database.js";
 export type { Connection, WriteResult, Row, Dialect, Operator } from "./database.js";
 export { Model } from "./model.js";
+export { SchemaBuilder, Migrator, TableBuilder, Column } from "./migrations.js";
+export type { Migration } from "./migrations.js";
 export {
   ctx,
   json,

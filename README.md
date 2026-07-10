@@ -174,6 +174,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
 | [Models](./docs/models.md) | Active-record: find, create, save, delete |
+| [Migrations](./docs/migrations.md) | Schema builder + migrator, dialect-aware |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
 | [Logger](./docs/logger.md) | Leveled structured logging, child loggers |
@@ -224,7 +225,8 @@ config, and the console. On deck:
 - [x] Test suite (~99% coverage)
 - [x] Query builder (driver-agnostic) — **v0.28.0**
 - [x] Active-record Model layer — **v0.29.0**
-- [ ] Migrations + relationships
+- [x] Migrations (schema builder) — **v0.30.0**
+- [ ] Model relationships (hasMany / belongsTo)
 - [ ] Queues (BullMQ), events, and mail
 - [ ] Publish `src/core` as the `@keel/core` package
 

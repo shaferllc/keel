@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] — 2026-07-10
+
+### Added
+
+- **Migrations.** A fluent schema builder (`schema.createTable(name, t => { t.id();
+  t.string("email").unique(); t.timestamps(); })`) and a `Migrator` that runs
+  `{ name, up, down }` migrations against your connection, tracking applied ones
+  in a `migrations` table (`up`/`down`/`ran`, batched). Dialect-aware SQL
+  (sqlite/mysql/postgres). See [docs/migrations.md](./docs/migrations.md).
+
+[0.30.0]: https://github.com/shaferllc/keel/releases/tag/v0.30.0
+
 ## [0.29.0] — 2026-07-10
 
 ### Added
