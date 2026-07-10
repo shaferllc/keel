@@ -187,6 +187,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Inertia](./docs/inertia.md) | Server-side Inertia.js adapter |
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
+| [Built on Hono](./docs/hono.md) | The Hono layer underneath, and using it directly |
 
 ## Testing
 
