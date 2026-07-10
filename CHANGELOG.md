@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] — 2026-07-10
+
+### Added
+
+- **Cache.** A memory-backed cache with TTLs and the `remember` pattern:
+  `cache().get/put/has/forget/pull/flush`, `cache().remember(key, ttl, fn)`, and
+  `rememberForever`. Pluggable via the `CacheStore` interface (swap in Redis/KV).
+  See [docs/cache.md](./docs/cache.md).
+
+[0.17.0]: https://github.com/shaferllc/keel/releases/tag/v0.17.0
+
 ## [0.16.0] — 2026-07-10
 
 ### Added

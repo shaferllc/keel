@@ -13,6 +13,7 @@ import { Config, type ConfigData } from "./config.js";
 import { Router } from "./http/router.js";
 import { View } from "./view.js";
 import { Events } from "./events.js";
+import { Cache } from "./cache.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
 import { setApplication } from "./helpers.js";
 
@@ -39,6 +40,7 @@ export class Application extends Container {
     this.singleton(Router, (app) => new Router(app));
     this.singleton(View, () => new View());
     this.singleton(Events, () => new Events());
+    this.singleton(Cache, () => new Cache());
   }
 
   path(...segments: string[]): string {

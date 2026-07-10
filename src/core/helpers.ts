@@ -13,6 +13,7 @@ import type { Token, Factory } from "./container.js";
 import { Config } from "./config.js";
 import { View, type Renderable } from "./view.js";
 import { Events, type Listener } from "./events.js";
+import { Cache } from "./cache.js";
 
 let current: Application | undefined;
 
@@ -82,6 +83,11 @@ export function emit<T = unknown>(event: string, payload?: T): Promise<void> {
 /** Subscribe to an event; returns an unsubscribe function. */
 export function listen<T = unknown>(event: string, listener: Listener<T>): () => void {
   return events().on(event, listener);
+}
+
+/** The application's cache. */
+export function cache(): Cache {
+  return app().make(Cache);
 }
 
 /**
