@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-07-10
+
+### Added
+
+- **Global `config()` and `app()` helpers.** Read configuration from anywhere
+  with `config("app.name")` / `config("app.port", 3000)` — no need to resolve
+  the container by hand. `app()` returns the active application. Both resolve
+  against the application registered automatically on construction, the same way
+  Laravel's global helpers work.
+
+[0.3.0]: https://github.com/shaferllc/keel/releases/tag/v0.3.0
+
 ## [0.2.0] — 2026-07-10
 
 Views, and a core that runs on the edge.

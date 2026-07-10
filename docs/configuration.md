@@ -57,7 +57,30 @@ auto-loaded at boot. No registration needed.
 
 ## Reading config
 
-Resolve the `Config` repository and read with dot notation:
+The quickest way is the global `config()` helper — no container needed:
+
+```ts
+import { config } from "@keel/core";
+
+config("app.name");          // "Keel"
+config("app.port", 3000);    // with a fallback
+config("services.stripe.key"); // nested access
+```
+
+It resolves against the active application (registered automatically when the
+`Application` is created), the same way Laravel's `config()` helper works. There
+is a matching `app()` helper that returns the container:
+
+```ts
+import { app } from "@keel/core";
+
+app().make(SomeService);
+```
+
+### The long form
+
+Under the hood, `config()` is sugar for resolving the `Config` repository and
+reading with dot notation. You can still do that explicitly:
 
 ```ts
 import { Config } from "@keel/core";

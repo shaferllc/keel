@@ -13,6 +13,7 @@ import { Config, type ConfigData } from "./config.js";
 import { Router } from "./http/router.js";
 import { View } from "./view.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
+import { setApplication } from "./helpers.js";
 
 export interface BootOptions {
   /** Auto-load .env and config/*.ts from the filesystem. Default: true (Node). */
@@ -27,6 +28,9 @@ export class Application extends Container {
 
   constructor(public readonly basePath: string = ".") {
     super();
+
+    // Make this the active application for global helpers (config(), app()).
+    setApplication(this);
 
     // Core framework bindings (all platform-neutral).
     this.instance(Application, this);

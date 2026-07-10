@@ -5,6 +5,7 @@ export type { Token, Constructor, Factory } from "./container.js";
 export { Application } from "./application.js";
 export type { BootOptions } from "./application.js";
 export { Config, env } from "./config.js";
+export { app, config } from "./helpers.js";
 export type { ConfigData } from "./config.js";
 export { View } from "./view.js";
 export type { Renderable, ViewConfig } from "./view.js";
