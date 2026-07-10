@@ -80,7 +80,9 @@ export async function run(argv: string[]): Promise<void> {
       for (const r of rows) {
         const handler = Array.isArray(r.handler)
           ? `${r.handler[0].name}@${r.handler[1]}`
-          : "Closure";
+          : r.handler instanceof Response
+            ? "Static"
+            : "Closure";
         console.log(`${r.method.padEnd(6)} ${r.path.padEnd(24)} ${handler}`);
       }
     });

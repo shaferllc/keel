@@ -20,23 +20,98 @@ export function ctx(): Context {
   return getContext();
 }
 
+/** The context if there is one, else undefined — never throws. */
+function maybeCtx(): Context | undefined {
+  try {
+    return getContext();
+  } catch {
+    return undefined;
+  }
+}
+
 /* ------------------------------ responses ------------------------------ */
+/* These work inside a handler AND standalone (e.g. as a static route value).
+ * Inside a request they build on the context (merging any headers); outside a
+ * request they return a plain Response, so `router.get("/ping", json({...}))`
+ * works — the router clones it per request. */
 
 export function json(data: unknown, status?: number): Response {
-  return ctx().json(data as never, status as never);
+  const c = maybeCtx();
+  return c
+    ? c.json(data as never, status as never)
+    : Response.json(data, status ? { status } : undefined);
 }
 
 export function text(body: string, status?: number): Response {
-  return ctx().text(body, status as never);
+  const c = maybeCtx();
+  return c
+    ? c.text(body, status as never)
+    : new Response(body, {
+        status,
+        headers: { "content-type": "text/plain; charset=UTF-8" },
+      });
 }
 
 export function html(body: string, status?: number): Response {
-  return ctx().html(body, status as never);
+  const c = maybeCtx();
+  return c
+    ? c.html(body, status as never)
+    : new Response(body, {
+        status,
+        headers: { "content-type": "text/html; charset=UTF-8" },
+      });
 }
 
 export function redirect(location: string, status?: number): Response {
-  return ctx().redirect(location, status as never);
+  const c = maybeCtx();
+  return c
+    ? c.redirect(location, status as never)
+    : new Response(null, { status: status ?? 302, headers: { location } });
 }
+
+/* ---------------------------- response access -------------------------- */
+
+/**
+ * The response, as a flat accessor mirroring `request`:
+ *
+ *   response.json({ ok: true });
+ *   response.text("hello");   response.html("<h1>Hi</h1>");
+ *   response.redirect("/login");
+ *   response.status(201).json(created);   // chainable
+ */
+interface ResponseHelper {
+  json(data: unknown, status?: number): Response;
+  text(body: string, status?: number): Response;
+  html(body: string, status?: number): Response;
+  redirect(location: string, status?: number): Response;
+  /** Set the response status (chainable). */
+  status(code: number): ResponseHelper;
+  /** Set a response header (chainable). */
+  header(name: string, value: string): ResponseHelper;
+}
+
+export const response: ResponseHelper = {
+  json(data, status) {
+    return json(data, status);
+  },
+  text(body, status) {
+    return text(body, status);
+  },
+  html(body, status) {
+    return html(body, status);
+  },
+  redirect(location, status) {
+    return redirect(location, status);
+  },
+  status(code) {
+    ctx().status(code as never);
+    return response;
+  },
+  header(name, value) {
+    ctx().header(name, value);
+    return response;
+  },
+};
 
 /* ---------------------------- request access --------------------------- */
 

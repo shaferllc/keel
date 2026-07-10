@@ -14,7 +14,11 @@ export type Ctx = HonoContext;
 
 export type HandlerFn = (c: Ctx) => Response | Promise<Response> | string | Promise<string>;
 export type ControllerAction = [Constructor, string];
-export type RouteHandler = HandlerFn | ControllerAction;
+/**
+ * A route handler: a function, a [Controller, method] tuple, or a ready-made
+ * Response for static routes — `router.get("/health", json({ ok: true }))`.
+ */
+export type RouteHandler = HandlerFn | ControllerAction | Response;
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
 
@@ -56,6 +60,12 @@ export class Router {
 
   /** Turn a route handler into an executable function, resolving controllers. */
   resolve(handler: RouteHandler): HandlerFn {
+    // A static Response (e.g. `json({ ok: true })`): clone it per request so
+    // its body isn't consumed after the first response.
+    if (handler instanceof Response) {
+      const res = handler;
+      return () => res.clone();
+    }
     if (Array.isArray(handler)) {
       const [ControllerClass, method] = handler;
       return (c: Ctx) => {

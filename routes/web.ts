@@ -20,7 +20,9 @@ export default function routes(router: Router): void {
 
   router.get("/clock", [HomeController, "clock"]);
 
-  router.get("/ping", () => json({ pong: true }));
+  // Static response — no closure needed.
+  router.get("/ping", json({ pong: true }));
 
+  // Dynamic — a closure, so param() runs per request.
   router.get("/hello/:name", () => text(`Hello, ${param("name")}!`));
 }

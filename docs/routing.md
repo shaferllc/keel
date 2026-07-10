@@ -4,12 +4,14 @@ Routes live in `routes/web.ts`. The default export receives the `Router` and
 registers routes on it. The HTTP kernel later compiles them onto Hono.
 
 ```ts
-import type { Router, Ctx } from "@keel/core";
+import type { Router } from "@keel/core";
+import { json, text, param } from "@keel/core";
 import { HomeController } from "../app/Controllers/HomeController.js";
 
 export default function routes(router: Router): void {
-  router.get("/", [HomeController, "index"]);
-  router.get("/ping", (c) => c.json({ pong: true }));
+  router.get("/", [HomeController, "index"]);          // controller
+  router.get("/health", json({ status: "ok" }));        // static response
+  router.get("/hi/:name", () => text(`Hi ${param("name")}`)); // dynamic
 }
 ```
 
@@ -25,108 +27,78 @@ router.delete(path, handler);
 
 Each returns the router, so calls chain.
 
-## Two kinds of handler
+## Three kinds of handler
 
-**Closures** — inline functions that receive the request context:
-
-```ts
-router.get("/health", (c) => c.json({ status: "ok" }));
-```
-
-**Controller actions** — a `[Controller, method]` tuple. Keel resolves the
-controller out of the [container](./container.md), so it gets dependency
-injection:
+**Controller actions** — a `[Controller, method]` tuple, resolved from the
+[container](./container.md) with dependency injection:
 
 ```ts
 router.get("/users/:id", [UserController, "show"]);
 ```
 
-## Route parameters
-
-Parameters use Hono's `:name` syntax and are read from the context:
+**Static responses** — pass a ready-made response directly, no closure:
 
 ```ts
-router.get("/users/:id", (c) => c.json({ id: c.req.param("id") }));
-router.get("/posts/:year/:slug", (c) => {
-  const { year, slug } = c.req.param();
-  return c.json({ year, slug });
-});
+router.get("/health", json({ status: "ok" }));
+router.get("/robots.txt", text("User-agent: *\nAllow: /"));
 ```
 
-## The context (`Ctx`)
-
-`Ctx` is Hono's request/response context. Common helpers:
+**Closures** — a function that runs per request. Use this whenever the response
+depends on the request (route params, query, body), because those must be read
+at request time:
 
 ```ts
-c.req.param("id");            // route parameter
-c.req.query("q");             // query string
-c.req.header("authorization");
-await c.req.json();           // parse a JSON body
+router.get("/users/:id", () => json({ id: param("id") }));
+```
 
-c.json({ ok: true });         // JSON response
-c.text("hello");              // plain text
-c.html("<h1>Hi</h1>");        // HTML
-c.redirect("/login");         // redirect
-c.status(201);                // set status
+> Rule of thumb: response is the same every time → pass it directly. Response
+> depends on the request → wrap it in `() =>`.
+
+## Reading the request
+
+The `request` accessor (or the standalone shortcuts) read the current request —
+no `c` needed:
+
+```ts
+request.param("id");            // route parameter
+request.query("q");             // query string
+request.header("authorization");
+await request.json();           // parse a JSON body
+
+// standalone equivalents
+param("id");   query("q");   header("authorization");   await body();
+```
+
+`request` also exposes `request.method`, `request.path`, `request.url`,
+`request.status`, and `request.raw` (the underlying web `Request`).
+
+## Writing the response
+
+Build responses with the standalone helpers or the `response` accessor — they're
+the same thing:
+
+```ts
+json({ ok: true });                    // JSON response
+text("hello");                          // plain text
+html("<h1>Hi</h1>");                    // HTML
+redirect("/login");                     // redirect
+
+response.json({ ok: true });
+response.status(201).json(created);     // set status, chainable
+response.header("x-total", "42").json(rows);
 ```
 
 Returning a **string** from a handler is shorthand — Keel wraps it as HTML.
 
-Full context API: [hono.dev/docs/api/context](https://hono.dev/docs/api/context).
+## The full helper set
 
-## Request & response helpers
+| Read (`request.*` or standalone) | Write (`response.*` or standalone) |
+|----------------------------------|------------------------------------|
+| `param(name)` · `query(name)` · `header(name)` | `json(data, status?)` · `text()` · `html()` |
+| `body<T>()` (parse JSON body) | `redirect(location, status?)` |
+| `request.method` · `.path` · `.status` · `.raw` | `response.status(code)` · `response.header(k, v)` |
 
-You don't have to thread the context (`c`) through everything. Global request
-helpers reach the current request for you, so handlers stay terse:
-
-```ts
-import { json, text, param, query, body, redirect } from "@keel/core";
-
-// instead of:  show(c: Ctx) { return c.json({ id: c.req.param("id") }); }
-show() {
-  return json({ id: param("id") });
-}
-
-async store() {
-  const data = await body<{ email: string }>();
-  return json({ created: data.email }, 201);
-}
-
-search() {
-  return text(`Searching for ${query("q")}`);
-}
-```
-
-| Helper | Returns |
-|--------|---------|
-| `json(data, status?)` | JSON `Response` |
-| `text(body, status?)` / `html(body, status?)` | text / HTML `Response` |
-| `redirect(location, status?)` | redirect `Response` |
-| `param(name)` / `param()` | one route param / all of them |
-| `query(name)` / `query()` | one query value / all of them |
-| `header(name)` | a request header |
-| `body<T>()` | the parsed JSON body (async) |
-| `request` | a flat accessor (see below) |
-| `ctx()` | the raw Hono context |
-
-### The `request` accessor
-
-`request` reads the current request/response as flat properties — handy in
-middleware and logging:
-
-```ts
-`${request.method} ${request.path} → ${request.status} (${ms}ms)`;
-
-request.header("authorization");
-request.param("id");
-await request.json();
-request.raw; // the underlying web Request
-```
-
-`request.status` is the response status, so it's populated after `await next()`
-in middleware.
-
-These are all powered by async-context storage that the HTTP kernel enables for
+All of these are powered by async-context storage the HTTP kernel enables for
 every request, so they only work inside a request. You can always still take `c`
 explicitly — both styles work.
 
@@ -138,8 +110,8 @@ npm run keel routes
 
 ```
 GET    /                        HomeController@index
-GET    /users/:id               HomeController@show
-GET    /ping                    Closure
+GET    /health                  Static
+GET    /users/:id               Closure
 ```
 
 ## Adding more route files

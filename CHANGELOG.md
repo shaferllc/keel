@@ -4,6 +4,26 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-07-10
+
+### Added
+
+- **Static response routes.** Pass a ready-made response as a handler, no
+  closure: `router.get("/health", json({ status: "ok" }))`. The router clones
+  the response per request. (Dynamic responses that read the request still use a
+  closure, since `param()` etc. run per request.)
+- **`response` accessor.** Mirrors `request`: `response.json()`, `response.text()`,
+  `response.html()`, `response.redirect()`, plus chainable `response.status(code)`
+  and `response.header(name, value)`.
+
+### Changed
+
+- `json()`, `text()`, `html()`, and `redirect()` now work outside a request too
+  (returning a plain `Response`), which is what makes static-response routes
+  possible. Inside a handler they still build on the context.
+
+[0.9.0]: https://github.com/shaferllc/keel/releases/tag/v0.9.0
+
 ## [0.8.0] — 2026-07-10
 
 ### Added

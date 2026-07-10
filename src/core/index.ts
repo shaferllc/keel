@@ -26,6 +26,7 @@ export {
   header,
   body,
   request,
+  response,
 } from "./request.js";
 export type { ConfigData } from "./config.js";
 export { View } from "./view.js";
