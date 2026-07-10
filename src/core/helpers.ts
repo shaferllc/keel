@@ -9,6 +9,7 @@
  */
 
 import type { Application } from "./application.js";
+import type { Token, Factory } from "./container.js";
 import { Config } from "./config.js";
 import { View, type Renderable } from "./view.js";
 
@@ -35,6 +36,34 @@ export function app(): Application {
  */
 export function config<T = unknown>(key: string, fallback?: T): T {
   return app().make(Config).get<T>(key, fallback);
+}
+
+/* --------------------------- container helpers --------------------------- */
+/* Bind and resolve against the active application from anywhere — no `this.app`. */
+
+/** Register a transient binding — a fresh value every resolve. */
+export function bind<T>(token: Token<T>, factory: Factory<T>): void {
+  app().bind(token, factory);
+}
+
+/** Register a shared binding — resolved once, then cached. */
+export function singleton<T>(token: Token<T>, factory: Factory<T>): void {
+  app().singleton(token, factory);
+}
+
+/** Register an already-constructed value as a shared instance. */
+export function instance<T>(token: Token<T>, value: T): T {
+  return app().instance(token, value);
+}
+
+/** Resolve a token out of the container. */
+export function make<T>(token: Token<T>): T {
+  return app().make(token);
+}
+
+/** Whether a token is bound or has a cached instance. */
+export function bound(token: Token): boolean {
+  return app().bound(token);
 }
 
 /**

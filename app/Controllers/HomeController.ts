@@ -1,5 +1,5 @@
 import type { Ctx } from "@keel/core";
-import { config, view, json, param, NotFoundException } from "@keel/core";
+import { config, view, json, param, make, NotFoundException } from "@keel/core";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
 export class HomeController {
@@ -20,6 +20,11 @@ export class HomeController {
   // No `c` needed — the request helpers reach it for you.
   show() {
     return json({ id: param("id") });
+  }
+
+  // make() resolves the "clock" binding registered in AppServiceProvider.
+  clock() {
+    return json({ now: make<string>("clock") });
   }
 
   /** Throws a semantic 404. */

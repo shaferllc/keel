@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-07-10
+
+### Added
+
+- **Global container helpers.** `bind()`, `singleton()`, `instance()`,
+  `make()`, and `bound()` operate on the active application, so you can register
+  and resolve services from anywhere without `this.app` — e.g. `bind("clock",
+  () => new Date())` and `make("clock")`. The `this.app.*` methods still work.
+
+With this, Keel's whole surface is reachable as flat, easy-to-remember helpers:
+`config` · `view` · `json`/`text`/`html`/`redirect` · `param`/`query`/`body` ·
+`bind`/`singleton`/`instance`/`make` · `app`.
+
+[0.7.0]: https://github.com/shaferllc/keel/releases/tag/v0.7.0
+
 ## [0.6.0] — 2026-07-10
 
 ### Added

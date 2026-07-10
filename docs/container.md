@@ -34,13 +34,32 @@ export class AppServiceProvider extends ServiceProvider {
 }
 ```
 
-## Resolving
+## The short way: global helpers
 
-Use `make()` (or its alias `get()`) to pull something out:
+You don't need `this.app` at all. The same operations exist as global helpers
+that resolve against the active application — bind and resolve from anywhere:
 
 ```ts
-const mailer = this.app.make(Mailer);
-const version = this.app.make<string>("version");
+import { bind, singleton, instance, make, bound } from "@keel/core";
+
+bind("clock", () => new Date());              // transient
+singleton(Mailer, (app) => new Mailer(app));   // shared
+instance("version", "0.6.0");                  // pre-built value
+
+const mailer = make(Mailer);
+const version = make<string>("version");
+if (bound("clock")) { /* … */ }
+```
+
+Both styles work everywhere; the helpers are just less to type.
+
+## Resolving
+
+Use `make()` (or `this.app.make()`) to pull something out:
+
+```ts
+const mailer = make(Mailer);
+const version = make<string>("version");
 ```
 
 If a token is bound, its factory runs (once, for singletons). If you pass an

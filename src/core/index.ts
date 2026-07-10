@@ -5,7 +5,16 @@ export type { Token, Constructor, Factory } from "./container.js";
 export { Application } from "./application.js";
 export type { BootOptions } from "./application.js";
 export { Config, env } from "./config.js";
-export { app, config, view } from "./helpers.js";
+export {
+  app,
+  config,
+  view,
+  bind,
+  singleton,
+  instance,
+  make,
+  bound,
+} from "./helpers.js";
 export {
   ctx,
   json,
