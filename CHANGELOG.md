@@ -4,6 +4,28 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] — 2026-07-10
+
+### Added
+
+- **First-class routing.** The router gained a fluent, AdonisJS-inspired API:
+  - **Named routes** + `router.url(name, params)` for URL generation.
+  - **Route groups** — `router.group(cb).prefix().middleware().as()`.
+  - **Resource routes** — `router.resource(name, Controller)` with
+    `.only()`/`.except()`/`.apiOnly()`.
+  - **Per-route middleware** — `route.middleware([...])`.
+  - **Param constraints** — `route.where("id", /\d+/)`.
+  - **`router.on(path).redirect(to)` / `.render(Component)`** convenience routes.
+  - **`router.any()`** and **`router.route(methods, path, handler)`**.
+  - `keel routes` now lists verbs and route names.
+
+### Changed
+
+- `RouteDefinition.method` → `methods: Method[]` (routes can match multiple
+  verbs); route defs also carry `name`, `middleware`, and `wheres`.
+
+[0.11.0]: https://github.com/shaferllc/keel/releases/tag/v0.11.0
+
 ## [0.10.0] — 2026-07-10
 
 ### Added

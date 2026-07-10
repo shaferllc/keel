@@ -33,8 +33,8 @@ export { View } from "./view.js";
 export type { Renderable, ViewConfig } from "./view.js";
 export { ServiceProvider } from "./provider.js";
 export type { ProviderClass } from "./provider.js";
-export { Router } from "./http/router.js";
-export type { Ctx, RouteHandler, RouteDefinition } from "./http/router.js";
+export { Router, Route, RouteGroup, RouteResource } from "./http/router.js";
+export type { Ctx, RouteHandler, RouteDefinition, Method } from "./http/router.js";
 export { HttpKernel } from "./http/kernel.js";
 export {
   HttpException,

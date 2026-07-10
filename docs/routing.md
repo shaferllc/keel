@@ -102,6 +102,85 @@ All of these are powered by async-context storage the HTTP kernel enables for
 every request, so they only work inside a request. You can always still take `c`
 explicitly — both styles work.
 
+## Named routes & URL generation
+
+Name a route, then build its URL by name — no hardcoded paths:
+
+```ts
+router.get("/users/:id", [UserController, "show"]).name("users.show");
+
+router.url("users.show", { id: 42 }); // "/users/42"
+```
+
+## Route groups
+
+Share a prefix, middleware, and/or name prefix across many routes:
+
+```ts
+router
+  .group(() => {
+    router.get("/status", json({ up: true })).name("status");
+    router.get("/me", [MeController, "show"]).name("me");
+  })
+  .prefix("/api")        // -> /api/status, /api/me
+  .middleware([auth])    // runs before each route in the group
+  .as("api");            // -> names "api.status", "api.me"
+```
+
+Groups nest — inner prefixes and middleware compose with the outer group's.
+
+## Resource routes
+
+Generate RESTful routes for a controller in one line:
+
+```ts
+router.resource("posts", PostController);
+```
+
+| Verb | Path | Action |
+|------|------|--------|
+| GET | `/posts` | `index` |
+| GET | `/posts/create` | `create` |
+| POST | `/posts` | `store` |
+| GET | `/posts/:id` | `show` |
+| GET | `/posts/:id/edit` | `edit` |
+| PUT/PATCH | `/posts/:id` | `update` |
+| DELETE | `/posts/:id` | `destroy` |
+
+Trim the set with `.only([...])`, `.except([...])`, or `.apiOnly()` (drops the
+HTML-form `create`/`edit` actions).
+
+## Param constraints
+
+Constrain a parameter with a regular expression — non-matching requests fall
+through to a 404:
+
+```ts
+router.get("/users/:id", [UserController, "show"]).where("id", /\d+/);
+```
+
+## Per-route middleware
+
+```ts
+router.get("/dashboard", [DashboardController, "index"]).middleware([auth]);
+```
+
+## Redirects & views
+
+`on()` is a shortcut for routes with no controller:
+
+```ts
+router.on("/old").redirect("/new");        // 302 redirect
+router.on("/about").render(AboutPage);      // render a view directly
+```
+
+## More verbs
+
+```ts
+router.any("/webhook", [HookController, "handle"]);      // every verb
+router.route(["GET", "POST"], "/search", handler);        // a specific set
+```
+
 ## Inspecting routes
 
 ```bash

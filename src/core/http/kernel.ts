@@ -65,14 +65,14 @@ export class HttpKernel {
         return typeof result === "string" ? c.html(result) : result;
       };
 
-      switch (route.method) {
-        case "GET": hono.get(route.path, honoHandler); break;
-        case "POST": hono.post(route.path, honoHandler); break;
-        case "PUT": hono.put(route.path, honoHandler); break;
-        case "PATCH": hono.patch(route.path, honoHandler); break;
-        case "DELETE": hono.delete(route.path, honoHandler); break;
-        case "OPTIONS": hono.options(route.path, honoHandler); break;
+      // Compile param constraints into Hono's regex-param syntax (:id{\d+}).
+      let path = route.path;
+      for (const [param, rgx] of Object.entries(route.wheres)) {
+        path = path.replace(new RegExp(`:${param}(\\??)`), `:${param}{${rgx}}$1`);
       }
+
+      // hono.on(methods, path, ...middleware, handler) — middleware runs first.
+      hono.on(route.methods, [path], ...route.middleware, honoHandler);
     }
 
     // Unmatched routes and thrown errors both flow through the handler.

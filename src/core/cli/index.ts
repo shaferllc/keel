@@ -83,7 +83,9 @@ export async function run(argv: string[]): Promise<void> {
           : r.handler instanceof Response
             ? "Static"
             : "Closure";
-        console.log(`${r.method.padEnd(6)} ${r.path.padEnd(24)} ${handler}`);
+        const verbs = r.methods.join("|");
+        const named = r.name ? `  (${r.name})` : "";
+        console.log(`${verbs.padEnd(12)} ${r.path.padEnd(24)} ${handler}${named}`);
       }
     });
 
