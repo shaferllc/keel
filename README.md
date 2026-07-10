@@ -226,7 +226,7 @@ config, and the console. On deck:
 - [x] Query builder (driver-agnostic) — **v0.28.0**
 - [x] Active-record Model layer — **v0.29.0**
 - [x] Migrations (schema builder) — **v0.30.0**
-- [ ] Model relationships (hasMany / belongsTo)
+- [x] Model relationships (hasMany / belongsTo / belongsToMany) — **v0.31.0**
 - [ ] Queues (BullMQ), events, and mail
 - [ ] Publish `src/core` as the `@keel/core` package
 

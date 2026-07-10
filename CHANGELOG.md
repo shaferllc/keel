@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.0] — 2026-07-10
+
+### Added
+
+- **Model relationships.** Define relationships as methods on your model:
+  `hasMany` / `hasOne` / `belongsTo` / `belongsToMany`, with conventional
+  foreign keys (`user_id`) you can override. Relations are awaitable
+  (`await user.posts()`), expose `.query()` to drop to the builder, and
+  `Model.load(models, "posts", "roles")` eager-loads with one `whereIn` per
+  relation (fixes N+1). `belongsToMany` reads through a pivot table and offers
+  `attach` / `detach` / `sync`. Loaded relations stay out of `save()` and
+  serialize through `toJSON()`. Runs entirely on the query builder — no JOINs,
+  edge-safe. See [docs/models.md](./docs/models.md#relationships).
+
+[0.31.0]: https://github.com/shaferllc/keel/releases/tag/v0.31.0
+
 ## [0.30.0] — 2026-07-10
 
 ### Added
