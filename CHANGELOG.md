@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] — 2026-07-10
+
+### Added
+
+- **URL builder.** `router.url(name, params, { qs })` now takes a query string.
+- **Signed URLs.** `router.signedUrl(name, params, { qs, expiresIn })` produces a
+  tamper-proof link (HMAC-SHA256 via Web Crypto, keyed by `config('app.key')`);
+  `router.hasValidSignature()` verifies the current request. Edge-safe. See
+  [docs/url-builder.md](./docs/url-builder.md).
+
+[0.21.0]: https://github.com/shaferllc/keel/releases/tag/v0.21.0
+
 ## [0.20.0] — 2026-07-10
 
 ### Added

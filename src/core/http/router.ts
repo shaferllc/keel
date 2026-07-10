@@ -8,9 +8,37 @@
 
 import type { Context as HonoContext, MiddlewareHandler } from "hono";
 import type { Container, Constructor } from "../container.js";
-import { view } from "../helpers.js";
-import { redirect as makeRedirect } from "../request.js";
+import { view, config } from "../helpers.js";
+import { redirect as makeRedirect, request } from "../request.js";
 import { inertia } from "../inertia.js";
+
+/** HMAC-SHA256 hex signature (Web Crypto — works on Node and the edge). */
+async function hmac(key: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(data));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function appKey(): string {
+  const key = config<string>("app.key", "");
+  if (!key) throw new Error("Signed URLs require config('app.key'). Set APP_KEY.");
+  return key;
+}
+
+export interface UrlOptions {
+  qs?: Record<string, string | number>;
+}
+export interface SignedUrlOptions extends UrlOptions {
+  /** Expiry in seconds from now. */
+  expiresIn?: number;
+}
 
 /** The request context handed to every route handler and middleware. */
 export type Ctx = HonoContext;
@@ -379,15 +407,62 @@ export class Router {
     return this.routes.filter((r) => r.methods.length > 0);
   }
 
-  /** Generate a URL for a named route, substituting `:params`. */
-  url(name: string, params: Record<string, string | number> = {}): string {
+  /** Generate a URL for a named route, substituting `:params` and query string. */
+  url(
+    name: string,
+    params: Record<string, string | number> = {},
+    options: UrlOptions = {},
+  ): string {
     const def = this.routes.find((r) => r.name === name);
     if (!def) throw new Error(`No route named [${name}].`);
     let path = def.path;
     for (const [k, v] of Object.entries(params)) {
       path = path.replace(new RegExp(`:${k}\\??`), encodeURIComponent(String(v)));
     }
-    return path.replace(/\/:[^/]+\?/g, "").replace(/:[^/]+/g, "");
+    path = path.replace(/\/:[^/]+\?/g, "").replace(/:[^/]+/g, "");
+    if (options.qs && Object.keys(options.qs).length) {
+      const qs = new URLSearchParams(
+        Object.fromEntries(Object.entries(options.qs).map(([k, v]) => [k, String(v)])),
+      );
+      return `${path}?${qs}`;
+    }
+    return path;
+  }
+
+  /**
+   * A tamper-proof URL for a named route, signed with `config('app.key')`.
+   * Verify the incoming request with `router.hasValidSignature()`.
+   */
+  async signedUrl(
+    name: string,
+    params: Record<string, string | number> = {},
+    options: SignedUrlOptions = {},
+  ): Promise<string> {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(options.qs ?? {})) qs.set(k, String(v));
+    if (options.expiresIn) {
+      qs.set("expires", String(Math.floor(Date.now() / 1000) + options.expiresIn));
+    }
+    let url = this.url(name, params);
+    const query = qs.toString();
+    if (query) url += `?${query}`;
+    const signature = await hmac(appKey(), url);
+    return `${url}${query ? "&" : "?"}signature=${signature}`;
+  }
+
+  /** Whether the current request carries a valid (unexpired) signature. */
+  async hasValidSignature(): Promise<boolean> {
+    const url = new URL(request.raw.url);
+    const signature = url.searchParams.get("signature");
+    if (!signature) return false;
+    url.searchParams.delete("signature");
+
+    const expires = url.searchParams.get("expires");
+    if (expires && Number(expires) < Math.floor(Date.now() / 1000)) return false;
+
+    const base = url.pathname + (url.search || "");
+    const expected = await hmac(appKey(), base);
+    return signature.length === expected.length && signature === expected;
   }
 
   /** Turn a route handler into an executable function, resolving controllers. */

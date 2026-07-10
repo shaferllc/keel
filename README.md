@@ -166,6 +166,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Service Providers](./docs/providers.md) | The register/boot lifecycle |
 | [Configuration](./docs/configuration.md) | `config/*.ts`, dot-notation, `env()` |
 | [Routing](./docs/routing.md) | Closures, controller tuples, groups, resources, domains |
+| [URL Builder](./docs/url-builder.md) | Named-route URLs, signed URLs |
 | [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
 | [Request & Response](./docs/request-response.md) | Input, cookies, output, `abort()` |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
