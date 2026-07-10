@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] — 2026-07-10
+
+### Added
+
+- **Active-record `Model`.** Subclass `Model`, set a `table`, and get static
+  `find` / `findOrFail` / `all` / `first` / `where` / `create` plus instance
+  `save` (insert or update), `delete`, `fill`, and `toJSON`. Built on the query
+  builder, so it runs on any registered connection (edge-safe). `Model.query()`
+  drops to the raw builder for richer queries. See [docs/models.md](./docs/models.md).
+
+[0.29.0]: https://github.com/shaferllc/keel/releases/tag/v0.29.0
+
 ## [0.28.0] — 2026-07-10
 
 ### Added
