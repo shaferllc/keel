@@ -51,27 +51,37 @@ export const Layout: FC<PropsWithChildren<{ title: string }>> = ({
 
 ## Rendering a view
 
-Resolve the `View` service and call `render()`. It returns a complete HTML
-document (doctype included). Because a route handler that returns a string is
-sent as HTML, you can return the result directly:
+The quickest way is the global `view()` helper — pass the component and its
+props in one call. Props are type-checked against the component, and the result
+is a complete HTML document (doctype included) you can return straight from a
+route handler:
 
 ```ts
-import { View, Application } from "@keel/core";
-import type { Ctx, Container } from "@keel/core";
+import { config, view } from "@keel/core";
+import type { Ctx } from "@keel/core";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
 export class HomeController {
-  constructor(private app: Container) {}
-
   welcome(c: Ctx) {
-    const appName = this.app.make(Application).config().get("app.name", "Keel");
-    return this.app.make(View).render(WelcomePage({ appName }));
+    return view(WelcomePage, { appName: config("app.name", "Keel") });
   }
 }
 ```
 
+For a component with no props, just pass the component: `view(HomePage)`.
+
 Note the view file is imported with a `.js` extension (TypeScript convention)
 even though the source is `.tsx`.
+
+### The long form
+
+`view()` is sugar over the `View` service. You can resolve it yourself:
+
+```ts
+import { View } from "@keel/core";
+// inside a controller with the container as `this.app`:
+return this.app.make(View).render(WelcomePage({ appName: "Keel" }));
+```
 
 ## The View service
 

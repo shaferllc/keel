@@ -1,15 +1,8 @@
 import type { Ctx } from "@keel/core";
-import { View, config } from "@keel/core";
-import type { Container } from "@keel/core";
+import { config, view } from "@keel/core";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
-/**
- * Controllers are resolved from the container, so they get the app injected
- * and can pull any bound service out of it.
- */
 export class HomeController {
-  constructor(private app: Container) {}
-
   index(c: Ctx) {
     return c.json({
       framework: "Keel",
@@ -19,10 +12,9 @@ export class HomeController {
     });
   }
 
-  /** Render a view through the View service. */
+  /** Render a view in one call. */
   welcome(c: Ctx) {
-    const appName = config("app.name", "Keel");
-    return this.app.make(View).render(WelcomePage({ appName }));
+    return view(WelcomePage, { appName: config("app.name", "Keel") });
   }
 
   show(c: Ctx) {

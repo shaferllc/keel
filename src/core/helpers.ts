@@ -10,6 +10,7 @@
 
 import type { Application } from "./application.js";
 import { Config } from "./config.js";
+import { View, type Renderable } from "./view.js";
 
 let current: Application | undefined;
 
@@ -34,4 +35,25 @@ export function app(): Application {
  */
 export function config<T = unknown>(key: string, fallback?: T): T {
   return app().make(Config).get<T>(key, fallback);
+}
+
+/**
+ * Render a view component through the View service, in one call:
+ *
+ *   return view(WelcomePage, { appName });   // component with props
+ *   return view(HomePage);                    // component with no props
+ *
+ * Props are type-checked against the component. Returns a full HTML document
+ * (Promise<string>) — return it straight from a route handler.
+ */
+export function view<P>(
+  component: (props: P, ...rest: any[]) => Renderable,
+  props: P,
+): Promise<string>;
+export function view(component: (...rest: any[]) => Renderable): Promise<string>;
+export function view(
+  component: (props?: any, ...rest: any[]) => Renderable,
+  props?: any,
+): Promise<string> {
+  return app().make(View).render(component(props));
 }

@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-07-10
+
+### Added
+
+- **Global `view()` helper.** Render a view component in one call:
+  `view(WelcomePage, { appName })` — props are type-checked against the
+  component, and it returns a full HTML document. `view(HomePage)` works for
+  components with no props. Sugar over the `View` service, matching `config()`.
+
+[0.4.0]: https://github.com/shaferllc/keel/releases/tag/v0.4.0
+
 ## [0.3.0] — 2026-07-10
 
 ### Added
