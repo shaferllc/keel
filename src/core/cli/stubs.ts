@@ -50,3 +50,28 @@ export const ${fn}: MiddlewareHandler = async (c, next) => {
 };
 `;
 }
+
+/** `name` is the model class (e.g. "User") the factory builds. */
+export function factoryStub(model: string): string {
+  return `import { factory } from "@keel/core";
+import { ${model} } from "../../app/Models/${model}.js";
+
+export const ${model.toLowerCase()}Factory = factory(${model}, (f) => ({
+  // Describe one ${model}'s attributes; \`f\` is a Faker.
+  name: f.name(),
+  email: f.email(),
+}));
+`;
+}
+
+export function seederStub(name: string): string {
+  return `import { Seeder } from "@keel/core";
+
+export class ${name} extends Seeder {
+  async run(): Promise<void> {
+    // Populate the database, e.g.:
+    // await userFactory.count(10).create();
+  }
+}
+`;
+}

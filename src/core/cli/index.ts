@@ -6,6 +6,8 @@
  *   keel make:controller Foo   generate app/Controllers/FooController.ts
  *   keel make:provider Foo      generate app/Providers/FooServiceProvider.ts
  *   keel make:middleware Foo    generate app/Http/Middleware/foo.ts
+ *   keel make:factory User      generate database/factories/UserFactory.ts
+ *   keel make:seeder Database   generate database/seeders/DatabaseSeeder.ts
  *   keel routes                 list registered routes
  */
 
@@ -22,6 +24,8 @@ import {
   resourceControllerStub,
   providerStub,
   middlewareStub,
+  factoryStub,
+  seederStub,
 } from "./stubs.js";
 
 const basePath = process.cwd();
@@ -119,6 +123,22 @@ export async function run(argv: string[]): Promise<void> {
       const cls = className(name, "Middleware");
       const file = cls.charAt(0).toLowerCase() + cls.slice(1);
       await generate(`app/Http/Middleware/${file}.ts`, middlewareStub(cls), "Middleware");
+    });
+
+  program
+    .command("make:factory <model>")
+    .description("Generate a model factory")
+    .action(async (model: string) => {
+      const cls = className(model, "");
+      await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory");
+    });
+
+  program
+    .command("make:seeder <name>")
+    .description("Generate a database seeder")
+    .action(async (name: string) => {
+      const cls = className(name, "Seeder");
+      await generate(`database/seeders/${cls}.ts`, seederStub(cls), "Seeder");
     });
 
   await program.parseAsync(argv);

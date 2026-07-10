@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] — 2026-07-10
+
+### Added
+
+- **Factories & seeders.** `factory(Model, (f, i) => ({ ... }))` builds model
+  attributes with a built-in, dependency-free `Faker` (names, emails, words,
+  numbers, uuids — seedable for deterministic runs). Call `.make()` (unsaved) or
+  `.create()` (persisted), `.count(n)` for batches, and override attributes
+  inline. `Seeder` classes have a `run()` and can `call([OtherSeeder])` to
+  compose; `seed(DatabaseSeeder)` runs one. New generators `keel make:factory`
+  and `keel make:seeder`. Edge-safe (no external faker library). See
+  [docs/factories.md](./docs/factories.md).
+
+[0.32.0]: https://github.com/shaferllc/keel/releases/tag/v0.32.0
+
 ## [0.31.0] — 2026-07-10
 
 ### Added

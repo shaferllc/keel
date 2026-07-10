@@ -36,6 +36,8 @@ export { db, setConnection, QueryBuilder } from "./database.js";
 export type { Connection, WriteResult, Row, Dialect, Operator } from "./database.js";
 export { Model } from "./model.js";
 export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
+export { Faker, Factory as ModelFactory, factory, Seeder, seed } from "./factory.js";
+export type { Definition } from "./factory.js";
 export { SchemaBuilder, Migrator, TableBuilder, Column } from "./migrations.js";
 export type { Migration } from "./migrations.js";
 export {

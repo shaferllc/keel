@@ -71,6 +71,26 @@ npm run keel make:middleware Auth
 # -> app/Http/Middleware/authMiddleware.ts
 ```
 
+### `make:factory`
+
+Generate a model factory in `database/factories/`.
+
+```bash
+npm run keel make:factory User
+# -> database/factories/UserFactory.ts
+```
+
+### `make:seeder`
+
+Generate a database seeder in `database/seeders/`.
+
+```bash
+npm run keel make:seeder Database
+# -> database/seeders/DatabaseSeeder.ts
+```
+
+See [Factories & Seeders](./factories.md) for using them.
+
 ## Generator safety
 
 Generators refuse to overwrite an existing file and exit non-zero:
