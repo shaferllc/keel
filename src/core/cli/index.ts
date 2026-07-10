@@ -1,0 +1,114 @@
+/**
+ * The Keel console — the artisan analogue. `keel <command>`.
+ *
+ * Commands:
+ *   keel serve                 start the HTTP server
+ *   keel make:controller Foo   generate app/Controllers/FooController.ts
+ *   keel make:provider Foo      generate app/Providers/FooServiceProvider.ts
+ *   keel make:middleware Foo    generate app/Http/Middleware/foo.ts
+ *   keel routes                 list registered routes
+ */
+
+import { mkdir, writeFile, access } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { serve } from "@hono/node-server";
+import { Command } from "commander";
+
+import { createApplication } from "../../../bootstrap/app.js";
+import { HttpKernel } from "../http/kernel.js";
+import { Router } from "../http/router.js";
+import { controllerStub, providerStub, middlewareStub } from "./stubs.js";
+
+const basePath = process.cwd();
+
+async function generate(relPath: string, contents: string, label: string) {
+  const full = join(basePath, relPath);
+  try {
+    await access(full);
+    console.error(`✗ ${label} already exists: ${relPath}`);
+    process.exitCode = 1;
+    return;
+  } catch {
+    // does not exist — proceed
+  }
+  await mkdir(dirname(full), { recursive: true });
+  await writeFile(full, contents);
+  console.log(`✓ Created ${label}: ${relPath}`);
+}
+
+/** Normalize "foo" / "FooController" into a canonical suffixed class name. */
+function className(name: string, suffix: string): string {
+  const base = name.replace(new RegExp(`${suffix}$`, "i"), "");
+  const pascal = base.charAt(0).toUpperCase() + base.slice(1);
+  return `${pascal}${suffix}`;
+}
+
+export async function run(argv: string[]): Promise<void> {
+  const program = new Command();
+  program.name("keel").description("Keel framework console").version("0.1.0");
+
+  program
+    .command("serve")
+    .description("Start the HTTP server")
+    .option("-p, --port <port>", "port to listen on")
+    .action(async (opts) => {
+      const app = await createApplication();
+      const kernel = app.bound(HttpKernel)
+        ? app.make(HttpKernel)
+        : new HttpKernel(app);
+      const hono = kernel.build();
+      const port = Number(
+        opts.port ?? app.config().get("app.port", 3000),
+      );
+      serve({ fetch: hono.fetch, port }, (info) => {
+        const name = app.config().get("app.name", "Keel");
+        console.log(`⚓ ${name} listening on http://localhost:${info.port}`);
+      });
+    });
+
+  program
+    .command("routes")
+    .description("List registered routes")
+    .action(async () => {
+      const app = await createApplication();
+      const router = app.make(Router);
+      const rows = router.all();
+      if (rows.length === 0) {
+        console.log("No routes registered.");
+        return;
+      }
+      for (const r of rows) {
+        const handler = Array.isArray(r.handler)
+          ? `${r.handler[0].name}@${r.handler[1]}`
+          : "Closure";
+        console.log(`${r.method.padEnd(6)} ${r.path.padEnd(24)} ${handler}`);
+      }
+    });
+
+  program
+    .command("make:controller <name>")
+    .description("Generate a controller")
+    .action(async (name: string) => {
+      const cls = className(name, "Controller");
+      await generate(`app/Controllers/${cls}.ts`, controllerStub(cls), "Controller");
+    });
+
+  program
+    .command("make:provider <name>")
+    .description("Generate a service provider")
+    .action(async (name: string) => {
+      const cls = className(name, "ServiceProvider");
+      await generate(`app/Providers/${cls}.ts`, providerStub(cls), "Provider");
+    });
+
+  program
+    .command("make:middleware <name>")
+    .description("Generate an HTTP middleware")
+    .action(async (name: string) => {
+      const cls = className(name, "Middleware");
+      const file = cls.charAt(0).toLowerCase() + cls.slice(1);
+      await generate(`app/Http/Middleware/${file}.ts`, middlewareStub(cls), "Middleware");
+    });
+
+  await program.parseAsync(argv);
+}

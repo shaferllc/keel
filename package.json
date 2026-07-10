@@ -1,0 +1,26 @@
+{
+  "name": "keel",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A Laravel-flavored house framework for Node.js",
+  "bin": {
+    "keel": "./bin/keel.ts"
+  },
+  "scripts": {
+    "keel": "tsx bin/keel.ts",
+    "serve": "tsx bin/keel.ts serve",
+    "dev": "tsx watch bin/keel.ts serve",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.7",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
