@@ -4,6 +4,16 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] — 2026-07-10
+
+### Added
+
+- **Logger.** A leveled logger (`logger().debug/info/warn/error`) with structured
+  JSON output (pretty in debug), a level threshold from `config('logger.level')`,
+  and `logger().child({ … })` for bound fields. See [docs/logger.md](./docs/logger.md).
+
+[0.26.0]: https://github.com/shaferllc/keel/releases/tag/v0.26.0
+
 ## [0.25.0] — 2026-07-10
 
 ### Added

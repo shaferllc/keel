@@ -173,6 +173,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
+| [Logger](./docs/logger.md) | Leveled structured logging, child loggers |
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |

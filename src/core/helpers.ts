@@ -14,6 +14,7 @@ import { Config } from "./config.js";
 import { View, type Renderable } from "./view.js";
 import { Events, type Listener } from "./events.js";
 import { Cache } from "./cache.js";
+import { Logger } from "./logger.js";
 
 let current: Application | undefined;
 
@@ -88,6 +89,11 @@ export function listen<T = unknown>(event: string, listener: Listener<T>): () =>
 /** The application's cache. */
 export function cache(): Cache {
   return app().make(Cache);
+}
+
+/** The application's logger. */
+export function logger(): Logger {
+  return app().make(Logger);
 }
 
 /**

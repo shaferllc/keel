@@ -14,6 +14,7 @@ import { Router } from "./http/router.js";
 import { View } from "./view.js";
 import { Events } from "./events.js";
 import { Cache } from "./cache.js";
+import { Logger } from "./logger.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
 import { setApplication } from "./helpers.js";
 
@@ -41,6 +42,14 @@ export class Application extends Container {
     this.singleton(View, () => new View());
     this.singleton(Events, () => new Events());
     this.singleton(Cache, () => new Cache());
+    this.singleton(
+      Logger,
+      (app) =>
+        new Logger({
+          level: (app as Application).config().get("logger.level", "info"),
+          pretty: Boolean((app as Application).config().get("app.debug", false)),
+        }),
+    );
   }
 
   path(...segments: string[]): string {
