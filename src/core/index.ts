@@ -27,6 +27,8 @@ export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
 export { dump, dd } from "./debug.js";
 export { hash, encryption } from "./crypto.js";
+export { rateLimiter } from "./rate-limit.js";
+export type { RateLimiterOptions } from "./rate-limit.js";
 export {
   ctx,
   json,

@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] — 2026-07-10
+
+### Added
+
+- **Rate limiting.** `rateLimiter({ max, window, key, message })` — a fixed-window
+  limiter middleware with per-key buckets (client IP by default), the standard
+  `X-RateLimit-*` / `Retry-After` headers, and `429` on exceed. In-memory store
+  (pluggable for distributed limiting). See [docs/rate-limiting.md](./docs/rate-limiting.md).
+
+[0.25.0]: https://github.com/shaferllc/keel/releases/tag/v0.25.0
+
 ## [0.24.0] — 2026-07-10
 
 ### Added

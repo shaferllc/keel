@@ -176,6 +176,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
+| [Rate Limiting](./docs/rate-limiting.md) | rateLimiter() middleware, per-key buckets |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |
 | [Debugging](./docs/debugging.md) | dump() and dd() (dump-and-die) |
 | [Validation](./docs/validation.md) | `validate()` with Zod, auto-422 field errors |

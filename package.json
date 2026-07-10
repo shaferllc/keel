@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
