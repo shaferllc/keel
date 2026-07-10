@@ -4,6 +4,19 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] — 2026-07-10
+
+### Added
+
+- **Static file server.** `serveStatic(options)` serves files from a directory
+  (default `public/`) before your routes, with `ETag` / `Last-Modified` / `304`
+  handling, `Cache-Control` (`maxAge` / `immutable`), a dot-file policy
+  (`ignore` / `deny` / `allow`), per-file `headers()`, and path-traversal
+  protection. `node:fs` is imported dynamically so the core still loads on the
+  edge. See [docs/static-files.md](./docs/static-files.md).
+
+[0.18.0]: https://github.com/shaferllc/keel/releases/tag/v0.18.0
+
 ## [0.17.0] — 2026-07-10
 
 ### Added
