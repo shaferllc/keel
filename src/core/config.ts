@@ -1,5 +1,5 @@
 /**
- * Config repository with dot-notation access, à la Laravel's config().
+ * Config repository with dot-notation access.
  *
  * Config files live in /config and export a default object. They are loaded
  * at boot and merged under their filename: config/app.ts -> config('app.*').

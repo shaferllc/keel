@@ -1,6 +1,6 @@
 # The Console
 
-Keel ships with a console — the artisan analogue — for running the server and
+Keel ships with a console for running the server and
 generating code. The binary is `bin/keel.ts`; npm scripts wrap it with `tsx`.
 
 ```bash

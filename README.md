@@ -2,9 +2,9 @@
 
 # Keel ⚓
 
-**A Laravel-flavored house framework for Node.js.**
+**The house framework for Node.js.**
 
-TypeScript · a real service container · convention-driven structure · an artisan-style console.
+TypeScript · a real service container · convention-driven structure · a code-generating console.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen.svg)](https://nodejs.org)
@@ -20,8 +20,8 @@ TypeScript · a real service container · convention-driven structure · an arti
 
 ---
 
-Keel gives you the ergonomics that make Laravel productive — a service
-container, service providers, dot-notation config, expressive routing, and a
+Keel gives you the ergonomics that make you productive — a service container,
+service providers, dot-notation config, expressive routing, and a
 code-generating console — on a modern TypeScript stack. [Hono](https://hono.dev)
 powers the HTTP layer under the hood; everything above it is Keel's.
 
@@ -40,7 +40,7 @@ export class HomeController {
   constructor(private app: Container) {}
 
   index(c: Ctx) {
-    return c.json({ app: this.app.make(Application).config().get("app.name") });
+    return c.json({ app: config("app.name") });
   }
 }
 ```
@@ -48,27 +48,50 @@ export class HomeController {
 ## Why Keel?
 
 - **A real service container.** `bind` / `singleton` / `instance` / `make`.
-  Everything resolves through it — the same pattern that makes Laravel testable
-  and composable.
+  Everything resolves through it — the pattern that keeps apps testable and
+  composable.
 - **Service providers.** A `register()` → `boot()` lifecycle to configure the
   app in one place.
 - **Convention over configuration.** `app/`, `config/`, `routes/`, `bootstrap/`
   — you always know where things live.
-- **An artisan-style console.** `keel serve`, `keel routes`, and `make:*`
+- **A code-generating console.** `keel serve`, `keel routes`, and `make:*`
   generators.
 - **Typed end to end.** Strict TypeScript, no build step in dev (powered by
   `tsx`).
 - **Thin and legible.** The whole framework is a few hundred lines in
   `src/core/`. No magic you can't read.
 
-## Quick start
+## Two repos: the framework and your app
+
+Keel is distributed the same way most frameworks are — a **library** you install,
+plus an **app** that depends on it:
+
+| Repo | Role |
+|------|------|
+| [`shaferllc/keel`](https://github.com/shaferllc/keel) (this repo) | The framework. Published as `@shaferllc/keel`. |
+| [`shaferllc/keel-app`](https://github.com/shaferllc/keel-app) | The starter app — clone it to build something. Gets core updates via `npm update`. |
+
+## Install in your app
+
+```bash
+npm install @shaferllc/keel
+```
+
+```ts
+import { Application, Router, config } from "@shaferllc/keel/core";
+```
+
+Or clone the [starter app](https://github.com/shaferllc/keel-app) and start
+from a working skeleton.
+
+## Hack on the framework itself
 
 ```bash
 git clone https://github.com/shaferllc/keel.git
 cd keel
 npm install
-cp .env.example .env   # if present; otherwise .env already ships with defaults
-npm run dev            # server on http://localhost:3000
+npm run dev            # example app on http://localhost:3000
+npm run build          # compile the package to dist/
 ```
 
 ```bash
@@ -119,7 +142,7 @@ config/              config/app.ts -> config('app.*')
 routes/web.ts        Route definitions
 ```
 
-The `app/` vs `src/core/` split mirrors Laravel's application-vs-vendor
+The `app/` vs `src/core/` split mirrors the classic application-vs-library
 separation: your code in `app/`, the framework in `src/core/`.
 
 ## The request lifecycle

@@ -1,6 +1,6 @@
 # Getting Started
 
-Keel is a Laravel-flavored house framework for Node.js. This guide gets you from
+Keel is a house framework for Node.js. This guide gets you from
 a fresh clone to your first route and controller.
 
 ## Requirements

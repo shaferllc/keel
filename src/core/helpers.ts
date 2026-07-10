@@ -1,5 +1,5 @@
 /**
- * Global helpers — the Laravel-style convenience functions.
+ * Global helpers — convenience functions for reaching the active application.
  *
  * These resolve against the "current" application, which is registered
  * automatically when an Application is constructed. In a normal single-app

@@ -2,7 +2,7 @@
 
 The container is the backbone of Keel. Every service — config, the router,
 controllers, and anything you write — is registered in it and resolved out of
-it. This is the Node analogue of Laravel's `Illuminate\Container`.
+it. It is the single registry every service resolves out of.
 
 ## Why a container?
 

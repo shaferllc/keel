@@ -68,8 +68,8 @@ config("services.stripe.key"); // nested access
 ```
 
 It resolves against the active application (registered automatically when the
-`Application` is created), the same way Laravel's `config()` helper works. There
-is a matching `app()` helper that returns the container:
+`Application` is created). There is a matching `app()` helper that returns the
+container:
 
 ```ts
 import { app } from "@keel/core";

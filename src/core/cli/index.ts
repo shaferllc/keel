@@ -1,5 +1,5 @@
 /**
- * The Keel console — the artisan analogue. `keel <command>`.
+ * The Keel console. `keel <command>`.
  *
  * Commands:
  *   keel serve                 start the HTTP server

@@ -2,7 +2,7 @@
  * The service container — the backbone of the framework.
  *
  * Everything (config, router, controllers, your own services) is resolved
- * through here. This is the Node analogue of Laravel's Illuminate\Container.
+ * through here — it is the single registry every service resolves out of.
  *
  * Bindings are keyed by a string/symbol token OR a class constructor. A
  * factory receives the container so it can resolve its own dependencies.

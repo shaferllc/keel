@@ -99,7 +99,7 @@ this.app.make(View).render(UserProfile({ user, posts }));
 No magic globals, no separate "view data" bag: if a component needs something,
 it's a prop.
 
-## Why JSX (and not a Blade-style engine)?
+## Why JSX (and not a file-based template engine)?
 
 File-based template engines need to read templates from disk at runtime, which
 doesn't work on edge runtimes like Cloudflare Workers. JSX components compile to

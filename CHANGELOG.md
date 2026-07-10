@@ -11,8 +11,16 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Global `config()` and `app()` helpers.** Read configuration from anywhere
   with `config("app.name")` / `config("app.port", 3000)` — no need to resolve
   the container by hand. `app()` returns the active application. Both resolve
-  against the application registered automatically on construction, the same way
-  Laravel's global helpers work.
+  against the application registered automatically on construction.
+- **Published as `@shaferllc/keel`.** The framework is now a proper npm package
+  with a real build (compiled JS + `.d.ts` in `dist/`). Apps install it with
+  `npm install @shaferllc/keel` and import from `@shaferllc/keel/core`, so they
+  receive core updates through `npm update`.
+
+### Changed
+
+- Documentation and copy no longer describe Keel by comparison to other
+  frameworks — it stands on its own.
 
 [0.3.0]: https://github.com/shaferllc/keel/releases/tag/v0.3.0
 
