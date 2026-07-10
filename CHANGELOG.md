@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] — 2026-07-10
+
+### Added
+
+- **Debugging helpers.** `dump(...values)` prints to the console and returns its
+  first argument (inline-friendly); `dd(...values)` dumps to the browser and
+  halts the request via a self-rendering exception. Both edge-safe. See
+  [docs/debugging.md](./docs/debugging.md).
+
+[0.23.0]: https://github.com/shaferllc/keel/releases/tag/v0.23.0
+
 ## [0.22.0] — 2026-07-10
 
 ### Added

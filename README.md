@@ -176,6 +176,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |
+| [Debugging](./docs/debugging.md) | dump() and dd() (dump-and-die) |
 | [Validation](./docs/validation.md) | `validate()` with Zod, auto-422 field errors |
 | [Inertia](./docs/inertia.md) | Server-side Inertia.js adapter |
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
