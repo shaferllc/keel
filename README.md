@@ -169,6 +169,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
 | [Request & Response](./docs/request-response.md) | Input, cookies, output, `abort()` |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
+| [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |

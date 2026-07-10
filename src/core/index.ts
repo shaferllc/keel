@@ -14,7 +14,12 @@ export {
   instance,
   make,
   bound,
+  events,
+  emit,
+  listen,
 } from "./helpers.js";
+export { Events } from "./events.js";
+export type { Listener } from "./events.js";
 export {
   ctx,
   json,

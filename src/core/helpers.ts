@@ -12,6 +12,7 @@ import type { Application } from "./application.js";
 import type { Token, Factory } from "./container.js";
 import { Config } from "./config.js";
 import { View, type Renderable } from "./view.js";
+import { Events, type Listener } from "./events.js";
 
 let current: Application | undefined;
 
@@ -64,6 +65,23 @@ export function make<T>(token: Token<T>): T {
 /** Whether a token is bound or has a cached instance. */
 export function bound(token: Token): boolean {
   return app().bound(token);
+}
+
+/* ------------------------------- events -------------------------------- */
+
+/** The application's event emitter. */
+export function events(): Events {
+  return app().make(Events);
+}
+
+/** Emit an event, awaiting every listener. */
+export function emit<T = unknown>(event: string, payload?: T): Promise<void> {
+  return events().emit(event, payload);
+}
+
+/** Subscribe to an event; returns an unsubscribe function. */
+export function listen<T = unknown>(event: string, listener: Listener<T>): () => void {
+  return events().on(event, listener);
 }
 
 /**
