@@ -77,6 +77,41 @@ throw new ValidationException({ email: ["The email is invalid."] });
 //           "status": 422, "errors": { "email": ["The email is invalid."] } }
 ```
 
+## Custom exceptions
+
+Extend `HttpException` to model your domain errors. Add a `code` (surfaced in the
+JSON body), and optionally make the exception render or report itself:
+
+```ts
+import { HttpException } from "@shaferllc/keel/core";
+import type { Context } from "hono";
+
+export class PaymentRequiredException extends HttpException {
+  code = "E_PAYMENT_REQUIRED";
+
+  constructor() {
+    super(402, "Payment is required to continue.");
+  }
+
+  // Optional: render this exception itself.
+  handle(c: Context) {
+    return c.json({ error: this.message, code: this.code, upgrade: "/billing" }, this.status);
+  }
+
+  // Optional: called before rendering — log/report it.
+  report() {
+    metrics.increment("payment_required");
+  }
+}
+
+throw new PaymentRequiredException();
+```
+
+- **`code`** → added to the JSON error body (`{ error, status, code }`).
+- **`handle(c)`** → if it returns a `Response`, the kernel uses it verbatim.
+- **`report()`** → always called (and awaited) first; failures there never mask
+  the original error.
+
 ## Customizing the handler
 
 Override the whole thing from your app's HTTP kernel with `onError()`:

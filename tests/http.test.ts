@@ -6,7 +6,8 @@ import { Application } from "../src/core/application.js";
 import { Router } from "../src/core/http/router.js";
 import { HttpKernel } from "../src/core/http/kernel.js";
 import { json, param, query, header, body, request, response } from "../src/core/request.js";
-import { NotFoundException } from "../src/core/exceptions.js";
+import { NotFoundException, HttpException } from "../src/core/exceptions.js";
+import type { Context } from "hono";
 import { validate } from "../src/core/validation.js";
 
 async function build(
@@ -200,6 +201,48 @@ test("single-action and lazy-loaded controllers", async () => {
   });
   assert.deepEqual(await (await hono.request("/single")).json(), { via: "handle" });
   assert.deepEqual(await (await hono.request("/lazy")).json(), { via: "lazy" });
+});
+
+test("exceptions: code, report(), and self-handling handle()", async () => {
+  const reported: string[] = [];
+  class PaymentRequired extends HttpException {
+    code = "E_PAYMENT";
+    constructor() {
+      super(402, "Payment required");
+    }
+    report() {
+      reported.push("reported");
+    }
+  }
+  class Teapot extends HttpException {
+    constructor() {
+      super(418, "teapot");
+    }
+    handle(c: Context) {
+      return c.json({ custom: true }, 418);
+    }
+  }
+  const hono = await build((r) => {
+    r.get("/pay", () => {
+      throw new PaymentRequired();
+    });
+    r.get("/teapot", () => {
+      throw new Teapot();
+    });
+  });
+
+  const pay = await hono.request("/pay", { headers: { accept: "application/json" } });
+  assert.equal(pay.status, 402);
+  assert.deepEqual(await pay.json(), {
+    error: "Payment required",
+    status: 402,
+    code: "E_PAYMENT",
+  });
+  assert.deepEqual(reported, ["reported"]);
+
+  const teapot = await hono.request("/teapot");
+  assert.equal(teapot.status, 418);
+  assert.deepEqual(await teapot.json(), { custom: true });
 });
 
 test("named middleware registry: reference by name", async () => {

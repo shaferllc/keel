@@ -148,8 +148,22 @@ export class HttpKernel {
     return hono;
   }
 
-  private handle(err: unknown, c: Context): Response | Promise<Response> {
+  private async handle(err: unknown, c: Context): Promise<Response> {
+    // Reportable exceptions: give them a chance to log/report themselves.
+    const maybe = err as { report?: () => unknown; handle?: (c: Context) => unknown };
+    if (typeof maybe?.report === "function") {
+      try {
+        await maybe.report();
+      } catch {
+        /* reporting must never mask the original error */
+      }
+    }
     if (this.customErrorHandler) return this.customErrorHandler(err, c);
+    // Self-handling exceptions render themselves.
+    if (typeof maybe?.handle === "function") {
+      const rendered = await maybe.handle(c);
+      if (rendered instanceof Response) return rendered;
+    }
     return this.renderException(err, c);
   }
 
@@ -176,6 +190,7 @@ export class HttpKernel {
     }
 
     const body: Record<string, unknown> = { error: message, status };
+    if (isHttp && err.code) body.code = err.code;
     if (err instanceof ValidationException) body.errors = err.errors;
     if (debug && !isHttp && err instanceof Error) {
       body.exception = err.name;

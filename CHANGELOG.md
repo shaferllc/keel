@@ -4,6 +4,19 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] — 2026-07-10
+
+### Added
+
+- **Self-handling & reportable exceptions.** An exception with a `handle(c)`
+  method renders itself; one with a `report()` method has it called (and
+  awaited) before rendering — for logging/metrics, without masking the error.
+- **Error codes.** `HttpException` now carries an optional `code` (e.g.
+  `E_UNAUTHORIZED`), included in the JSON error body. See
+  [docs/errors.md](./docs/errors.md).
+
+[0.22.0]: https://github.com/shaferllc/keel/releases/tag/v0.22.0
+
 ## [0.21.0] — 2026-07-10
 
 ### Added

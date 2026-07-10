@@ -18,10 +18,19 @@ export const STATUS_TEXT: Record<number, string> = {
   503: "Service Unavailable",
 };
 
-/** A semantic HTTP error carrying a status code and optional headers. */
+/**
+ * A semantic HTTP error carrying a status code and optional headers.
+ *
+ * Subclasses may add:
+ * - a `code` (e.g. "E_UNAUTHORIZED") — included in the JSON error body;
+ * - a `handle(c)` method — renders the exception itself (self-handling);
+ * - a `report()` method — called for logging/reporting before rendering.
+ */
 export class HttpException extends Error {
   readonly status: number;
   readonly headers?: Record<string, string>;
+  /** A machine-readable error code, e.g. "E_VALIDATION". */
+  code?: string;
 
   constructor(status: number, message?: string, headers?: Record<string, string>) {
     super(message ?? STATUS_TEXT[status] ?? "Error");
