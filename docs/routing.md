@@ -106,10 +106,28 @@ search() {
 | `query(name)` / `query()` | one query value / all of them |
 | `header(name)` | a request header |
 | `body<T>()` | the parsed JSON body (async) |
-| `request()` / `ctx()` | the raw `Request` / the Hono context |
+| `request` | a flat accessor (see below) |
+| `ctx()` | the raw Hono context |
 
-These are powered by async-context storage that the HTTP kernel enables for every
-request, so they only work inside a request. You can always still take `c`
+### The `request` accessor
+
+`request` reads the current request/response as flat properties — handy in
+middleware and logging:
+
+```ts
+`${request.method} ${request.path} → ${request.status} (${ms}ms)`;
+
+request.header("authorization");
+request.param("id");
+await request.json();
+request.raw; // the underlying web Request
+```
+
+`request.status` is the response status, so it's populated after `await next()`
+in middleware.
+
+These are all powered by async-context storage that the HTTP kernel enables for
+every request, so they only work inside a request. You can always still take `c`
 explicitly — both styles work.
 
 ## Inspecting routes

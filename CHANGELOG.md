@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-07-10
+
+### Added
+
+- **`request` accessor.** A flat view of the current request/response —
+  `request.method`, `request.path`, `request.url`, `request.status`, plus
+  `request.header()`, `request.param()`, `request.query()`, `request.json()`,
+  and `request.raw`. Write `` `${request.method} ${request.path} → ${request.status}` ``
+  in a logger without touching `c`.
+
+### Changed
+
+- `request` is now this accessor object rather than a function returning the raw
+  Request; use `request.raw` for the underlying `Request`.
+
+[0.8.0]: https://github.com/shaferllc/keel/releases/tag/v0.8.0
+
 ## [0.7.0] — 2026-07-10
 
 ### Added
