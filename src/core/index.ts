@@ -76,3 +76,5 @@ export { validate } from "./validation.js";
 export type { Schema } from "./validation.js";
 export { Session, session, sessionMiddleware } from "./session.js";
 export type { SessionOptions } from "./session.js";
+export { Auth, auth, authGuard, setUserProvider } from "./auth.js";
+export type { UserProvider } from "./auth.js";

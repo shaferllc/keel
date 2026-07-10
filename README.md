@@ -171,6 +171,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
 | [Request & Response](./docs/request-response.md) | Input, cookies, output, `abort()` |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
+| [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
 | [Logger](./docs/logger.md) | Leveled structured logging, child loggers |

@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] — 2026-07-10
+
+### Added
+
+- **Authentication.** Session-based auth: `auth().login(id)` / `logout()` /
+  `check()` / `guest()` / `id()` / `user()`, a pluggable user provider via
+  `setUserProvider()`, and an `authGuard({ redirectTo? })` middleware (401 or
+  redirect). Built on the session + hash primitives. See
+  [docs/authentication.md](./docs/authentication.md).
+
+[0.27.0]: https://github.com/shaferllc/keel/releases/tag/v0.27.0
+
 ## [0.26.0] — 2026-07-10
 
 ### Added
