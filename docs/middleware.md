@@ -45,6 +45,39 @@ npm run keel make:middleware Auth
 # -> app/Http/Middleware/authMiddleware.ts
 ```
 
+## Named middleware
+
+Register middleware by name once, then reference it by name on routes and groups
+— no importing the function everywhere:
+
+```ts
+// bootstrap/app.ts, before routes are registered
+router.named({
+  auth: authMiddleware,
+  admin: adminMiddleware,
+});
+
+// routes/web.ts
+router.get("/dashboard", [DashboardController, "index"]).use("auth");
+router.group(() => { /* … */ }).use(["auth", "admin"]);
+router.resource("posts", PostController).use(["store", "update"], "auth");
+```
+
+You can still pass raw functions anywhere a name is accepted — mix and match.
+Referencing an unregistered name throws when the app builds, so typos surface
+immediately.
+
+For **parameterized** middleware, use a factory that returns a handler:
+
+```ts
+const role = (name: string): MiddlewareHandler => async (c, next) => {
+  // check role === name …
+  await next();
+};
+
+router.get("/admin", handler).use(role("admin"));
+```
+
 ## Short-circuiting
 
 Return a response _without_ calling `next()` to stop the request early — handy

@@ -4,6 +4,18 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] — 2026-07-10
+
+### Added
+
+- **Named middleware registry.** `router.named({ auth, admin })` registers
+  middleware by name; reference it with `.use("auth")` / `.middleware([...])` on
+  routes, groups, and resources. Names resolve when the app builds (unknown
+  names throw). Raw functions still work everywhere. See
+  [docs/middleware.md](./docs/middleware.md).
+
+[0.20.0]: https://github.com/shaferllc/keel/releases/tag/v0.20.0
+
 ## [0.19.0] — 2026-07-10
 
 ### Added

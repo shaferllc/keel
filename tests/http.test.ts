@@ -202,6 +202,36 @@ test("single-action and lazy-loaded controllers", async () => {
   assert.deepEqual(await (await hono.request("/lazy")).json(), { via: "lazy" });
 });
 
+test("named middleware registry: reference by name", async () => {
+  const app = new Application();
+  await app.boot([], { discoverConfig: false, config: { app: {} } });
+  const router = app.make(Router);
+  router.named({
+    auth: async (c, next) => {
+      if (c.req.header("x-key") !== "ok") return c.json({ error: "denied" }, 401);
+      await next();
+    },
+  });
+  router.get("/protected", json({ ok: true })).use("auth");
+  router
+    .group(() => {
+      router.get("/admin", json({ admin: true }));
+    })
+    .use("auth");
+  const hono = new HttpKernel(app).build();
+
+  assert.equal((await hono.request("/protected")).status, 401);
+  assert.equal((await hono.request("/protected", { headers: { "x-key": "ok" } })).status, 200);
+  assert.equal((await hono.request("/admin")).status, 401);
+});
+
+test("unknown named middleware throws at build", async () => {
+  const app = new Application();
+  await app.boot([], { discoverConfig: false, config: { app: {} } });
+  app.make(Router).get("/x", json({ ok: true })).use("nope");
+  assert.throws(() => new HttpKernel(app).build(), /No named middleware/);
+});
+
 test("middleware runs in order and can short-circuit", async () => {
   const guard: MiddlewareHandler = async (c, next) => {
     if (c.req.header("x-key") !== "ok") return c.json({ error: "denied" }, 401);

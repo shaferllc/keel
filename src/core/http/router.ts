@@ -48,6 +48,9 @@ export type ControllerAction = [ControllerRef] | [ControllerRef, string];
 /** A function, a controller action, or a ready-made Response. */
 export type RouteHandler = HandlerFn | ControllerAction | Response;
 
+/** A middleware handler, or the name of one registered with `router.named()`. */
+export type MiddlewareRef = MiddlewareHandler | string;
+
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD";
 const ALL: Method[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"];
 
@@ -56,7 +59,7 @@ export interface RouteDefinition {
   path: string;
   handler: RouteHandler;
   name?: string;
-  middleware: MiddlewareHandler[];
+  middleware: MiddlewareRef[];
   wheres: Record<string, string>;
   /** Host pattern this route is bound to, e.g. ":tenant.example.com". */
   domain?: string;
@@ -77,12 +80,12 @@ export class Route {
   }
 
   /** Attach middleware that runs only for this route (after group middleware). */
-  middleware(mw: MiddlewareHandler | MiddlewareHandler[]): this {
+  middleware(mw: MiddlewareRef | MiddlewareRef[]): this {
     this.def.middleware.push(...(Array.isArray(mw) ? mw : [mw]));
     return this;
   }
   /** Alias for middleware(), matching AdonisJS. */
-  use(mw: MiddlewareHandler | MiddlewareHandler[]): this {
+  use(mw: MiddlewareRef | MiddlewareRef[]): this {
     return this.middleware(mw);
   }
 
@@ -109,13 +112,13 @@ export class RouteGroup {
     return this;
   }
 
-  middleware(mw: MiddlewareHandler | MiddlewareHandler[]): this {
+  middleware(mw: MiddlewareRef | MiddlewareRef[]): this {
     const list = Array.isArray(mw) ? mw : [mw];
     for (const r of this.routes) r.middleware.unshift(...list); // group runs first
     return this;
   }
   /** Alias for middleware(), matching AdonisJS. */
-  use(mw: MiddlewareHandler | MiddlewareHandler[]): this {
+  use(mw: MiddlewareRef | MiddlewareRef[]): this {
     return this.middleware(mw);
   }
 
@@ -190,7 +193,7 @@ export class RouteResource {
   }
 
   /** Attach middleware to specific actions (or "*" for all). */
-  use(actions: string[] | "*", mw: MiddlewareHandler | MiddlewareHandler[]): this {
+  use(actions: string[] | "*", mw: MiddlewareRef | MiddlewareRef[]): this {
     const list = Array.isArray(mw) ? mw : [mw];
     for (const [action, def] of this.byAction) {
       if (actions === "*" || actions.includes(action)) def.middleware.push(...list);
@@ -246,11 +249,33 @@ export class Router {
   private group_prefix = "";
   private group_mw: MiddlewareHandler[] = [];
   private globalWheres: Record<string, string> = {};
+  private namedMiddleware: Record<string, MiddlewareHandler> = {};
 
   /** Built-in parameter matchers: `router.matchers.number()`. */
   readonly matchers = matchers;
 
   constructor(private container: Container) {}
+
+  /**
+   * Register named middleware, referenceable by name in `.middleware()` /
+   * `.use()`: `router.named({ auth, admin })` then `route.use("auth")`.
+   */
+  named(map: Record<string, MiddlewareHandler>): this {
+    Object.assign(this.namedMiddleware, map);
+    return this;
+  }
+
+  /** Resolve a middleware reference (name or function) to a handler. */
+  resolveMiddleware(ref: MiddlewareRef): MiddlewareHandler {
+    if (typeof ref !== "string") return ref;
+    const mw = this.namedMiddleware[ref];
+    if (!mw) {
+      throw new Error(
+        `No named middleware [${ref}]. Register it with router.named({ ${ref}: … }).`,
+      );
+    }
+    return mw;
+  }
 
   get(path: string, handler: RouteHandler): Route {
     return this.add(["GET"], path, handler);

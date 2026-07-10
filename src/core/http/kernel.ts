@@ -136,7 +136,8 @@ export class HttpKernel {
         path = path.replace(new RegExp(`:${param}(\\??)`), `:${param}{${rgx}}$1`);
       }
 
-      hono.on(route.methods, [path], ...route.middleware, honoHandler);
+      const middleware = route.middleware.map((m) => router.resolveMiddleware(m));
+      hono.on(route.methods, [path], ...middleware, honoHandler);
     }
 
     hono.notFound((c) =>
