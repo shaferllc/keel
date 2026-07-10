@@ -26,6 +26,7 @@ export type { CacheStore } from "./cache.js";
 export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
 export { dump, dd } from "./debug.js";
+export { hash, encryption } from "./crypto.js";
 export {
   ctx,
   json,

@@ -4,6 +4,19 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] — 2026-07-10
+
+### Added
+
+- **Password hashing.** `hash.make(password)` (PBKDF2-SHA256, self-describing),
+  `hash.verify(hashed, password)` (timing-safe), and `hash.needsRehash()`.
+- **Value encryption.** `encryption.encrypt(value)` / `encryption.decrypt(token)`
+  (AES-GCM, keyed by `config('app.key')`; `decrypt` returns `null` on tamper).
+- Both use the Web Crypto API — edge-safe, no native bindings. See
+  [docs/hashing.md](./docs/hashing.md).
+
+[0.24.0]: https://github.com/shaferllc/keel/releases/tag/v0.24.0
+
 ## [0.23.0] — 2026-07-10
 
 ### Added
