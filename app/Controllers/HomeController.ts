@@ -1,5 +1,5 @@
 import type { Ctx } from "@keel/core";
-import { config, view } from "@keel/core";
+import { config, view, NotFoundException } from "@keel/core";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
 export class HomeController {
@@ -19,5 +19,15 @@ export class HomeController {
 
   show(c: Ctx) {
     return c.json({ id: c.req.param("id") });
+  }
+
+  /** Throws a semantic 404. */
+  missing(c: Ctx): never {
+    throw new NotFoundException("Widget not found");
+  }
+
+  /** Throws an unexpected error (500). */
+  boom(c: Ctx): never {
+    throw new Error("Something went wrong in the engine room");
   }
 }

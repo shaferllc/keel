@@ -12,6 +12,10 @@ export default function routes(router: Router): void {
 
   router.get("/users/:id", [HomeController, "show"]);
 
+  router.get("/missing", [HomeController, "missing"]);
+
+  router.get("/boom", [HomeController, "boom"]);
+
   router.get("/ping", (c: Ctx) => c.json({ pong: true }));
 
   router.get("/hello/:name", (c: Ctx) =>

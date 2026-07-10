@@ -168,6 +168,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Routing](./docs/routing.md) | Closures, controller tuples, parameters |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
+| [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
 
@@ -183,8 +184,10 @@ config, and the console. On deck:
 
 - [x] View / templating layer (Hono JSX) — **v0.2.0**
 - [x] Cloudflare Workers–safe core — **v0.2.0**
-- [ ] ORM / query builder + migrations (wrapping Drizzle)
+- [x] Global helpers: `config()`, `app()`, `view()` — **v0.3.0 / v0.4.0**
+- [x] Error & exception handling — **v0.5.0**
 - [ ] Validation (Zod)
+- [ ] ORM / query builder + migrations (wrapping Drizzle)
 - [ ] Queues (BullMQ), events, and mail
 - [ ] Publish `src/core` as the `@keel/core` package
 

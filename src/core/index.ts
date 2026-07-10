@@ -14,3 +14,11 @@ export type { ProviderClass } from "./provider.js";
 export { Router } from "./http/router.js";
 export type { Ctx, RouteHandler, RouteDefinition } from "./http/router.js";
 export { HttpKernel } from "./http/kernel.js";
+export {
+  HttpException,
+  NotFoundException,
+  UnauthorizedException,
+  ForbiddenException,
+  ValidationException,
+  STATUS_TEXT,
+} from "./exceptions.js";

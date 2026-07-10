@@ -4,6 +4,20 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-07-10
+
+### Added
+
+- **Error & exception handling.** Throw `HttpException` (or `NotFoundException`,
+  `UnauthorizedException`, `ForbiddenException`, `ValidationException`) anywhere
+  and the HTTP kernel renders the right response — JSON or HTML by `Accept`, a
+  readable stack-trace error page when `app.debug` is on, and hidden internals
+  for unexpected 500s in production. Unmatched routes become a tidy 404.
+  Customize via `kernel.onError(handler)` or by overriding `renderException`.
+  See [docs/errors.md](./docs/errors.md).
+
+[0.5.0]: https://github.com/shaferllc/keel/releases/tag/v0.5.0
+
 ## [0.4.0] — 2026-07-10
 
 ### Added
