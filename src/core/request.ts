@@ -13,7 +13,11 @@
  */
 
 import { getContext } from "hono/context-storage";
+import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type { Context } from "hono";
+import { HttpException } from "./exceptions.js";
+
+type CookieOptions = Parameters<typeof setCookie>[3];
 
 /** The current request context. Throws if called outside a request. */
 export function ctx(): Context {
@@ -84,10 +88,18 @@ interface ResponseHelper {
   text(body: string, status?: number): Response;
   html(body: string, status?: number): Response;
   redirect(location: string, status?: number): Response;
+  /** Send a value — objects become JSON, everything else becomes text. */
+  send(data: unknown, status?: number): Response;
   /** Set the response status (chainable). */
   status(code: number): ResponseHelper;
   /** Set a response header (chainable). */
   header(name: string, value: string): ResponseHelper;
+  /** Queue a Set-Cookie on the response (chainable). */
+  cookie(name: string, value: string, options?: CookieOptions): ResponseHelper;
+  /** Clear a cookie (chainable). */
+  clearCookie(name: string, options?: CookieOptions): ResponseHelper;
+  /** Abort the request with an HTTP exception. */
+  abort(message: string, status?: number): never;
 }
 
 export const response: ResponseHelper = {
@@ -103,6 +115,11 @@ export const response: ResponseHelper = {
   redirect(location, status) {
     return redirect(location, status);
   },
+  send(data, status) {
+    return typeof data === "object" && data !== null
+      ? json(data, status)
+      : text(String(data), status);
+  },
   status(code) {
     ctx().status(code as never);
     return response;
@@ -110,6 +127,17 @@ export const response: ResponseHelper = {
   header(name, value) {
     ctx().header(name, value);
     return response;
+  },
+  cookie(name, value, options) {
+    setCookie(ctx(), name, value, options);
+    return response;
+  },
+  clearCookie(name, options) {
+    deleteCookie(ctx(), name, options);
+    return response;
+  },
+  abort(message, status = 400): never {
+    throw new HttpException(status, message);
   },
 };
 
@@ -165,6 +193,57 @@ export const request = {
   /** A subdomain parameter captured from a domain-bound route. */
   subdomain(name: string): string | undefined {
     return ctx().get("subdomains")?.[name];
+  },
+
+  /** A request cookie by name, or all cookies when called with no argument. */
+  cookie(name?: string): string | undefined | Record<string, string> {
+    return name ? getCookie(ctx(), name) : getCookie(ctx());
+  },
+
+  /** The client IP, from X-Forwarded-For / X-Real-IP. */
+  ip(): string | undefined {
+    const c = ctx();
+    return (
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+      c.req.header("x-real-ip") ??
+      undefined
+    );
+  },
+
+  /** All inputs — query string merged with the parsed body (async). */
+  async all(): Promise<Record<string, unknown>> {
+    const c = ctx();
+    const query = c.req.query();
+    let body: Record<string, unknown> = {};
+    try {
+      const ct = c.req.header("content-type") ?? "";
+      if (ct.includes("application/json")) {
+        body = (await c.req.json()) as Record<string, unknown>;
+      } else if (ct.includes("form")) {
+        body = (await c.req.parseBody()) as Record<string, unknown>;
+      }
+    } catch {
+      /* no or invalid body — ignore */
+    }
+    return { ...query, ...body };
+  },
+
+  /** A single input (from query or body), with an optional fallback (async). */
+  async input<T = unknown>(key: string, fallback?: T): Promise<T> {
+    const all = await this.all();
+    return (key in all ? (all[key] as T) : (fallback as T));
+  },
+
+  /** Only the named inputs (async). */
+  async only(keys: string[]): Promise<Record<string, unknown>> {
+    const all = await this.all();
+    return Object.fromEntries(keys.filter((k) => k in all).map((k) => [k, all[k]]));
+  },
+
+  /** Every input except the named ones (async). */
+  async except(keys: string[]): Promise<Record<string, unknown>> {
+    const all = await this.all();
+    return Object.fromEntries(Object.entries(all).filter(([k]) => !keys.includes(k)));
   },
 };
 

@@ -167,6 +167,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Configuration](./docs/configuration.md) | `config/*.ts`, dot-notation, `env()` |
 | [Routing](./docs/routing.md) | Closures, controller tuples, groups, resources, domains |
 | [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
+| [Request & Response](./docs/request-response.md) | Input, cookies, output, `abort()` |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |

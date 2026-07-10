@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] — 2026-07-10
+
+### Added
+
+- **Request input API.** `request.all()`, `request.input(key, fallback?)`,
+  `request.only([...])`, `request.except([...])` (merge query + parsed body),
+  plus `request.ip()`.
+- **Cookies.** `request.cookie(name?)`, `response.cookie(name, value, options)`,
+  and `response.clearCookie(name)`.
+- **Response helpers.** `response.send(data)` (objects → JSON, else text) and
+  `response.abort(message, status)` (throws an `HttpException`).
+- See [docs/request-response.md](./docs/request-response.md).
+
+[0.14.0]: https://github.com/shaferllc/keel/releases/tag/v0.14.0
+
 ## [0.13.0] — 2026-07-10
 
 ### Added
