@@ -32,6 +32,8 @@ export { dump, dd } from "./debug.js";
 export { hash, encryption } from "./crypto.js";
 export { rateLimiter } from "./rate-limit.js";
 export type { RateLimiterOptions } from "./rate-limit.js";
+export { db, setConnection, QueryBuilder } from "./database.js";
+export type { Connection, WriteResult, Row, Dialect, Operator } from "./database.js";
 export {
   ctx,
   json,

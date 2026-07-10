@@ -4,6 +4,20 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] — 2026-07-10
+
+### Added
+
+- **Database query builder.** A driver-agnostic, parameterized query builder:
+  `db(table).where().orderBy().limit().get()/first()/count()/exists()`, plus
+  `whereIn` / `whereNull` / `orWhere`, and `insert` / `insertGetId` / `update` /
+  `delete`. Runs through a two-method `Connection` you register with
+  `setConnection(conn, dialect)` — works with D1, Neon/Postgres, PlanetScale,
+  Turso, better-sqlite3, `pg`. The core imports no driver (edge-safe). See
+  [docs/database.md](./docs/database.md).
+
+[0.28.0]: https://github.com/shaferllc/keel/releases/tag/v0.28.0
+
 ## [0.27.0] — 2026-07-10
 
 ### Added
