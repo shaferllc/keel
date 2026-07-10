@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -38,7 +38,7 @@
     "dev": "tsx watch bin/keel.ts serve",
     "typecheck": "tsc --noEmit",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run build"
+    "prepare": "npm run build"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
