@@ -4,6 +4,32 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.0] — 2026-07-11
+
+### Added
+
+- **Service broker: params validation & result caching.** Six more Moleculer pages
+  checked ([validating](https://moleculer.services/docs/0.15/validating),
+  [caching](https://moleculer.services/docs/0.15/caching),
+  [metrics](https://moleculer.services/docs/0.15/metrics),
+  [tracing](https://moleculer.services/docs/0.15/tracing),
+  [errors](https://moleculer.services/docs/0.15/errors),
+  [runner](https://moleculer.services/docs/0.15/runner)):
+  - **Validating** — an action's `params` schema is validated (and coerced) before
+    the handler; a bad call rejects with `ValidationException`. Bring your own
+    Zod-style schema.
+  - **Caching** — mark an action `cache: true | { ttl, keys }` and give the broker
+    a `cacher` (any Keel `Cache` — memory or Redis); results memoize by action +
+    params (`keys` limits the key). No cacher → no-op.
+  - **Metrics / tracing** — the middleware `localAction` seam is the hook; the
+    trace context (`requestID`/`parentID`/`level`/`caller`) is already on every
+    ctx. **Errors** — typed broker errors exist plus `createError`. **Runner** —
+    `createService()` + `broker.start()` from boot. All documented rather than added.
+
+  All additive and backward compatible.
+
+[0.56.0]: https://github.com/shaferllc/keel/releases/tag/v0.56.0
+
 ## [0.55.0] — 2026-07-11
 
 ### Added

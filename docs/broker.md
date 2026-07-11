@@ -438,3 +438,63 @@ nodes is the `Transporter` seam — implement `Transporter` for NATS, Redis, or 
 and pass it as `transporter`. With a single node there's one endpoint per action,
 so cross-node **load balancing** doesn't apply; event **group** balancing (one
 listener per group) works today via `emit(event, payload, { groups })`.
+
+## Validating params
+
+Give an action a `params` schema and it's validated (and coerced) before the
+handler runs — a bad call rejects with a `ValidationException`, so the handler
+only ever sees valid input:
+
+```ts
+import { z } from "zod";
+
+broker.createService({
+  name: "users",
+  actions: {
+    create: {
+      params: z.object({ email: z.string().email(), age: z.coerce.number().min(18) }),
+      handler: (ctx) => createUser(ctx.params), // params typed + validated
+    },
+  },
+});
+```
+
+Any [Zod-style schema](./validation.md) works — the broker bundles no validator.
+
+## Caching action results
+
+Mark an action `cache` and give the broker a `cacher` (any Keel [`Cache`](./cache.md)
+— memory, or Redis via `redisStore()`), and results are memoized by action + params:
+
+```ts
+import { Cache } from "@shaferllc/keel/core";
+
+const broker = new Broker({ cacher: new Cache() });
+
+broker.createService({
+  name: "stats",
+  actions: {
+    daily: {
+      cache: { ttl: 300, keys: ["day"] }, // 5 min; key on the `day` param only
+      handler: (ctx) => computeDaily(ctx.params.day),
+    },
+  },
+});
+```
+
+`cache: true` caches forever keyed on all params; `{ ttl }` sets a TTL (seconds);
+`{ keys }` limits the cache key to those params. With no `cacher`, `cache` is a
+no-op.
+
+## Metrics, tracing, errors & runner
+
+- **Metrics & tracing** — the [middleware](#middlewares) `localAction` seam is the
+  hook: wrap every call to time it, count it, or open a span. Every context
+  already carries the trace fields (`ctx.requestID`, `ctx.parentID`, `ctx.level`,
+  `ctx.caller`) a span exporter needs.
+- **Errors** — the broker throws typed errors (`ServiceNotFoundError`,
+  `RequestTimeoutError`, and `ValidationException` from `params`); define your own
+  with [`createError`](./errors.md).
+- **Runner** — no separate runner binary: register services with `createService()`
+  (loop over a folder of schemas) and call `broker.start()` from your app's boot
+  or a [service provider](./providers.md).

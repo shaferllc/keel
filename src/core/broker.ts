@@ -24,6 +24,9 @@
  */
 
 import { Logger } from "./logger.js";
+import { Cache } from "./cache.js";
+import { ValidationException } from "./exceptions.js";
+import type { Schema } from "./validation.js";
 
 /* --------------------------------- context -------------------------------- */
 
@@ -145,6 +148,10 @@ export interface ActionDef {
   visibility?: Visibility;
   /** Per-action timeout (ms); overrides the broker default, overridden by the call. */
   timeout?: number;
+  /** Validate `ctx.params` against this schema before the handler runs. */
+  params?: Schema<unknown>;
+  /** Cache the result (needs `BrokerOptions.cacher`). `keys` limits the cache key to those params. */
+  cache?: boolean | { ttl?: number; keys?: string[] };
   /** Hooks that wrap just this action. */
   hooks?: ActionHooks;
 }
@@ -270,6 +277,8 @@ interface NormalizedAction {
   handler: ActionHandler;
   visibility: Visibility;
   timeout?: number;
+  params?: Schema<unknown>;
+  cache?: boolean | { ttl?: number; keys?: string[] };
   hooks: { before: BeforeHook[]; after: AfterHook[]; error: ErrorHook[] };
 }
 
@@ -330,6 +339,8 @@ export class Service {
         handler: def.handler.bind(this),
         visibility: def.visibility ?? "published",
         timeout: def.timeout,
+        params: def.params,
+        cache: def.cache,
         hooks: {
           before: toArray(def.hooks?.before).map((f) => f.bind(this)),
           after: toArray(def.hooks?.after).map((f) => f.bind(this)),
@@ -424,6 +435,8 @@ export interface BrokerOptions {
   requestTimeout?: number;
   /** Default number of retries per call on failure. `0` (default) disables it. */
   retries?: number;
+  /** Cache for actions marked `cache` — a Keel `Cache` (memory, Redis, …). */
+  cacher?: Cache;
   /** Logger to use; defaults to a fresh `Logger`. */
   logger?: Logger;
   /** Middlewares that wrap every action call and tap broker lifecycle. */
@@ -451,6 +464,17 @@ function eventMatches(pattern: string, event: string): boolean {
   return rx.test(event);
 }
 
+/** Build a cache key from an action name and its params (optionally a subset). */
+function cacheKey(action: string, params: unknown, keys?: string[]): string {
+  let keyed = params;
+  if (keys && params && typeof params === "object") {
+    const picked: Record<string, unknown> = {};
+    for (const k of keys) picked[k] = (params as Record<string, unknown>)[k];
+    keyed = picked;
+  }
+  return `${action}:${JSON.stringify(keyed ?? null)}`;
+}
+
 /** Match a hook key (`"*"`, exact name, `"a|b"` pipe list, or `*` glob) to an action. */
 function hookMatches(pattern: string, action: string): boolean {
   if (pattern === "*") return true;
@@ -468,6 +492,7 @@ export class Broker {
   private readonly transporter: Transporter;
   private readonly requestTimeout: number;
   private readonly defaultRetries: number;
+  private readonly cacher?: Cache;
   private readonly middlewares: BrokerMiddleware[];
   private readonly services: Service[] = [];
   /** action fullName → endpoint. */
@@ -481,6 +506,7 @@ export class Broker {
     this.transporter = options.transporter ?? new LocalTransporter();
     this.requestTimeout = options.requestTimeout ?? 0;
     this.defaultRetries = options.retries ?? 0;
+    this.cacher = options.cacher;
     this.middlewares = options.middlewares ?? [];
   }
 
@@ -645,6 +671,20 @@ export class Broker {
     const { before, after, error } = this.resolveHooks(service, action);
     const timeout = opts.timeout ?? action.timeout ?? this.requestTimeout;
 
+    // Validate params against the action schema; the coerced value replaces them.
+    if (action.params) {
+      const result = action.params.safeParse(ctx.params);
+      if (!result.success) {
+        const errors: Record<string, string[]> = {};
+        for (const issue of result.error.issues) {
+          const key = issue.path.map((p) => String(p)).join(".") || "_";
+          (errors[key] ??= []).push(issue.message);
+        }
+        throw new ValidationException(errors);
+      }
+      ctx.params = result.data;
+    }
+
     // Wrap the handler with `localAction` middlewares (first is outermost).
     let handler: ActionHandler = action.handler;
     for (let i = this.middlewares.length - 1; i >= 0; i--) {
@@ -662,31 +702,43 @@ export class Broker {
       return timeout ? this.withTimeout(pipeline, timeout, fullName) : pipeline;
     };
 
-    // Retry the whole call on failure (total attempts = retries + 1).
-    const retries = opts.retries ?? this.defaultRetries;
-    let current: Error | undefined;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        return await runOnce();
-      } catch (err) {
-        current = err as Error;
+    const execute = async (): Promise<unknown> => {
+      // Retry the whole call on failure (total attempts = retries + 1).
+      const retries = opts.retries ?? this.defaultRetries;
+      let current: Error | undefined;
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          return await runOnce();
+        } catch (err) {
+          current = err as Error;
+        }
       }
-    }
 
-    // Every attempt failed: run error hooks, then fall back, else throw.
-    for (const hook of error) {
-      try {
-        return await hook(ctx, current!);
-      } catch (e) {
-        current = e as Error;
+      // Every attempt failed: run error hooks, then fall back, else throw.
+      for (const hook of error) {
+        try {
+          return await hook(ctx, current!);
+        } catch (e) {
+          current = e as Error;
+        }
       }
+      if ("fallback" in opts && opts.fallback !== undefined) {
+        return typeof opts.fallback === "function"
+          ? (opts.fallback as (e: Error, c: Context) => unknown)(current!, ctx)
+          : opts.fallback;
+      }
+      throw current!;
+    };
+
+    // Cache the result when the action opts in and a cacher is configured.
+    if (action.cache && this.cacher) {
+      const cfg = typeof action.cache === "object" ? action.cache : {};
+      const key = cacheKey(fullName, ctx.params, cfg.keys);
+      return cfg.ttl != null
+        ? this.cacher.remember(key, cfg.ttl, execute)
+        : this.cacher.rememberForever(key, execute);
     }
-    if ("fallback" in opts && opts.fallback !== undefined) {
-      return typeof opts.fallback === "function"
-        ? (opts.fallback as (e: Error, c: Context) => unknown)(current!, ctx)
-        : opts.fallback;
-    }
-    throw current!;
+    return execute();
   }
 
   /** Race a promise against a timeout, rejecting with `RequestTimeoutError`. */
