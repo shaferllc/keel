@@ -682,6 +682,31 @@ Sets a response header. Chainable.
 response.header("x-total", "42").json(rows);
 ```
 
+#### `response.headers(map)`
+
+`headers(map: Record<string, string>): ResponseHelper`
+
+Sets several response headers at once. Chainable.
+
+```ts
+response.headers({ "x-total": "42", "cache-control": "no-store" });
+```
+
+#### `response.getHeader(name)` / `response.hasHeader(name)`
+
+`getHeader(name: string): string | null`
+`hasHeader(name: string): boolean`
+
+Read a response header set so far — useful in middleware after `await next()`, to
+inspect what a handler set.
+
+```ts
+kernel.use(async (c, next) => {
+  await next();
+  if (!response.hasHeader("cache-control")) response.header("cache-control", "no-store");
+});
+```
+
 #### `response.type(mime)`
 
 `type(mime: string): ResponseHelper`

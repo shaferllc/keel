@@ -209,6 +209,16 @@ Started](./getting-started.md#install) walks through both install paths.
 - **Wrap the best, own the surface.** Hono does HTTP; Keel owns the developer-
   facing API so the underlying library can change without breaking your app.
   [Built on Hono](./hono.md) draws that line precisely.
+- **Edge-safe, driver-agnostic.** The core imports no database driver, no mail
+  SDK, no socket. Every backend — [database](./database.md), [mail](./mail.md),
+  [redis](./redis.md), [queues](./queues.md), [storage](./storage.md),
+  [broadcasting](./broadcasting.md) — plugs in behind a small interface, so the
+  same app runs on Node and on the edge. You bring the driver; Keel brings the
+  ergonomics.
+- **Explicit over implicit.** No hidden runtime magic: body parsing is a method
+  you call, [templates](./templates.md) interpret rather than `eval`, and
+  providers register into one predictable global scope. Boring and predictable
+  beats clever and surprising.
 
 ## Extending Keel
 

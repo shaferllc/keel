@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.0] — 2026-07-11
+
+### Added
+
+- **Response header helpers.** The `response` accessor gains `headers({...})` (set
+  several at once), `getHeader(name)`, and `hasHeader(name)` — so middleware can
+  inspect and conditionally set what a handler already put on the response (e.g.
+  a default `cache-control`). Brings `response` to parity with Fastify's Reply.
+  See [docs/request-response.md](./docs/request-response.md).
+- **Design principles** documented in
+  [docs/architecture.md](./docs/architecture.md#design-principles) — edge-safe /
+  driver-agnostic and explicit-over-implicit spelled out alongside the existing
+  container-first and thin-over-clever tenets.
+
+[0.51.0]: https://github.com/shaferllc/keel/releases/tag/v0.51.0
+
 ## [0.50.0] — 2026-07-11
 
 ### Added

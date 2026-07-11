@@ -131,6 +131,12 @@ interface ResponseHelper {
   status(code: number): ResponseHelper;
   /** Set a response header (chainable). */
   header(name: string, value: string): ResponseHelper;
+  /** Set several response headers at once (chainable). */
+  headers(map: Record<string, string>): ResponseHelper;
+  /** Read a response header set so far (e.g. in middleware after `next()`). */
+  getHeader(name: string): string | null;
+  /** Whether a response header has been set. */
+  hasHeader(name: string): boolean;
   /** Set the Content-Type (chainable). */
   type(mime: string): ResponseHelper;
   /** Append a value to a (possibly multi-value) header (chainable). */
@@ -174,6 +180,16 @@ export const response: ResponseHelper = {
   header(name, value) {
     ctx().header(name, value);
     return response;
+  },
+  headers(map) {
+    for (const [name, value] of Object.entries(map)) ctx().header(name, value);
+    return response;
+  },
+  getHeader(name) {
+    return ctx().res.headers.get(name);
+  },
+  hasHeader(name) {
+    return ctx().res.headers.has(name);
   },
   type(mime) {
     ctx().header("content-type", mime);

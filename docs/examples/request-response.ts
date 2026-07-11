@@ -138,6 +138,11 @@ export function writingOutput() {
 
   response.status(201).json(created);
   response.header("x-total", "42").json(rows);
+  response.headers({ "x-total": "42", "cache-control": "no-store" });
+  const ct: string | null = response.getHeader("content-type");
+  const has: boolean = response.hasHeader("cache-control");
+  void ct;
+  void has;
   response.type("text/csv").append("vary", "accept");
   response.removeHeader("x-powered-by");
   response.cookie("flash", "saved").redirect("/");
