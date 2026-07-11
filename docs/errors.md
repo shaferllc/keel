@@ -75,7 +75,7 @@ Any request that doesn't match a route is turned into a `404` automatically —
 same rendering as a thrown `NotFoundException`:
 
 ```
-GET /does-not-exist  →  404  { "error": "No route for GET /does-not-exist", "status": 404 }
+GET /does-not-exist  →  404  { "error": "No route for GET /does-not-exist", "status": 404, "code": "E_NOT_FOUND" }
 ```
 
 ## The debug error page
@@ -94,8 +94,8 @@ the JSON body under `errors`:
 import { ValidationException } from "@shaferllc/keel/core";
 
 throw new ValidationException({ email: ["The email is invalid."] });
-// -> 422  { "error": "The given data was invalid.",
-//           "status": 422, "errors": { "email": ["The email is invalid."] } }
+// -> 422  { "error": "The given data was invalid.", "status": 422,
+//           "code": "E_VALIDATION", "errors": { "email": ["The email is invalid."] } }
 ```
 
 ## Custom exceptions
@@ -137,6 +137,40 @@ throw new PaymentRequiredException();
 Both hooks are duck-typed, not tied to a base class: the kernel calls any thrown
 value that happens to have a `report` and/or `handle` method. The built-in
 subclasses don't define either — they render through the default path.
+
+## Coded errors with `createError`
+
+When all you want is a coded error class — a stable `code`, a message, a status —
+skip the boilerplate and mint one with `createError`. It's the ergonomic shortcut
+for the common case, inspired by Fastify's `@fastify/error`:
+
+```ts
+import { createError } from "@shaferllc/keel/core";
+
+const InsufficientFunds = createError("E_FUNDS", "Balance too low: need %s", 402);
+
+throw new InsufficientFunds("$40");
+// -> 402 { "error": "Balance too low: need $40", "status": 402, "code": "E_FUNDS" }
+```
+
+`%s` placeholders in the message are filled, in order, from the constructor
+arguments. The result is a real `HttpException` subclass, so it renders through
+the same path (the `code` lands in the JSON body) and passes
+`instanceof HttpException`. Define your app's errors once and throw them anywhere:
+
+```ts
+export const TenantSuspended = createError("E_TENANT_SUSPENDED", "Tenant %s is suspended.", 403);
+export const RateExceeded = createError("E_RATE", "Slow down.", 429);
+```
+
+The **built-in** exceptions carry stable codes too, so `code` shows up without
+any work: `NotFoundException` → `E_NOT_FOUND`, `UnauthorizedException` →
+`E_UNAUTHORIZED`, `ForbiddenException` → `E_FORBIDDEN`, `ValidationException` →
+`E_VALIDATION`.
+
+Reach for a hand-written subclass (above) only when you need behavior — a
+`handle(c)` renderer or a `report()` hook. For a plain coded error, `createError`
+is all you need.
 
 ## Customizing the handler
 
@@ -266,14 +300,34 @@ throw new ValidationException({
   password: ["Too short.", "Must contain a number."],
 });
 // -> 422 { "error": "The given data was invalid.", "status": 422,
-//          "errors": { "email": [...], "password": [...] } }
+//          "code": "E_VALIDATION", "errors": { "email": [...], "password": [...] } }
 ```
 
 **Notes:** `status` is fixed at `422`; `name` is `"ValidationException"`. Message
 defaults to `"The given data was invalid."`. The field map is exposed as the
 readonly `errors` property, which the kernel serializes into the response body.
 Keel's [`validate()`](./validation.md) helper throws this for you on a failed
-parse.
+parse. `code` is `"E_VALIDATION"`.
+
+### `createError(code, message, status?)`
+
+`createError(code: string, message: string, status?: number): new (...args: (string | number)[]) => HttpException`
+
+Mints a reusable, coded `HttpException` subclass. `message` may contain `%s`
+placeholders, filled in order from the constructor arguments; `status` defaults
+to `500`.
+
+```ts
+const InsufficientFunds = createError("E_FUNDS", "Balance too low: need %s", 402);
+throw new InsufficientFunds("$40");
+// -> 402 { "error": "Balance too low: need $40", "status": 402, "code": "E_FUNDS" }
+```
+
+**Notes:** the returned class extends `HttpException`, so it renders through the
+default path (with `code` in the JSON body) and passes `instanceof HttpException`;
+its `name` is the `code`. A missing argument leaves its `%s` in place. For an
+error that needs a custom `handle(c)`/`report()`, subclass `HttpException`
+directly instead.
 
 ### Constants
 

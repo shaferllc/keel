@@ -44,6 +44,7 @@ export class NotFoundException extends HttpException {
   constructor(message = "Not Found") {
     super(404, message);
     this.name = "NotFoundException";
+    this.code = "E_NOT_FOUND";
   }
 }
 
@@ -51,6 +52,7 @@ export class UnauthorizedException extends HttpException {
   constructor(message = "Unauthorized") {
     super(401, message);
     this.name = "UnauthorizedException";
+    this.code = "E_UNAUTHORIZED";
   }
 }
 
@@ -58,6 +60,7 @@ export class ForbiddenException extends HttpException {
   constructor(message = "Forbidden") {
     super(403, message);
     this.name = "ForbiddenException";
+    this.code = "E_FORBIDDEN";
   }
 }
 
@@ -68,6 +71,40 @@ export class ValidationException extends HttpException {
   constructor(errors: Record<string, string[]>, message = "The given data was invalid.") {
     super(422, message);
     this.name = "ValidationException";
+    this.code = "E_VALIDATION";
     this.errors = errors;
   }
+}
+
+/**
+ * Mint a reusable, coded `HttpException` subclass — the ergonomic way to define
+ * app-specific errors with a stable, machine-readable `code`. Inspired by
+ * `@fastify/error`. The `message` may carry `%s` placeholders, filled in order
+ * from the constructor arguments.
+ *
+ *   const InsufficientFunds = createError("E_FUNDS", "Balance too low: need %s", 402);
+ *   throw new InsufficientFunds("$40");
+ *   // → 402  { error: "Balance too low: need $40", status: 402, code: "E_FUNDS" }
+ *
+ * The returned class extends `HttpException`, so it renders through the same
+ * path — `code` lands in the JSON body — and passes `instanceof HttpException`.
+ */
+export function createError(
+  code: string,
+  message: string,
+  status = 500,
+): new (...args: (string | number)[]) => HttpException {
+  return class extends HttpException {
+    constructor(...args: (string | number)[]) {
+      super(status, formatMessage(message, args));
+      this.name = code;
+      this.code = code;
+    }
+  };
+}
+
+/** printf-lite: replace each `%s` with the next argument, in order. */
+function formatMessage(template: string, args: (string | number)[]): string {
+  let index = 0;
+  return template.replace(/%s/g, () => (index < args.length ? String(args[index++]) : "%s"));
 }

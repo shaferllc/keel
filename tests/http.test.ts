@@ -107,6 +107,7 @@ test("validation: 201 on valid, 422 with field errors on invalid", async () => {
   assert.deepEqual(await bad.json(), {
     error: "The given data was invalid.",
     status: 422,
+    code: "E_VALIDATION",
     errors: { email: ["invalid"] },
   });
 });
@@ -123,7 +124,7 @@ test("errors: 404 for unmatched + HttpException, JSON vs HTML by Accept", async 
   assert.equal((await unmatched.json() as { status: number }).status, 404);
 
   const gone = await hono.request("/gone", { headers: { accept: "application/json" } });
-  assert.deepEqual(await gone.json(), { error: "gone", status: 404 });
+  assert.deepEqual(await gone.json(), { error: "gone", status: 404, code: "E_NOT_FOUND" });
 
   const htmlErr = await hono.request("/nope", { headers: { accept: "text/html" } });
   assert.equal(htmlErr.status, 404);

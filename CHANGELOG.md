@@ -4,6 +4,24 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.1] — 2026-07-10
+
+### Added
+
+- **Coded errors — `createError`.** Mint a reusable, coded `HttpException`
+  subclass in one line: `createError("E_FUNDS", "Balance too low: need %s", 402)`.
+  `%s` placeholders fill from the constructor arguments, the result renders
+  through the default path (with `code` in the JSON body) and passes
+  `instanceof HttpException`. The built-in exceptions now carry stable codes too
+  (`E_NOT_FOUND`, `E_UNAUTHORIZED`, `E_FORBIDDEN`, `E_VALIDATION`), so `code`
+  surfaces without any work. Inspired by Fastify's `@fastify/error`. Also
+  documented: serving over **HTTP/2** needs no framework code — it's a transport
+  concern handled by the edge platform, a reverse proxy, or a `@hono/node-server`
+  `node:http2` option. See [docs/errors.md](./docs/errors.md#coded-errors-with-createerror)
+  and [docs/hono.md](./docs/hono.md#serving-over-http2).
+
+[0.41.1]: https://github.com/shaferllc/keel/releases/tag/v0.41.1
+
 ## [0.41.0] — 2026-07-10
 
 ### Added

@@ -8,11 +8,24 @@ import {
   UnauthorizedException,
   ForbiddenException,
   ValidationException,
+  createError,
   STATUS_TEXT,
   HttpKernel,
   Application,
 } from "@shaferllc/keel/core";
 import type { Context } from "hono";
+
+// createError --------------------------------------------------------------
+export const InsufficientFunds = createError("E_FUNDS", "Balance too low: need %s", 402);
+export const TenantSuspended = createError("E_TENANT_SUSPENDED", "Tenant %s is suspended.", 403);
+export const RateExceeded = createError("E_RATE", "Slow down.", 429);
+
+export function throwCoded(): never {
+  const err = new InsufficientFunds("$40");
+  const isHttp: boolean = err instanceof HttpException;
+  void isHttp;
+  throw err;
+}
 
 // HTTP exceptions ----------------------------------------------------------
 export function httpExceptions(): never {

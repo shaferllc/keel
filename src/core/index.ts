@@ -131,6 +131,7 @@ export {
   UnauthorizedException,
   ForbiddenException,
   ValidationException,
+  createError,
   STATUS_TEXT,
 } from "./exceptions.js";
 export { validate } from "./validation.js";

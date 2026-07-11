@@ -153,3 +153,34 @@ Workers. That single return value is the seam that keeps Keel edge-portable (see
 
 For anything HTTP-layer that Keel doesn't wrap yet, drop down to Hono — the docs
 at [hono.dev](https://hono.dev/docs/) apply directly.
+
+## Serving over HTTP/2
+
+There's nothing to configure in Keel for HTTP/2 — it's a transport concern, not a
+framework one. Keel's handlers are Hono's fetch-based `Request`/`Response`, which
+are HTTP-version-agnostic, so the protocol is decided entirely by whatever serves
+the `fetch` handler:
+
+- **On the edge** (Cloudflare Workers — the headline target), the platform
+  terminates HTTP/2 *and* HTTP/3 for you. Nothing to do, nothing to control from
+  app code.
+- **In Node production**, HTTP/2 is almost always terminated at a reverse proxy
+  or CDN (nginx, Cloudflare, ALB) in front of the process — the usual setup.
+- **In-process h2**, if you really want it, is a `@hono/node-server` option — hand
+  `serve()` a `node:http2` server. No Keel change:
+
+  ```ts
+  import { serve } from "@hono/node-server";
+  import { createSecureServer } from "node:http2";
+  import { readFileSync } from "node:fs";
+
+  const hono = new Kernel(app).build();
+  serve({
+    fetch: hono.fetch,
+    createServer: createSecureServer,
+    serverOptions: { key: readFileSync("key.pem"), cert: readFileSync("cert.pem") },
+  });
+  ```
+
+So HTTP/2 is available on every Keel deployment without the framework
+implementing anything — the same `fetch` handler just gets served over it.
