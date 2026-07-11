@@ -163,7 +163,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 |-------|----------------|
 | [Getting Started](./docs/getting-started.md) | Install, run, first route and controller |
 | [The Service Container](./docs/container.md) | Binding and resolving services, DI |
-| [Service Providers](./docs/providers.md) | The register/boot lifecycle |
+| [Service Providers](./docs/providers.md) | Plugin system: register/boot lifecycle, options |
 | [Configuration](./docs/configuration.md) | `config/*.ts`, dot-notation, `env()` |
 | [Routing](./docs/routing.md) | Closures, controller tuples, groups, resources, domains |
 | [URL Builder](./docs/url-builder.md) | Named-route URLs, signed URLs |

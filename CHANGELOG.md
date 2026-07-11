@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.50.0] — 2026-07-11
+
+### Added
+
+- **Parameterized providers.** Service providers — Keel's plugin system — now take
+  options at registration: `app.register(RateLimitProvider, { max: 100 })`, typed
+  via `ServiceProvider<{ max: number }>` and read as `this.options`. The same
+  provider class can register more than once with different options, so a provider
+  is now genuinely reusable (Fastify's `register(plugin, options)`). Backward
+  compatible — options default to `{}`. (Keel providers stay un-encapsulated by
+  design; per-request scoping is [middleware](./docs/middleware.md).) See
+  [docs/providers.md](./docs/providers.md#providers-are-keels-plugin-system).
+
+[0.50.0]: https://github.com/shaferllc/keel/releases/tag/v0.50.0
+
 ## [0.49.0] — 2026-07-11
 
 ### Added

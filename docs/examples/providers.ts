@@ -85,6 +85,21 @@ export async function bootApp(): Promise<Application> {
   return app.boot(providers);
 }
 
+// --- Parameterized providers (plugin-style options) ------------------------
+export class RateLimitProvider extends ServiceProvider<{ max: number }> {
+  boot(): void {
+    const max: number = this.options.max; // typed via the generic
+    void max;
+  }
+}
+
+export async function registerWithOptions(): Promise<Application> {
+  const app = new Application();
+  app.register(RateLimitProvider, { max: 100 });
+  app.register(RateLimitProvider, { max: 20 }); // again, different options
+  return app.boot([], { discoverConfig: false, config: { app: {} } });
+}
+
 // --- ProviderClass as a value ----------------------------------------------
 const provider: ProviderClass = SearchServiceProvider;
 export { provider };

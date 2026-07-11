@@ -77,6 +77,32 @@ Providers boot in array order. Under the hood, `app.boot(providers)` calls
 `app.register(Provider)` for each class — which does `new Provider(app)` and
 stashes the instance — then runs the two phases across the whole set.
 
+## Providers are Keel's plugin system
+
+A service provider is Keel's answer to a **plugin**: a self-contained slice of
+functionality you register into the app. To make one **reusable**, register it
+with **options** — they arrive as `this.options`, typed via the generic:
+
+```ts
+class RateLimitProvider extends ServiceProvider<{ max: number }> {
+  boot() {
+    this.app.make(HttpKernel).use(rateLimiter({ max: this.options.max }));
+  }
+}
+
+app.register(RateLimitProvider, { max: 100 }); // parameterized, like a plugin
+```
+
+The same provider class can be registered more than once with different options.
+Without options, `this.options` is an empty object.
+
+> Unlike Fastify plugins, Keel providers are **not encapsulated** — bindings,
+> decorators, and routes are registered into the one global container. That's a
+> deliberate simplification: there's a single, predictable scope, and no
+> plugin-boundary rules to reason about. For per-request behavior in the HTTP
+> pipeline (auth, logging, etc.), reach for [middleware](./middleware.md), which
+> *is* scoped to the routes you attach it to.
+
 ## Generating a provider
 
 ```bash
@@ -183,21 +209,32 @@ export class AppServiceProvider extends ServiceProvider {
 **Notes:** `abstract`, so it can't be `new`ed on its own. A subclass needn't
 override both methods — leave one off to inherit the empty default.
 
-#### `constructor(app)`
+#### `constructor(app, options?)`
 
-`constructor(app: Application)`
+`constructor(app: Application, options?: O)` (on `ServiceProvider<O>`)
 
-Receives the live `Application` and stores it as the `protected` `this.app`. The
-`Application` invokes this for you (`new Provider(app)`); you don't call it.
+Receives the live `Application` (stored as `protected this.app`) and the options
+passed to `register` (stored as `protected this.options`, `{}` if none). The
+`Application` invokes this for you; you don't call it.
 
 ```ts
-// The Application does this internally when you register the class:
-// new BillingServiceProvider(app);
+class RateLimitProvider extends ServiceProvider<{ max: number }> {
+  boot() {
+    this.app.make(HttpKernel).use(rateLimiter({ max: this.options.max }));
+  }
+}
+app.register(RateLimitProvider, { max: 100 });
 ```
 
-**Notes:** `app` is `protected`, so it's reachable from subclass methods
-(`this.app`) but not from outside the instance. There is no other constructor
-parameter — a provider is just its two lifecycle hooks over the container.
+**Notes:** `app` and `options` are `protected` — reachable from subclass methods,
+not from outside. Type the options via the class generic `ServiceProvider<O>`.
+
+#### `app.register(Provider, options?)`
+
+`register(Provider: ProviderClass, options?: unknown): this`
+
+Registers a provider, optionally with options handed to its constructor. Chainable.
+`app.boot([Providers])` registers each without options.
 
 #### `register()`
 

@@ -119,9 +119,9 @@ export class Application extends Container {
     }
   }
 
-  /** Register a provider instance (defers boot until boot()). */
-  register(Provider: ProviderClass): this {
-    const provider = new Provider(this);
+  /** Register a provider, optionally with options passed to its constructor. */
+  register(Provider: ProviderClass, options?: unknown): this {
+    const provider = new Provider(this, options);
     this.providers.push(provider);
     return this;
   }
