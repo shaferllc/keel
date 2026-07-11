@@ -33,6 +33,8 @@ export { Cache, MemoryStore } from "./cache.js";
 export type { CacheStore } from "./cache.js";
 export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
+export { Storage, MemoryDisk, storage, setDisk } from "./storage.js";
+export type { Disk, Contents } from "./storage.js";
 export { dump, dd } from "./debug.js";
 export { hash, encryption } from "./crypto.js";
 export { rateLimiter } from "./rate-limit.js";

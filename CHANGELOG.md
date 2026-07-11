@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.0] — 2026-07-11
+
+### Added
+
+- **File storage.** A driver-agnostic storage layer on a pluggable `Disk` — the
+  core imports no filesystem or SDK, so it runs on Node and the edge.
+  `setDisk(disk, name?)` then `storage(name?)`: `put` (string / bytes /
+  ArrayBuffer) / `get` / `getText` / `exists` / `delete` / `list(prefix?)` /
+  `url`. `MemoryDisk` is a full in-memory driver and the default, so `storage()`
+  works in tests with no setup; point disks at the local filesystem (Node), S3
+  (`fetch`), or a Cloudflare R2 binding (adapters in the docs). Register several
+  disks by name and select with `storage("s3")`. See
+  [docs/storage.md](./docs/storage.md).
+
+[0.47.0]: https://github.com/shaferllc/keel/releases/tag/v0.47.0
+
 ## [0.46.0] — 2026-07-11
 
 ### Added

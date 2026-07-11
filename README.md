@@ -189,6 +189,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Redis](./docs/redis.md) | Pluggable client, memory driver, cache adapter |
 | [Logger](./docs/logger.md) | Structured logging, per-request `reqId`, redaction |
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
+| [Storage](./docs/storage.md) | Pluggable disks (local/S3/R2), edge-safe |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Templates](./docs/templates.md) | Blade/Edge-style `{{ }}` + `@`-tag engine, edge-safe |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
