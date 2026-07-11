@@ -10,6 +10,7 @@
  *   keel make:seeder Database   generate database/seeders/DatabaseSeeder.ts
  *   keel make:job SendWelcome   generate app/Jobs/SendWelcomeJob.ts
  *   keel make:notification Paid generate app/Notifications/PaidNotification.ts
+ *   keel make:transformer User  generate app/Transformers/UserTransformer.ts
  *   keel routes                 list registered routes
  */
 
@@ -30,6 +31,7 @@ import {
   seederStub,
   jobStub,
   notificationStub,
+  transformerStub,
 } from "./stubs.js";
 
 const basePath = process.cwd();
@@ -159,6 +161,16 @@ export async function run(argv: string[]): Promise<void> {
     .action(async (name: string) => {
       const cls = className(name, "Notification");
       await generate(`app/Notifications/${cls}.ts`, notificationStub(cls), "Notification");
+    });
+
+  program
+    .command("make:transformer <name>")
+    .description("Generate an API transformer")
+    .option("-m, --model <model>", "the value it maps (e.g. User)")
+    .action(async (name: string, opts: { model?: string }) => {
+      const cls = className(name, "Transformer");
+      const model = opts.model ? className(opts.model, "") : cls.replace(/Transformer$/, "");
+      await generate(`app/Transformers/${cls}.ts`, transformerStub(cls, model), "Transformer");
     });
 
   await program.parseAsync(argv);

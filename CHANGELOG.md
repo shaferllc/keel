@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.0] — 2026-07-10
+
+### Added
+
+- **Transformers.** A presentation layer between your models and your JSON:
+  subclass `Transformer<T>`, define one `transform()`, and get `item` /
+  `collection` / `document`. `when(condition, value)` includes a field only when
+  a condition holds — omitting the key entirely rather than leaking `null` — with
+  a `mergeWhen` counterpart for groups of fields and thunks for deferred values.
+  `whenLoaded(model, name, transformer)` embeds a relation only if it was
+  eager-loaded, so a transformer never fires a surprise query. `document()` wraps
+  the payload under a key (`data` by default) with top-level `meta`. Edge-safe;
+  depends on nothing but the value you hand it. New generator
+  `keel make:transformer`. See [docs/transformers.md](./docs/transformers.md).
+
+[0.37.0]: https://github.com/shaferllc/keel/releases/tag/v0.37.0
+
 ## [0.36.0] — 2026-07-10
 
 ### Added

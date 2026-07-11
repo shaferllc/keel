@@ -108,3 +108,22 @@ export class ${name} extends Notification {
 }
 `;
 }
+
+/** `name` is the class (e.g. "UserTransformer"); `model` is the value it maps. */
+export function transformerStub(name: string, model: string): string {
+  return `import { Transformer, type Attributes } from "@keel/core";
+// import { ${model} } from "../Models/${model}.js";
+
+export class ${name} extends Transformer</* ${model} */ any> {
+  transform(item: /* ${model} */ any): Attributes {
+    // Map the value to the exact shape your API exposes.
+    return {
+      id: item.id,
+      // name: item.name,
+      // email: this.when(canSeeEmail, item.email),
+      // posts: this.whenLoaded(item, "posts", new PostTransformer()),
+    };
+  }
+}
+`;
+}

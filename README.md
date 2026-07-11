@@ -179,6 +179,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Mail](./docs/mail.md) | Fluent mailer, pluggable transports, edge-safe |
 | [Queues & Jobs](./docs/queues.md) | Dispatch jobs, pluggable drivers, workers |
 | [Notifications](./docs/notifications.md) | Multi-channel (mail/db), queueable |
+| [Transformers](./docs/transformers.md) | Shape models into API JSON; conditional fields, relations |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
 | [Logger](./docs/logger.md) | Leveled structured logging, child loggers |
