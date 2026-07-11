@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0] — 2026-07-11
+
+### Added
+
+- **Test client.** `testClient(app)` injects requests into your app — no server,
+  no port — and returns a `TestResponse` with verb helpers (`get` / `post` (JSON
+  body) / `put` / `patch` / `delete`) and fluent, chainable assertions
+  (`assertStatus` / `assertOk` / `assertJson` / `assertText` / `assertHeader` /
+  `assertRedirect`). The response body is pre-buffered, so reads are synchronous
+  and repeatable. Accepts an `Application`, an `HttpKernel` (to register global
+  middleware first), or any `request()`-able. Edge-safe — the same fetch-style
+  injection Keel's own suite uses, minus the boilerplate. See
+  [docs/testing.md](./docs/testing.md).
+
+[0.45.0]: https://github.com/shaferllc/keel/releases/tag/v0.45.0
+
 ## [0.44.0] — 2026-07-11
 
 ### Added

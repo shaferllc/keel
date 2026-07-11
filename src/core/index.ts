@@ -130,6 +130,7 @@ export type {
 export { Inertia, inertia, inertiaPageAttr } from "./inertia.js";
 export type { InertiaPage, InertiaOptions } from "./inertia.js";
 export { HttpKernel } from "./http/kernel.js";
+export { TestClient, TestResponse, testClient } from "./testing.js";
 export {
   HttpException,
   NotFoundException,
