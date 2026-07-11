@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] — 2026-07-10
+
+### Added
+
+- **Notifications.** Send a message to one or many recipients over pluggable
+  channels: `notify(user, new InvoicePaid(4200))`. A `Notification` declares
+  `via()` (channels) and per-channel content (`toMail`, `toArray`). Built-in
+  channels: `MailChannel` (via the mailer, routed by `email` or
+  `routeNotificationFor`), `DatabaseChannel` (inserts `toArray` into a table),
+  and `ArrayChannel` (for tests). Set `shouldQueue = true` to deliver from a
+  queued job. This is where the mail and queue layers compose — a custom channel
+  is one `send` method. New generator `keel make:notification`. See
+  [docs/notifications.md](./docs/notifications.md).
+
+[0.36.0]: https://github.com/shaferllc/keel/releases/tag/v0.36.0
+
 ## [0.35.0] — 2026-07-10
 
 ### Added

@@ -9,6 +9,7 @@
  *   keel make:factory User      generate database/factories/UserFactory.ts
  *   keel make:seeder Database   generate database/seeders/DatabaseSeeder.ts
  *   keel make:job SendWelcome   generate app/Jobs/SendWelcomeJob.ts
+ *   keel make:notification Paid generate app/Notifications/PaidNotification.ts
  *   keel routes                 list registered routes
  */
 
@@ -28,6 +29,7 @@ import {
   factoryStub,
   seederStub,
   jobStub,
+  notificationStub,
 } from "./stubs.js";
 
 const basePath = process.cwd();
@@ -149,6 +151,14 @@ export async function run(argv: string[]): Promise<void> {
     .action(async (name: string) => {
       const cls = className(name, "Job");
       await generate(`app/Jobs/${cls}.ts`, jobStub(cls), "Job");
+    });
+
+  program
+    .command("make:notification <name>")
+    .description("Generate a notification")
+    .action(async (name: string) => {
+      const cls = className(name, "Notification");
+      await generate(`app/Notifications/${cls}.ts`, notificationStub(cls), "Notification");
     });
 
   await program.parseAsync(argv);

@@ -90,3 +90,21 @@ export class ${name} extends Job {
 }
 `;
 }
+
+export function notificationStub(name: string): string {
+  return `import { Notification, type Notifiable, type MailContent } from "@keel/core";
+
+export class ${name} extends Notification {
+  via(_notifiable: Notifiable): string[] {
+    return ["mail"];
+  }
+
+  toMail(_notifiable: Notifiable): MailContent {
+    return {
+      subject: "${name}",
+      text: "Notification body.",
+    };
+  }
+}
+`;
+}

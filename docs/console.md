@@ -102,6 +102,17 @@ npm run keel make:job SendWelcome
 
 See [Queues & Jobs](./queues.md) for dispatching them.
 
+### `make:notification`
+
+Generate a notification in `app/Notifications/`.
+
+```bash
+npm run keel make:notification InvoicePaid
+# -> app/Notifications/InvoicePaidNotification.ts
+```
+
+See [Notifications](./notifications.md) for sending them.
+
 ## Generator safety
 
 Generators refuse to overwrite an existing file and exit non-zero:

@@ -61,6 +61,18 @@ export {
   getQueue,
 } from "./queue.js";
 export type { Dispatchable, JobOptions, QueueDriver, Drainable, QueuedJob } from "./queue.js";
+export {
+  Notification,
+  Notifier,
+  MailChannel,
+  DatabaseChannel,
+  ArrayChannel,
+  routeFor,
+  notify,
+  setNotifier,
+  getNotifier,
+} from "./notification.js";
+export type { Notifiable, MailContent, Channel } from "./notification.js";
 export { SchemaBuilder, Migrator, TableBuilder, Column } from "./migrations.js";
 export type { Migration } from "./migrations.js";
 export {
