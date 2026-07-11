@@ -89,6 +89,10 @@ export interface CallOptions {
   requestID?: string;
   /** Milliseconds to wait before rejecting with a `RequestTimeoutError`. */
   timeout?: number;
+  /** Retry the call this many times on failure (total attempts = retries + 1). */
+  retries?: number;
+  /** A value (or `(err, ctx) => value`) to return if every attempt fails. */
+  fallback?: unknown | ((err: Error, ctx: Context) => unknown);
   /** @internal parent context whose `meta`/`requestID` this call inherits. */
   parentCtx?: Context;
 }
@@ -418,6 +422,8 @@ export interface BrokerOptions {
   transporter?: Transporter;
   /** Default per-call timeout in ms. `0` (default) disables it. */
   requestTimeout?: number;
+  /** Default number of retries per call on failure. `0` (default) disables it. */
+  retries?: number;
   /** Logger to use; defaults to a fresh `Logger`. */
   logger?: Logger;
   /** Middlewares that wrap every action call and tap broker lifecycle. */
@@ -461,6 +467,7 @@ export class Broker {
   readonly logger: Logger;
   private readonly transporter: Transporter;
   private readonly requestTimeout: number;
+  private readonly defaultRetries: number;
   private readonly middlewares: BrokerMiddleware[];
   private readonly services: Service[] = [];
   /** action fullName → endpoint. */
@@ -473,6 +480,7 @@ export class Broker {
     this.logger = options.logger ?? new Logger({ bindings: { nodeID: options.nodeID } });
     this.transporter = options.transporter ?? new LocalTransporter();
     this.requestTimeout = options.requestTimeout ?? 0;
+    this.defaultRetries = options.retries ?? 0;
     this.middlewares = options.middlewares ?? [];
   }
 
@@ -577,6 +585,32 @@ export class Broker {
     return this.invoke(action, endpoint, params, opts) as Promise<R>;
   }
 
+  /* ------------------------------ introspection --------------------------- */
+
+  /** Whether a callable (non-private) action is registered. */
+  hasAction(name: string): boolean {
+    const endpoint = this.actions.get(name);
+    return !!endpoint && endpoint.action.visibility !== "private";
+  }
+
+  /** The names of every callable (non-private) action, sorted. */
+  listActions(): string[] {
+    return [...this.actions.entries()]
+      .filter(([, e]) => e.action.visibility !== "private")
+      .map(([name]) => name)
+      .sort();
+  }
+
+  /** The full names of every registered service. */
+  listServices(): string[] {
+    return this.services.map((s) => s.fullName);
+  }
+
+  /** A registered service by full name or bare name. */
+  getService(name: string): Service | undefined {
+    return this.services.find((s) => s.fullName === name || s.name === name);
+  }
+
   /** Invoke several actions at once — pass an array or a keyed map; returns the same shape. */
   async mcall<R = unknown>(defs: MCallDefs, opts: MCallOptions = {}): Promise<R> {
     const { settled, ...callOpts } = opts;
@@ -618,26 +652,41 @@ export class Broker {
       if (wrap) handler = wrap(handler, fullName);
     }
 
-    const pipeline = (async () => {
-      for (const hook of before) await hook(ctx);
-      let res = await handler(ctx);
-      for (const hook of after) res = await hook(ctx, res);
-      return res;
-    })();
+    const runOnce = () => {
+      const pipeline = (async () => {
+        for (const hook of before) await hook(ctx);
+        let res = await handler(ctx);
+        for (const hook of after) res = await hook(ctx, res);
+        return res;
+      })();
+      return timeout ? this.withTimeout(pipeline, timeout, fullName) : pipeline;
+    };
 
-    try {
-      return await (timeout ? this.withTimeout(pipeline, timeout, fullName) : pipeline);
-    } catch (err) {
-      let current = err as Error;
-      for (const hook of error) {
-        try {
-          return await hook(ctx, current);
-        } catch (e) {
-          current = e as Error;
-        }
+    // Retry the whole call on failure (total attempts = retries + 1).
+    const retries = opts.retries ?? this.defaultRetries;
+    let current: Error | undefined;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await runOnce();
+      } catch (err) {
+        current = err as Error;
       }
-      throw current;
     }
+
+    // Every attempt failed: run error hooks, then fall back, else throw.
+    for (const hook of error) {
+      try {
+        return await hook(ctx, current!);
+      } catch (e) {
+        current = e as Error;
+      }
+    }
+    if ("fallback" in opts && opts.fallback !== undefined) {
+      return typeof opts.fallback === "function"
+        ? (opts.fallback as (e: Error, c: Context) => unknown)(current!, ctx)
+        : opts.fallback;
+    }
+    throw current!;
   }
 
   /** Race a promise against a timeout, rejecting with `RequestTimeoutError`. */

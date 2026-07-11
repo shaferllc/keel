@@ -4,6 +4,29 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.55.0] — 2026-07-11
+
+### Added
+
+- **Service broker: fault tolerance & registry introspection.** Two more Moleculer
+  pages checked ([fault-tolerance](https://moleculer.services/docs/0.15/fault-tolerance),
+  [registry](https://moleculer.services/docs/0.15/registry)):
+  - **Retry** — `call(action, params, { retries: 3 })` re-runs the whole call on
+    failure (total attempts = retries + 1); `BrokerOptions.retries` sets a default.
+  - **Fallback** — `{ fallback: value }` or `{ fallback: (err, ctx) => value }`
+    returns instead of throwing once every attempt (and `error` hooks) fails.
+    Order: retry → error hooks → fallback → throw. (Timeout was already present.)
+  - **Registry introspection** — `broker.hasAction(name)`, `listActions()`,
+    `listServices()`, `getService(name)`.
+  - **Networking / balancing** — clustering is the `Transporter` seam (NATS/Redis/
+    TCP); single-node has one endpoint per action, so cross-node balancing doesn't
+    apply — event **group** balancing already works via `emit(…, { groups })`.
+    Documented rather than added.
+
+  All additive and backward compatible.
+
+[0.55.0]: https://github.com/shaferllc/keel/releases/tag/v0.55.0
+
 ## [0.54.0] — 2026-07-11
 
 ### Added

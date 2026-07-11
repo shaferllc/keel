@@ -390,3 +390,51 @@ const broker = new Broker({ middlewares: [timing] });
 `started(broker)` / `stopped(broker)` run during `broker.start()` / `stop()`
 (stopped in reverse order). A middleware that omits `localAction` leaves calls
 untouched — handy for a lifecycle-only middleware.
+
+## Fault tolerance
+
+A call can be made resilient with per-call options (or broker-wide defaults):
+
+```ts
+// retry up to 3 times, then fall back to a cached value
+await broker.call("orders.get", { id }, {
+  retries: 3,
+  fallback: { id, status: "unknown" },
+});
+
+// timeout + a computed fallback
+await broker.call("pricing.quote", cart, {
+  timeout: 500,
+  fallback: (err: Error) => ({ error: err.message, price: null }),
+});
+
+const broker = new Broker({ requestTimeout: 1000, retries: 2 }); // defaults for every call
+```
+
+- **`retries`** — total attempts are `retries + 1`; the whole call re-runs on
+  failure. Defaults to `BrokerOptions.retries`.
+- **`fallback`** — a value, or `(err, ctx) => value`, returned once every attempt
+  (and any `error` hooks) has failed — instead of throwing.
+- **`timeout`** — ms before a `RequestTimeoutError` (per call, per action, or the
+  broker default).
+
+Order: retry → error hooks → fallback → throw.
+
+## Registry introspection
+
+The broker's registry is queryable:
+
+```ts
+broker.hasAction("users.find"); // boolean (private actions read as absent)
+broker.listActions();           // ["orders.get", "users.find", …] (public, sorted)
+broker.listServices();          // ["orders", "users", …]
+broker.getService("users");     // the Service instance, or undefined
+```
+
+## Networking & balancing
+
+The broker is **single-node** by default (`LocalTransporter`). Clustering across
+nodes is the `Transporter` seam — implement `Transporter` for NATS, Redis, or TCP
+and pass it as `transporter`. With a single node there's one endpoint per action,
+so cross-node **load balancing** doesn't apply; event **group** balancing (one
+listener per group) works today via `emit(event, payload, { groups })`.
