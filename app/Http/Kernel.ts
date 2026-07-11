@@ -1,4 +1,4 @@
-import { HttpKernel } from "@keel/core";
+import { HttpKernel, serveStatic } from "@keel/core";
 import { Application } from "@keel/core";
 import { requestLogger } from "./Middleware/requestLogger.js";
 
@@ -10,5 +10,7 @@ export class Kernel extends HttpKernel {
   constructor(app: Application) {
     super(app);
     this.use(requestLogger);
+    // Serve built frontend assets (public/assets/*) and anything else in public/.
+    this.use(serveStatic({ root: "./public" }));
   }
 }

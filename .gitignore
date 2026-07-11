@@ -3,6 +3,10 @@ dist/
 *.log
 .DS_Store
 
+# Vite build artifacts + dev-server marker
+public/hot
+public/assets/
+
 # Local environment — copy .env.example to .env
 .env
 !.env.example

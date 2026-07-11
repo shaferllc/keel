@@ -21,6 +21,18 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Find-or-create & convenience writes.** `Model.firstOrCreate(match, values)`,
   `Model.updateOrCreate(match, values)`, instance `update(attrs)` (fill + save),
   and `refresh()` (re-read the row). See [docs/models.md](./docs/models.md).
+- **Full Vite support.** A first-class frontend build, the way Laravel and
+  AdonisJS do it. A `keelVite()` plugin (new `@shaferllc/keel/vite` entry) wires
+  `vite.config.ts` — manifest, output, entrypoints, `base` — and writes a
+  `public/hot` marker while the dev server runs; optional `reload` globs
+  full-reload the browser on server-view changes. The `Vite` service renders the
+  `<script>`/`<link>` tags for your entrypoints and resolves asset URLs, flipping
+  automatically between the dev server (with HMR) and the hashed, preloaded
+  production manifest. Helpers `viteTags` / `viteAsset` / `viteReactRefresh` slot
+  straight into a JSX `<head>`; `scriptAttributes` / `styleAttributes`, a CDN
+  `assetsUrl`, React Fast Refresh, and an edge-safe `useManifest` path are all
+  covered. Tag generation is pure and runs on the edge. See
+  [docs/vite.md](./docs/vite.md).
 
 [0.38.0]: https://github.com/shaferllc/keel/releases/tag/v0.38.0
 

@@ -1,4 +1,13 @@
-import { ServiceProvider, bind, singleton, Inertia, inertiaPageAttr } from "@keel/core";
+import {
+  ServiceProvider,
+  bind,
+  singleton,
+  Inertia,
+  inertiaPageAttr,
+  Vite,
+  viteTags,
+  viteReactRefresh,
+} from "@keel/core";
 
 /**
  * The primary application provider. Bind your services in register(),
@@ -9,21 +18,26 @@ export class AppServiceProvider extends ServiceProvider {
     // Global helpers — no `this.app` needed.
     bind("clock", () => new Date().toISOString());
 
-    // Configure Inertia with an HTML shell that embeds the page + client bundle.
+    // Vite — the frontend build. Tags resolve to the dev server (with HMR) when
+    // `npm run dev:client` is running, or to hashed production assets otherwise.
+    singleton(Vite, () => new Vite({ entrypoints: ["resources/js/app.ts"] }));
+
+    // Configure Inertia with an HTML shell that loads the Vite bundle.
     singleton(
       Inertia,
       () =>
         new Inertia({
           version: "1",
           rootView: (page) =>
-            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Keel</title></head>` +
-            `<body><div id="app" data-page="${inertiaPageAttr(page)}"></div>` +
-            `<script src="/assets/app.js"></script></body></html>`,
+            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Keel</title>` +
+            `${viteReactRefresh()}${viteTags("resources/js/app.ts")}</head>` +
+            `<body><div id="app" data-page="${inertiaPageAttr(page)}"></div></body></html>`,
         }),
     );
   }
 
-  boot(): void {
-    // Runs after all providers have registered.
+  async boot(): Promise<void> {
+    // Read the hot file / build manifest from disk once, at startup.
+    await this.app.make(Vite).loadFromDisk();
   }
 }

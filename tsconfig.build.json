@@ -6,6 +6,6 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": ["src/core"],
+  "include": ["src/core", "src/vite"],
   "exclude": ["src/core/cli"]
 }
