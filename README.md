@@ -183,6 +183,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Queues & Jobs](./docs/queues.md) | Dispatch jobs, pluggable drivers, workers |
 | [Task Scheduling](./docs/scheduling.md) | Cron-style recurring tasks, one trigger |
 | [Notifications](./docs/notifications.md) | Multi-channel (mail/db), queueable |
+| [Broadcasting](./docs/broadcasting.md) | Real-time channels, pluggable, presence auth |
 | [Transformers](./docs/transformers.md) | Shape models into API JSON; conditional fields, relations |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Service Broker](./docs/broker.md) | Moleculer-style services, call/emit, pluggable transport |

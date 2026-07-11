@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.49.0] — 2026-07-11
+
+### Added
+
+- **Broadcasting.** Push events to clients in real time over named channels on a
+  pluggable `Broadcaster` — the core owns no socket, so point it at Pusher/Ably
+  (`fetch`), a Cloudflare Durable Object, or the built-in `MemoryBroadcaster`
+  (in-process fan-out, for tests). `broadcast(channels, event, payload)`
+  publishes; `channelAuth("orders.{id}", (user, params) => …)` gates private and
+  presence channels (return `false`/`true`/member-data), resolved by
+  `authorizeChannel` at your socket endpoint — composing with `auth()` and
+  authorization. `MemoryBroadcaster.subscribe()` fans out in-process (Durable
+  Object / SSE). See [docs/broadcasting.md](./docs/broadcasting.md).
+
+[0.49.0]: https://github.com/shaferllc/keel/releases/tag/v0.49.0
+
 ## [0.48.0] — 2026-07-11
 
 ### Added

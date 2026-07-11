@@ -69,6 +69,16 @@ export {
 } from "./queue.js";
 export type { Dispatchable, JobOptions, QueueDriver, Drainable, QueuedJob } from "./queue.js";
 export { Scheduler, ScheduledTask, scheduler, setScheduler, schedule, cronMatches } from "./scheduler.js";
+export {
+  MemoryBroadcaster,
+  broadcast,
+  setBroadcaster,
+  getBroadcaster,
+  channelAuth,
+  authorizeChannel,
+  clearChannels,
+} from "./broadcasting.js";
+export type { Broadcaster, Subscriber, ChannelAuthorizer } from "./broadcasting.js";
 export { Redis, MemoryRedis, redis, setRedis, redisStore } from "./redis.js";
 export type { RedisConnection, SetOptions } from "./redis.js";
 export {
