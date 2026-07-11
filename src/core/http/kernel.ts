@@ -126,7 +126,7 @@ export class HttpKernel {
       const fn: HandlerFn = router.resolve(route.handler);
       // Set the matched-route context *before* this route's middleware, so both
       // route middleware and the handler can read `request.route` (incl. config).
-      const setRoute = async (c: Context, next: () => Promise<void>) => {
+      const setRoute: MiddlewareHandler = async (c, next) => {
         c.set("route", {
           name: route.name,
           pattern: route.path,
@@ -146,8 +146,8 @@ export class HttpKernel {
         path = path.replace(new RegExp(`:${param}(\\??)`), `:${param}{${rgx}}$1`);
       }
 
-      const middleware = route.middleware.map((m) => router.resolveMiddleware(m));
-      hono.on(route.methods, [path], setRoute, ...middleware, honoHandler);
+      const middleware = [setRoute, ...route.middleware.map((m) => router.resolveMiddleware(m))];
+      hono.on(route.methods, [path], ...middleware, honoHandler);
     }
 
     hono.notFound((c) =>
