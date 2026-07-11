@@ -173,7 +173,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
-| [Models](./docs/models.md) | Active-record: find, create, save, delete |
+| [Models](./docs/models.md) | Active-record: find/create/save, casts, relations |
 | [Migrations](./docs/migrations.md) | Schema builder + migrator, dialect-aware |
 | [Factories & Seeders](./docs/factories.md) | Built-in Faker, model factories, seeders |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
@@ -229,6 +229,7 @@ config, and the console. On deck:
 - [x] Migrations (schema builder) — **v0.30.0**
 - [x] Model relationships (hasMany / belongsTo / belongsToMany) — **v0.31.0**
 - [x] Factories & seeders (built-in Faker) — **v0.32.0**
+- [x] Model attribute casts + mass-assignment guarding — **v0.33.0**
 - [ ] Queues (BullMQ), events, and mail
 - [ ] Publish `src/core` as the `@keel/core` package
 

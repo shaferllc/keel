@@ -4,6 +4,24 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] — 2026-07-10
+
+### Added
+
+- **Model attribute casts.** `static casts = { active: "boolean", meta: "json",
+  joined_at: "date" }` round-trips columns as real JS types — cast when read
+  (from the database or `fill`) and back to storable primitives on write. This
+  is what lets `boolean`/`json` columns bind cleanly on drivers that reject JS
+  booleans and objects. Types: `int`, `float`, `boolean`, `string`, `json` /
+  `array`, `date`.
+- **Mass-assignment guarding.** `static fillable` (allowlist) or `static
+  guarded` (denylist) filter the attributes `create()` and `fill()` accept, so
+  untrusted request data can't over-post protected columns. `forceFill()`
+  bypasses it deliberately. With neither declared, behavior is unchanged
+  (backward compatible). See [docs/models.md](./docs/models.md#attribute-casts).
+
+[0.33.0]: https://github.com/shaferllc/keel/releases/tag/v0.33.0
+
 ## [0.32.0] — 2026-07-10
 
 ### Added

@@ -19,6 +19,7 @@
 import { db, type QueryBuilder, type Row } from "./database.js";
 import { NotFoundException } from "./exceptions.js";
 import { BelongsTo, BelongsToMany, HasMany, HasOne } from "./relations.js";
+import { applyCasts, castGet, castSet, type Casts } from "./casts.js";
 
 type ModelClass<T extends Model> = (new (attributes?: Row) => T) & typeof Model;
 
@@ -38,10 +39,18 @@ export class Model {
   static table = "";
   static primaryKey = "id";
 
+  /** Columns mass-assignable via `create`/`fill` (allowlist). */
+  static fillable: string[] = [];
+  /** Columns NOT mass-assignable (denylist). Ignored when `fillable` is set. */
+  static guarded: string[] = [];
+  /** Column -> cast type; values round-trip as real JS types. */
+  static casts: Casts = {};
+
   [key: string]: unknown;
 
   constructor(attributes: Row = {}) {
-    Object.assign(this, attributes);
+    // Hydration is unguarded (rows come from the database) but always cast.
+    Object.assign(this, applyCasts(attributes, (this.constructor as typeof Model).casts, castGet));
   }
 
   /* ------------------------------ static -------------------------------- */
@@ -49,6 +58,26 @@ export class Model {
   /** A raw query builder scoped to this model's table. */
   static query(): QueryBuilder {
     return db(this.table);
+  }
+
+  /** Keep only the attributes mass-assignment allows (fillable / guarded). */
+  static filterFillable(attributes: Row): Row {
+    if (this.fillable.length) {
+      const out: Row = {};
+      for (const key of this.fillable) if (key in attributes) out[key] = attributes[key];
+      return out;
+    }
+    if (this.guarded.length) {
+      const out: Row = { ...attributes };
+      for (const key of this.guarded) delete out[key];
+      return out;
+    }
+    return { ...attributes };
+  }
+
+  /** Cast attributes to their storable primitives for a write. */
+  static toDatabase(attributes: Row): Row {
+    return applyCasts(attributes, this.casts, castSet);
   }
 
   static async all<T extends Model>(this: ModelClass<T>): Promise<T[]> {
@@ -83,8 +112,9 @@ export class Model {
   }
 
   static async create<T extends Model>(this: ModelClass<T>, attributes: Row): Promise<T> {
-    const id = await db(this.table).insertGetId(attributes);
-    const model = new this(attributes);
+    const filtered = this.filterFillable(attributes);
+    const id = await db(this.table).insertGetId(this.toDatabase(filtered));
+    const model = new this(filtered);
     if (id != null) (model as Row)[this.primaryKey] = id;
     return model;
   }
@@ -186,8 +216,9 @@ export class Model {
 
   /** Insert (no primary key) or update (has one). */
   async save(): Promise<this> {
-    const { table, primaryKey } = this.ctor();
-    const data: Row = { ...this };
+    const ctor = this.ctor();
+    const { table, primaryKey } = ctor;
+    const data: Row = ctor.toDatabase({ ...this });
     const idValue = data[primaryKey];
     delete data[primaryKey];
 
@@ -205,14 +236,22 @@ export class Model {
     await db(table).where(primaryKey, this[primaryKey]).delete();
   }
 
-  /** Merge attributes into the model (without saving). */
+  /** Merge mass-assignable attributes into the model (cast, not saved). */
   fill(attributes: Row): this {
-    Object.assign(this, attributes);
+    const ctor = this.ctor();
+    Object.assign(this, applyCasts(ctor.filterFillable(attributes), ctor.casts, castGet));
+    return this;
+  }
+
+  /** Force-assign attributes, bypassing mass-assignment guarding (still cast). */
+  forceFill(attributes: Row): this {
+    const ctor = this.ctor();
+    Object.assign(this, applyCasts(attributes, ctor.casts, castGet));
     return this;
   }
 
   toJSON(): Row {
-    const data: Row = { ...this };
+    const data: Row = applyCasts({ ...this }, this.ctor().casts, castGet);
     const relations = relationStore.get(this);
     if (relations) {
       for (const [name, value] of Object.entries(relations)) data[name] = serialize(value);

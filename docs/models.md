@@ -61,12 +61,64 @@ await user.delete();
 `save()` inserts when there's no primary key and updates when there is — one
 method for both.
 
+## Attribute casts
+
+By default columns are whatever the driver returns (SQLite hands back `1`/`0`
+for booleans, strings for JSON). Declare `static casts` and values round-trip as
+real JS types — cast when read (from the database or `fill`) and back to storable
+primitives when written:
+
+```ts
+class Post extends Model {
+  static table = "posts";
+  static casts = {
+    published: "boolean",   // 1/0        <-> true/false
+    views: "int",           // "10"       ->  10
+    meta: "json",           // '{"a":1}'  <-> { a: 1 }   (also "array")
+    posted_at: "date",      // ISO string <-> Date
+  };
+}
+
+const post = await Post.find(1);
+post.published; // true (a real boolean)
+post.meta;      // { … } (a real object)
+post.published = false;
+await post.save(); // stored as 0; meta re-serialized to a JSON string
+```
+
+Casts are what let a `boolean` or `json` column bind cleanly on real drivers,
+which reject JS booleans and objects as parameters. Supported types: `int`,
+`float`, `boolean`, `string`, `json` / `array`, `date`.
+
+## Mass assignment
+
+`create()` and `fill()` take untrusted input (often a request body), so they're
+guarded. Whitelist columns with `static fillable`, or blacklist with
+`static guarded` — columns outside the allowance are silently dropped:
+
+```ts
+class Post extends Model {
+  static table = "posts";
+  static fillable = ["title", "body"];   // only these are mass-assignable
+  // — or —
+  static guarded = ["is_admin"];         // everything except these
+}
+
+await Post.create({ title: "Hi", is_admin: true }); // is_admin dropped
+post.fill(request.all());                            // safe from over-posting
+post.forceFill({ is_admin: true });                  // explicit bypass
+```
+
+With neither declared, all attributes are assignable (the default). Direct
+property assignment (`post.is_admin = true`) is never guarded — guarding is only
+about *mass* assignment from untrusted data.
+
 ## Serializing
 
 ```ts
-user.toJSON();          // a plain object of the attributes
+user.toJSON();          // a plain object of the (cast) attributes + loaded relations
 return json(user);       // works directly — json() serializes it
-user.fill({ name: "X" }); // merge attributes without saving
+user.fill({ name: "X" }); // merge mass-assignable attributes without saving
 ```
 
 ## Relationships
@@ -140,7 +192,7 @@ this.belongsToMany(Role, "user_roles", "user_id", "role_id");
 
 ## What this is (and isn't)
 
-This is a deliberately small active-record — enough for CRUD, relationships, and
-simple queries without an ORM dependency. Nested eager loading (`posts.comments`)
-and query-time `with()` aren't here yet. For complex schemas you can always drop
-to `db()` or your driver directly.
+This is a deliberately small active-record — enough for CRUD, relationships,
+casts, and simple queries without an ORM dependency. Nested eager loading
+(`posts.comments`) and query-time `with()` aren't here yet. For complex schemas
+you can always drop to `db()` or your driver directly.
