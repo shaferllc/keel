@@ -13,7 +13,7 @@ A job is a class with a `handle()` method. Pass whatever data it needs through
 the constructor:
 
 ```ts
-import { Job, mail } from "@keel/core";
+import { Job, mail } from "@shaferllc/keel/core";
 
 export class SendWelcome extends Job {
   constructor(private email: string) {
@@ -30,7 +30,7 @@ Generate one with `keel make:job SendWelcome` (→ `app/Jobs/SendWelcomeJob.ts`)
 ## Dispatching
 
 ```ts
-import { dispatch } from "@keel/core";
+import { dispatch } from "@shaferllc/keel/core";
 
 await dispatch(new SendWelcome(user.email));
 
@@ -46,7 +46,7 @@ await dispatch(() => rebuildSearchIndex());
 Register the default driver once (typically in a service provider):
 
 ```ts
-import { setQueue, SyncDriver, MemoryDriver } from "@keel/core";
+import { setQueue, SyncDriver, MemoryDriver } from "@shaferllc/keel/core";
 
 setQueue(new SyncDriver());   // the default — runs jobs immediately
 setQueue(new MemoryDriver()); // holds jobs; a worker drains them
@@ -65,7 +65,7 @@ With the sync driver, a job that throws surfaces the error to whoever called
 When a driver defers work, drain it with `work()`:
 
 ```ts
-import { dispatch, work } from "@keel/core";
+import { dispatch, work } from "@shaferllc/keel/core";
 
 setQueue(new MemoryDriver());
 await dispatch(new SendWelcome("a@x.com"));
@@ -82,7 +82,7 @@ A driver is one method — `push`. That's the seam for a real broker. On
 Cloudflare, forward to a Queue binding and reconstruct the job in the consumer:
 
 ```ts
-import type { QueueDriver } from "@keel/core";
+import type { QueueDriver } from "@shaferllc/keel/core";
 
 const cloudflareQueue = (binding: Queue): QueueDriver => ({
   async push(job, options) {
@@ -102,7 +102,7 @@ works.
 Use the `MemoryDriver` to assert a job was queued without running it, then drain:
 
 ```ts
-import { setQueue, MemoryDriver, dispatch, work } from "@keel/core";
+import { setQueue, MemoryDriver, dispatch, work } from "@shaferllc/keel/core";
 
 const driver = new MemoryDriver();
 setQueue(driver);

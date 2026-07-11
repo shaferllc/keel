@@ -23,7 +23,7 @@ know what to set.
 Read env vars with `env()`, which coerces obvious types:
 
 ```ts
-import { env } from "@keel/core";
+import { env } from "@shaferllc/keel/core";
 
 env("APP_NAME");                 // "Keel"
 env("APP_DEBUG", false);         // true  (string "true" -> boolean)
@@ -41,7 +41,7 @@ filename. `config/app.ts` becomes the `app` namespace:
 
 ```ts
 // config/app.ts
-import { env } from "@keel/core";
+import { env } from "@shaferllc/keel/core";
 
 export default {
   name: env("APP_NAME", "Keel"),
@@ -60,7 +60,7 @@ auto-loaded at boot. No registration needed.
 The quickest way is the global `config()` helper — no container needed:
 
 ```ts
-import { config } from "@keel/core";
+import { config } from "@shaferllc/keel/core";
 
 config("app.name");          // "Keel"
 config("app.port", 3000);    // with a fallback
@@ -72,7 +72,7 @@ It resolves against the active application (registered automatically when the
 container:
 
 ```ts
-import { app } from "@keel/core";
+import { app } from "@shaferllc/keel/core";
 
 app().make(SomeService);
 ```
@@ -83,7 +83,7 @@ Under the hood, `config()` is sugar for resolving the `Config` repository and
 reading with dot notation. You can still do that explicitly:
 
 ```ts
-import { Config } from "@keel/core";
+import { Config } from "@shaferllc/keel/core";
 
 const config = app.make(Config);
 

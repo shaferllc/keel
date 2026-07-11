@@ -18,7 +18,7 @@ Bindings live in a service provider's `register()` method (see
 symbol, or class — and a **factory** that receives the container.
 
 ```ts
-import { ServiceProvider } from "@keel/core";
+import { ServiceProvider } from "@shaferllc/keel/core";
 
 export class AppServiceProvider extends ServiceProvider {
   register(): void {
@@ -40,7 +40,7 @@ You don't need `this.app` at all. The same operations exist as global helpers
 that resolve against the active application — bind and resolve from anywhere:
 
 ```ts
-import { bind, singleton, instance, make, bound } from "@keel/core";
+import { bind, singleton, instance, make, bound } from "@shaferllc/keel/core";
 
 bind("clock", () => new Date());              // transient
 singleton(Mailer, (app) => new Mailer(app));   // shared
@@ -80,8 +80,8 @@ Controllers are resolved through the container, so their constructor receives
 it. Pull whatever you need:
 
 ```ts
-import type { Ctx } from "@keel/core";
-import { Application, type Container } from "@keel/core";
+import type { Ctx } from "@shaferllc/keel/core";
+import { Application, type Container } from "@shaferllc/keel/core";
 
 export class InvoiceController {
   constructor(private app: Container) {}

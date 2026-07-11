@@ -9,7 +9,7 @@ provider.
 A provider has two methods, run in two distinct phases:
 
 ```ts
-import { ServiceProvider } from "@keel/core";
+import { ServiceProvider } from "@shaferllc/keel/core";
 
 export class AppServiceProvider extends ServiceProvider {
   register(): void {
@@ -36,7 +36,7 @@ Both methods may be `async` — the application awaits them.
 Add your provider class to `bootstrap/providers.ts`:
 
 ```ts
-import type { ProviderClass } from "@keel/core";
+import type { ProviderClass } from "@shaferllc/keel/core";
 import { AppServiceProvider } from "../app/Providers/AppServiceProvider.js";
 import { BillingServiceProvider } from "../app/Providers/BillingServiceProvider.js";
 
@@ -60,7 +60,7 @@ Writes `app/Providers/BillingServiceProvider.ts`. Remember to add it to
 ## A realistic example
 
 ```ts
-import { ServiceProvider, Config } from "@keel/core";
+import { ServiceProvider, Config } from "@shaferllc/keel/core";
 import { StripeClient } from "../Services/StripeClient.js";
 
 export class BillingServiceProvider extends ServiceProvider {

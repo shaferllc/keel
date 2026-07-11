@@ -9,7 +9,7 @@ Global middleware is registered in `app/Http/Kernel.ts`, which extends the
 framework's `HttpKernel`:
 
 ```ts
-import { HttpKernel, Application } from "@keel/core";
+import { HttpKernel, Application } from "@shaferllc/keel/core";
 import { requestLogger } from "./Middleware/requestLogger.js";
 
 export class Kernel extends HttpKernel {

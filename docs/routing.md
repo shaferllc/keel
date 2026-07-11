@@ -4,8 +4,8 @@ Routes live in `routes/web.ts`. The default export receives the `Router` and
 registers routes on it. The HTTP kernel later compiles them onto Hono.
 
 ```ts
-import type { Router } from "@keel/core";
-import { json, text, param } from "@keel/core";
+import type { Router } from "@shaferllc/keel/core";
+import { json, text, param } from "@shaferllc/keel/core";
 import { HomeController } from "../app/Controllers/HomeController.js";
 
 export default function routes(router: Router): void {

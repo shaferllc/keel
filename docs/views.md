@@ -57,8 +57,8 @@ is a complete HTML document (doctype included) you can return straight from a
 route handler:
 
 ```ts
-import { config, view } from "@keel/core";
-import type { Ctx } from "@keel/core";
+import { config, view } from "@shaferllc/keel/core";
+import type { Ctx } from "@shaferllc/keel/core";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
 export class HomeController {
@@ -78,7 +78,7 @@ even though the source is `.tsx`.
 `view()` is sugar over the `View` service. You can resolve it yourself:
 
 ```ts
-import { View } from "@keel/core";
+import { View } from "@shaferllc/keel/core";
 // inside a controller with the container as `this.app`:
 return this.app.make(View).render(WelcomePage({ appName: "Keel" }));
 ```

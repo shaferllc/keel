@@ -5,8 +5,8 @@ action bound to a route. They're resolved from the [container](./container.md),
 so they get dependency injection and a fresh instance per request.
 
 ```ts
-import type { Ctx } from "@keel/core";
-import { json, param } from "@keel/core";
+import type { Ctx } from "@shaferllc/keel/core";
+import { json, param } from "@shaferllc/keel/core";
 
 export class PostController {
   index() {
@@ -31,7 +31,7 @@ router.get("/posts/:id", [PostController, "show"]);
 A controller's constructor receives the container, so it can resolve anything:
 
 ```ts
-import type { Container, Ctx } from "@keel/core";
+import type { Container, Ctx } from "@shaferllc/keel/core";
 import { Mailer } from "../Services/Mailer.js";
 
 export class UserController {

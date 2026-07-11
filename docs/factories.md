@@ -11,7 +11,7 @@ Define a factory with the model and a definition function. The function receives
 a `Faker` and the instance index, and returns the attributes:
 
 ```ts
-import { factory } from "@keel/core";
+import { factory } from "@shaferllc/keel/core";
 
 const users = factory(User, (f, i) => ({
   name: f.name(),
@@ -62,7 +62,7 @@ f.slug();        f.uuid();
 Seed a factory's faker for deterministic fixtures:
 
 ```ts
-import { Faker } from "@keel/core";
+import { Faker } from "@shaferllc/keel/core";
 users.usingFaker(new Faker(42));
 ```
 
@@ -75,7 +75,7 @@ A seeder is a class with a `run()` method. Generate one with
 `keel make:seeder Database`:
 
 ```ts
-import { Seeder } from "@keel/core";
+import { Seeder } from "@shaferllc/keel/core";
 
 class UserSeeder extends Seeder {
   async run() {
@@ -95,8 +95,8 @@ class DatabaseSeeder extends Seeder {
 Run one with the `seed` helper (after your connection is registered):
 
 ```ts
-import { seed } from "@keel/core";
-import { setConnection } from "@keel/core";
+import { seed } from "@shaferllc/keel/core";
+import { setConnection } from "@shaferllc/keel/core";
 
 setConnection(myConnection, "postgres");
 await seed(DatabaseSeeder);

@@ -15,7 +15,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   ForbiddenException,
-} from "@keel/core";
+} from "@shaferllc/keel/core";
 
 throw new NotFoundException("Widget not found"); // 404
 throw new UnauthorizedException();                // 401
@@ -70,7 +70,7 @@ stack trace — so you see what broke without digging through logs. Turn debug o
 the JSON body under `errors`:
 
 ```ts
-import { ValidationException } from "@keel/core";
+import { ValidationException } from "@shaferllc/keel/core";
 
 throw new ValidationException({ email: ["The email is invalid."] });
 // -> 422  { "error": "The given data was invalid.",

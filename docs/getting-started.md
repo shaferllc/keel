@@ -65,7 +65,7 @@ npm run keel make:controller Task
 That writes `app/Controllers/TaskController.ts`:
 
 ```ts
-import type { Ctx } from "@keel/core";
+import type { Ctx } from "@shaferllc/keel/core";
 
 export class TaskController {
   index(c: Ctx) {

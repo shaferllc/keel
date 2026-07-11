@@ -11,7 +11,7 @@ Subclass `Notification`. `via()` lists the channels; each channel reads from a
 matching method (`toMail`, `toArray`):
 
 ```ts
-import { Notification, type Notifiable, type MailContent } from "@keel/core";
+import { Notification, type Notifiable, type MailContent } from "@shaferllc/keel/core";
 
 export class InvoicePaid extends Notification {
   constructor(private amount: number) {
@@ -35,7 +35,7 @@ Generate one with `keel make:notification InvoicePaid` (→
 ## Sending
 
 ```ts
-import { notify } from "@keel/core";
+import { notify } from "@shaferllc/keel/core";
 
 await notify(user, new InvoicePaid(4200));          // one recipient
 await notify([alice, bob], new InvoicePaid(4200));  // many
@@ -60,7 +60,7 @@ Register channels on the notifier (typically in a service provider). The `mail`
 channel is registered by default:
 
 ```ts
-import { setNotifier, Notifier, DatabaseChannel } from "@keel/core";
+import { setNotifier, Notifier, DatabaseChannel } from "@shaferllc/keel/core";
 
 setNotifier(new Notifier().channel("database", new DatabaseChannel()));
 ```
@@ -97,7 +97,7 @@ A channel is one method — `send`. That's the seam for SMS, Slack, push, or any
 provider:
 
 ```ts
-import type { Channel, Notifiable, Notification } from "@keel/core";
+import type { Channel, Notifiable, Notification } from "@shaferllc/keel/core";
 
 const slack: Channel = {
   async send(notifiable, notification) {
@@ -114,7 +114,7 @@ Register an `ArrayChannel` (or assert on the mail `ArrayTransport`) and check
 what was delivered — no network:
 
 ```ts
-import { setNotifier, Notifier, ArrayChannel, notify } from "@keel/core";
+import { setNotifier, Notifier, ArrayChannel, notify } from "@shaferllc/keel/core";
 
 const array = new ArrayChannel();
 setNotifier(new Notifier().channel("array", array));

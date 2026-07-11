@@ -9,7 +9,7 @@ runs on Node and the edge.
 ## Sending
 
 ```ts
-import { mail } from "@keel/core";
+import { mail } from "@shaferllc/keel/core";
 
 await mail()
   .to("ada@example.com")
@@ -48,7 +48,7 @@ and a `from` — `send()` throws a clear error otherwise.
 Register a default transport once (typically in a service provider):
 
 ```ts
-import { setMailer, fetchTransport } from "@keel/core";
+import { setMailer, fetchTransport } from "@shaferllc/keel/core";
 
 setMailer(
   fetchTransport({
@@ -77,7 +77,7 @@ message is sent as-is.
 A transport is one method:
 
 ```ts
-import type { Transport } from "@keel/core";
+import type { Transport } from "@shaferllc/keel/core";
 
 const transport: Transport = {
   async send(message) {
@@ -92,7 +92,7 @@ setMailer(transport, { from: "hello@myapp.com" });
 Register an `ArrayTransport` and assert on what was queued — no network, no SDK:
 
 ```ts
-import { setMailer, ArrayTransport, mail } from "@keel/core";
+import { setMailer, ArrayTransport, mail } from "@shaferllc/keel/core";
 
 const transport = new ArrayTransport();
 setMailer(transport, { from: "hi@app.com" });

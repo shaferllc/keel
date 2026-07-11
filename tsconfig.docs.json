@@ -1,0 +1,16 @@
+{
+  // Type-checks the example snippets extracted from docs/*.md so the reference
+  // can never document a signature that doesn't exist. Compile-only (noEmit),
+  // excluded from the published build. Checks against the BUILT declarations
+  // (dist/core/index.d.ts) — the exact public surface a consumer imports — so
+  // run `npm run build` first. This avoids recompiling internal source (which
+  // needs the app's ambient augmentations) and keeps the check consumer-faithful.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@shaferllc/keel/core": ["dist/core/index.d.ts"]
+    }
+  },
+  "include": ["docs/examples"]
+}
