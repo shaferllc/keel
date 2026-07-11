@@ -3,7 +3,7 @@
 export { Container } from "./container.js";
 export type { Token, Constructor, Factory } from "./container.js";
 export { Application } from "./application.js";
-export type { BootOptions, LifecycleHook } from "./application.js";
+export type { BootOptions, LifecycleHook, Configurator } from "./application.js";
 export { Config, env } from "./config.js";
 export {
   app,

@@ -118,6 +118,102 @@ When `keel serve` runs:
 Steps 1–3 are identical whether you're serving or running a console command —
 `createApplication()` is the single door in. Only steps 4–6 are HTTP-specific.
 
+## The application object
+
+`Application` is Keel's central object — the [container](./container.md) plus a
+lifecycle. Beyond `register()`/`boot()`, it carries a small ergonomic surface
+modelled on the classic service-app pattern (Feathers' `app`): a settings store,
+an inline plugin hook, and app-level events.
+
+**Configure with a plain function.** `register(Provider)` gives you the
+two-phase register/boot lifecycle; `configure(fn)` is the one-shot alternative
+for inline setup — call a function with the app, chain the next:
+
+```ts
+app
+  .configure((a) => a.set("mail.from", "hi@keel.dev"))
+  .configure(installBilling); // (app) => { … }
+```
+
+**Store app-wide values.** `set`/`get` are a thin façade over the `Config`
+repository, so `app.set("db.url", …)` and `config().get("db.url")` read the same
+store — no second bag to keep in sync:
+
+```ts
+app.set("db.url", process.env.DATABASE_URL);
+const url = app.get<string>("db.url");
+const port = app.get("port", 3000); // typed fallback
+```
+
+**Emit and listen at the app level.** `on`/`once`/`off`/`emit` delegate to the
+[`Events`](./events.md) singleton, so `app.on(...)` and the global `listen()`
+helper share one emitter. Listeners may be async; `emit` awaits them in order:
+
+```ts
+const off = app.on("user.registered", (user) => sendWelcome(user));
+await app.emit("user.registered", user);
+off(); // unsubscribe
+```
+
+### API reference
+
+#### `app.configure(fn)`
+
+Run a `Configurator` — `(app) => unknown` — against the app and return the app
+for chaining. The lightweight alternative to a `ServiceProvider` when you don't
+need the register/boot split.
+
+```ts
+app.configure((a) => a.router().get("/health", () => "ok"));
+```
+
+Notes: runs immediately and synchronously in call order. Its return value is
+ignored (return-for-chaining is the app, not the fn's result). For anything that
+must bind before another service boots, use a provider instead.
+
+#### `app.set(key, value)` / `app.get(key, fallback?)`
+
+Write and read an app-wide value. Both use dot-notation and are backed by
+`Config`, so values set here are visible to `config()` and vice-versa. `set`
+returns the app (chainable); `get` takes an optional typed fallback.
+
+```ts
+app.set("app.name", "Keel");
+config().get("app.name"); // "Keel"
+app.get("app.name"); // "Keel"
+app.get("app.locale", "en"); // fallback when unset
+```
+
+Notes: because the store is shared with `Config`, prefer namespaced keys
+(`"mail.from"`, not `"from"`) to avoid collisions with `config/*.ts` files.
+
+#### `app.on(event, listener)` / `app.once(event, listener)`
+
+Subscribe to an app event; `once` auto-unsubscribes after the first emission.
+Both return an **unsubscribe function**. Delegates to the `Events` singleton.
+
+```ts
+const off = app.on<Order>("order.paid", (o) => fulfil(o));
+```
+
+Notes: the listener signature is `(payload) => void | Promise<void>`. Identical
+to `app.make(Events).on(...)` — the method is sugar so you rarely resolve
+`Events` by hand.
+
+#### `app.off(event, listener)`
+
+Remove a listener registered with `on`/`once`. Returns the app (chainable). Pass
+the *same* function reference used to subscribe.
+
+#### `app.emit(event, payload?)`
+
+Emit an app event, awaiting every listener in registration order. Returns a
+`Promise<void>`. An async listener that rejects propagates out of `emit`.
+
+```ts
+await app.emit("cache.cleared", { at: Date.now() });
+```
+
 ## Request lifecycle
 
 For each incoming request:

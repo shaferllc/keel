@@ -4,6 +4,27 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.57.0] — 2026-07-11
+
+### Added
+
+- **Application object: Feathers-style ergonomics.** Adopted the useful parts of
+  the [Feathers Application API](https://feathersjs.com/api/application.html)
+  onto `Application`, all additive:
+  - `app.configure(fn)` — run a `(app) => unknown` configurator and chain. The
+    one-shot inline alternative to a `ServiceProvider` (no register/boot split).
+  - `app.set(key, value)` / `app.get(key, fallback?)` — app-wide settings store,
+    backed by `Config` so `app.set` and `config().get` share one store.
+  - `app.on` / `app.once` / `app.off` / `app.emit` — app-level events delegating
+    to the `Events` singleton (same emitter as the global `listen()` helper).
+  - New exported type `Configurator`.
+
+  All backward compatible. `app.listen`/`teardown` map to Keel's existing
+  Hono adapter + `boot()`/`terminate()`; the registry (`use`/`service`) is
+  Keel's [container](https://keeljs.com/docs/container) + service broker.
+
+[0.57.0]: https://github.com/shaferllc/keel/releases/tag/v0.57.0
+
 ## [0.56.0] — 2026-07-11
 
 ### Added

@@ -17,6 +17,10 @@ import { Cache } from "./cache.js";
 import { Logger } from "./logger.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
 import { setApplication } from "./helpers.js";
+import type { Listener } from "./events.js";
+
+/** A configurator: a plain function that sets the app up and may return anything. */
+export type Configurator = (app: Application) => unknown;
 
 export interface BootOptions {
   /** Auto-load .env and config/*.ts from the filesystem. Default: true (Node). */
@@ -72,6 +76,60 @@ export class Application extends Container {
 
   view(): View {
     return this.make(View);
+  }
+
+  /**
+   * Run a configurator function against the app and return the app for
+   * chaining — Feathers' lightweight plugin idiom, an inline alternative to a
+   * full `ServiceProvider`. The function may bind services, register routes, or
+   * merge config. Use `register()` when you need the register/boot two-phase
+   * lifecycle; use `configure()` for one-shot setup.
+   *
+   *   app.configure(rateLimit({ max: 100 })).configure(auth());
+   */
+  configure(configurator: Configurator): this {
+    configurator(this);
+    return this;
+  }
+
+  /**
+   * Set an app-wide value — Feathers' `app.set`. Backed by the config
+   * repository, so `app.set("db.url", …)` and `config().get("db.url")` share
+   * one store. Chainable.
+   */
+  set(key: string, value: unknown): this {
+    this.config().set(key, value);
+    return this;
+  }
+
+  /** Read an app-wide value set via `set()` (or any config key). */
+  get<T = unknown>(key: string, fallback?: T): T {
+    return this.config().get(key, fallback as T) as T;
+  }
+
+  /**
+   * Subscribe to an app event — delegates to the `Events` singleton so
+   * `app.on(...)` and the global `listen()` helper reach the same emitter.
+   * Returns an unsubscribe function.
+   */
+  on<T = unknown>(event: string, listener: Listener<T>): () => void {
+    return this.make(Events).on(event, listener);
+  }
+
+  /** Subscribe for a single emission. Returns an unsubscribe function. */
+  once<T = unknown>(event: string, listener: Listener<T>): () => void {
+    return this.make(Events).once(event, listener);
+  }
+
+  /** Unsubscribe a listener registered with `on()`/`once()`. */
+  off<T = unknown>(event: string, listener: Listener<T>): this {
+    this.make(Events).off(event, listener);
+    return this;
+  }
+
+  /** Emit an app event, awaiting every listener in registration order. */
+  async emit<T = unknown>(event: string, payload?: T): Promise<void> {
+    await this.make(Events).emit(event, payload);
   }
 
   /** Merge a config object into the repository under its top-level keys. */
