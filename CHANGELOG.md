@@ -4,6 +4,45 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.0] — 2026-07-11
+
+### Added
+
+- **A full authentication system.** Rounded out auth against the
+  [AdonisJS auth guides](https://docs.adonisjs.com/guides/auth/introduction) —
+  session and JWT already existed; this adds the rest, all edge-native (Web Crypto
+  + `fetch`, no native deps):
+  - **Opaque access tokens** (`tokens.ts`) — revocable, ability-scoped, DB-backed
+    bearer tokens, the stateful counterpart to `jwt`. `createToken(userId, {
+    abilities, expiresIn, name })` mints a `keel_<selector>.<verifier>` token
+    (plaintext shown once); `verifyToken`, `revokeToken`, `revokeTokens` (log out
+    everywhere), `listTokens`, `tokenAllows`/`tokenDenies`, `setTokensTable`. The
+    split selector/verifier design stores only a SHA-256 hash and needs no
+    `RETURNING`, so it's portable across every driver and a leaked DB can't mint
+    tokens. Expired tokens self-prune on use.
+  - **`tokenAuth(options?)`** guard — verifies an opaque `Bearer` token, sets the
+    authenticated user, enforces required `abilities`, and exposes the token via
+    `token()` / `tokenCan()`.
+  - **`basicAuth(verify, options?)`** guard — HTTP Basic auth with a
+    `WWW-Authenticate` challenge; the verifier returns a user id, `true`, or a
+    falsy value.
+  - **Social sign-in** (`social.ts`) — OAuth 2.0 "sign in with…", `fetch`-based
+    with GitHub/Google/Discord presets and `social.driver()` for any other
+    provider. Returns a normalized `SocialUser`; `redirect()`, `exchangeCode()`,
+    `userFromToken()`, `user()`, `oauthState()` for CSRF, `OAuthError`. Keel owns
+    the OAuth dance only — you find-or-create your user and log them in. New
+    [Social authentication](https://keeljs.com/docs/social-auth) guide.
+  - **Timing-safe credentials** — `hash.dummy`, a valid hash that never matches,
+    so verifying a missing user costs the same as a wrong password (closes the
+    email-enumeration timing leak).
+  - **`gateAfter(callback)`** — the after-hook counterpart to `gateBefore`,
+    completing authorization parity (audit or veto a decision after it's made).
+
+  All additive and backward compatible. The `Auth` session guard, `jwt` +
+  `bearerAuth`, and gates/policies are unchanged.
+
+[0.63.0]: https://github.com/shaferllc/keel/releases/tag/v0.63.0
+
 ## [0.62.0] — 2026-07-11
 
 ### Added

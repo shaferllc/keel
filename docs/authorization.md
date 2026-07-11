@@ -72,6 +72,19 @@ import { gateBefore } from "@shaferllc/keel/core";
 gateBefore((user) => (user.role === "superadmin" ? true : undefined));
 ```
 
+A `gateAfter` callback brackets the other end: it runs *after* the gate/policy
+and receives the result, returning a boolean to override it or `undefined` to keep
+it. Use it to audit every decision, or to veto late:
+
+```ts
+import { gateAfter } from "@shaferllc/keel/core";
+
+gateAfter((user, ability, args, result) => {
+  log.info("authz", { user: user.id, ability, result });
+  return undefined; // keep the original decision
+});
+```
+
 ## In a controller
 
 ```ts

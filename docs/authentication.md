@@ -48,6 +48,17 @@ async login() {
 check. Verifying credentials is your job (above); `login()` is the "trust this id
 from now on" step.
 
+**Verify in constant time.** The snippet above skips the password check when no
+user is found, so a missing account answers faster than a wrong password — a
+timing signal that leaks which emails are registered. Compare against `hash.dummy`
+(a valid hash that never matches) so both paths cost the same:
+
+```ts
+const user = await db.users.findByEmail(email);
+const ok = await hash.verify(user?.password ?? hash.dummy, password);
+if (ok && user) auth().login(user.id);   // `user &&` so the dummy never logs anyone in
+```
+
 ## Reading the current user
 
 ```ts
@@ -165,6 +176,85 @@ HS256 is accepted: `alg: none` and asymmetric algorithms are refused, closing th
 classic JWT algorithm-confusion hole. `sign()` accepts `expiresIn` (seconds, or a
 duration string like `"30s"`, `"15m"`, `"1h"`, `"7d"`), plus `subject`, `issuer`,
 `audience`, and a `secret` override.
+
+## Opaque access tokens
+
+A JWT is stateless — you can't revoke one without extra machinery. When you need
+**revocable, scoped** API tokens (a "personal access tokens" screen, per-token
+abilities, "log out this device"), use the database-backed token store instead. A
+token is a row you can delete, so revocation is instant.
+
+Store them in a `personal_access_tokens` table (all timestamps epoch-ms):
+
+```ts
+selector TEXT UNIQUE, hash TEXT, tokenable_id TEXT, name TEXT,
+abilities TEXT, last_used_at INTEGER, expires_at INTEGER, created_at INTEGER
+```
+
+Mint a token after verifying credentials — the plaintext is shown **once**:
+
+```ts
+import { createToken } from "@shaferllc/keel/core";
+
+const { token } = await createToken(user.id, {
+  abilities: ["posts:read", "posts:write"], // or ["*"] for everything
+  expiresIn: "30d",                          // omit for no expiry
+  name: "CLI token",
+});
+return response.json({ token }); // "keel_<selector>.<verifier>"
+```
+
+Protect routes with `tokenAuth()` — it verifies the `Bearer` token, makes its
+owner the authenticated user, and can require abilities:
+
+```ts
+import { tokenAuth, auth, token, tokenCan } from "@shaferllc/keel/core";
+
+router.get("/api/posts", async () => response.json(await auth().user()))
+  .use(tokenAuth({ abilities: ["posts:read"] }));
+
+// inside a handler, inspect the verified token:
+token();               // { tokenableId, abilities, expiresAt, … } | null
+tokenCan("posts:write"); // boolean
+```
+
+The token splits into a public **selector** (indexed, for lookup) and a secret
+**verifier** (stored only as a SHA-256 hash), so a leaked database can't mint
+working tokens — and verification needs no `RETURNING`, so it's portable across
+every driver. Manage tokens with `listTokens(userId)`, `revokeToken(selector)`,
+and `revokeTokens(userId)` (log out everywhere). Verifying an expired token
+deletes it in passing, so the table self-prunes.
+
+**JWT vs. opaque:** reach for `jwt` when you want zero-lookup, stateless tokens
+(and don't need revocation); reach for `createToken`/`tokenAuth` when you need
+revocation, per-token scopes, or last-used tracking.
+
+## Basic authentication
+
+For internal tools and quick gates, `basicAuth()` implements HTTP Basic auth —
+the browser's native `username` / `password` prompt. Always behind HTTPS, since
+the credentials ride on every request:
+
+```ts
+import { basicAuth, auth, hash } from "@shaferllc/keel/core";
+
+router.get("/admin", () => response.json(auth().id())).use(
+  basicAuth(async (username, password) => {
+    const user = await db.users.findByEmail(username);
+    const ok = await hash.verify(user?.password ?? hash.dummy, password);
+    return ok && user ? user.id : false; // return the id to log them in, or false
+  }, { realm: "Admin" }),
+);
+```
+
+The verifier returns the user's id (logs them in for the request), `true` (allow
+without an identity), or a falsy value (reject). On rejection `basicAuth` answers
+`401` with a `WWW-Authenticate` challenge so the browser re-prompts.
+
+## Social sign-in
+
+"Sign in with GitHub/Google/Discord" lives in its own guide —
+[Social authentication](./social-auth.md).
 
 ## Registration
 

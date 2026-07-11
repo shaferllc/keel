@@ -87,6 +87,18 @@ export const hash = {
     const iter = Number(hashed.split("$")[1]);
     return !iter || iter < iterations;
   },
+
+  /**
+   * A valid dummy hash (of a random secret) at the default cost. Compare against
+   * it when a user *isn't* found so login spends the same time as a wrong
+   * password — otherwise a fast "no such user" response leaks which emails are
+   * registered (a timing/enumeration attack).
+   *
+   *   const user = await findUserByEmail(email);
+   *   const ok = await hash.verify(user?.password ?? hash.dummy, password);
+   *   if (ok && user) auth().login(user.id);   // `user &&` so the dummy never authenticates
+   */
+  dummy: "pbkdf2_sha256$100000$7uVVFNW3RCry5kPKJQUgTw==$fOfxeFDnxv5A3rhl6bcWGKJQhmcK8x6XNfe9Z88WO/A=",
 };
 
 /* ----------------------------- encryption ------------------------------ */

@@ -179,12 +179,35 @@ export { validate, validateRequest, validated } from "./validation.js";
 export type { Schema, RequestSchemas } from "./validation.js";
 export { Session, session, sessionMiddleware } from "./session.js";
 export type { SessionOptions } from "./session.js";
-export { Auth, auth, authGuard, bearerAuth, setUserProvider } from "./auth.js";
-export type { UserProvider } from "./auth.js";
+export { Auth, auth, authGuard, bearerAuth, basicAuth, tokenAuth, token, tokenCan, setUserProvider } from "./auth.js";
+export type { UserProvider, BasicVerifier } from "./auth.js";
+export {
+  createToken,
+  verifyToken,
+  revokeToken,
+  revokeTokens,
+  listTokens,
+  tokenAllows,
+  tokenDenies,
+  setTokensTable,
+} from "./tokens.js";
+export type { AccessToken, CreateTokenOptions, IssuedToken } from "./tokens.js";
+export {
+  social,
+  github,
+  google,
+  discord,
+  oauthDriver,
+  oauthState,
+  OAuthDriver,
+  OAuthError,
+} from "./social.js";
+export type { SocialUser, OAuthToken, OAuthConfig, ProviderSpec, RedirectOptions } from "./social.js";
 export {
   define,
   policy,
   gateBefore,
+  gateAfter,
   setUserResolver,
   clearAuthorization,
   can,
@@ -193,7 +216,7 @@ export {
   authorize,
   authorizeFor,
 } from "./authorization.js";
-export type { GateCallback, BeforeCallback } from "./authorization.js";
+export type { GateCallback, BeforeCallback, AfterCallback } from "./authorization.js";
 export { Transformer } from "./transformer.js";
 export type { Attributes, DocumentOptions } from "./transformer.js";
 export {

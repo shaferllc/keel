@@ -37,9 +37,18 @@ export type BeforeCallback = (
   args: Args,
 ) => boolean | undefined | Promise<boolean | undefined>;
 
+/** Runs after every check; return a boolean to override the result (e.g. audit + veto). */
+export type AfterCallback = (
+  user: User,
+  ability: string,
+  args: Args,
+  result: boolean,
+) => boolean | undefined | Promise<boolean | undefined>;
+
 const gates = new Map<string, GateCallback>();
 const policies = new Map<Constructor, Policy>();
 let beforeCallback: BeforeCallback | undefined;
+let afterCallback: AfterCallback | undefined;
 let userResolver: () => User | Promise<User> = () => auth().user();
 
 /** Define a gate — an ad-hoc ability keyed by name. */
@@ -62,20 +71,31 @@ export function gateBefore(callback: BeforeCallback): void {
   beforeCallback = callback;
 }
 
+/**
+ * Register a callback that runs *after* every check and can override its result
+ * — return a boolean to replace it, or `undefined` to keep it. Pairs with
+ * `gateBefore` to bracket every decision (logging, audit, a late veto).
+ */
+export function gateAfter(callback: AfterCallback): void {
+  afterCallback = callback;
+}
+
 /** Override how the "current user" is resolved (default: `auth().user()`). */
 export function setUserResolver(resolver: () => User | Promise<User>): void {
   userResolver = resolver;
 }
 
-/** Reset gates, policies, the before-hook, and the resolver (test helper). */
+/** Reset gates, policies, hooks, and the resolver (test helper). */
 export function clearAuthorization(): void {
   gates.clear();
   policies.clear();
   beforeCallback = undefined;
+  afterCallback = undefined;
   userResolver = () => auth().user();
 }
 
-async function evaluate(user: User, ability: string, args: Args): Promise<boolean> {
+/** Resolve a check to a raw boolean, before the after-hook runs. */
+async function decide(user: User, ability: string, args: Args): Promise<boolean> {
   if (beforeCallback) {
     const decided = await beforeCallback(user, ability, args);
     if (typeof decided === "boolean") return decided;
@@ -90,6 +110,15 @@ async function evaluate(user: User, ability: string, args: Args): Promise<boolea
   const gate = gates.get(ability);
   if (gate) return Boolean(await gate(user, ...args));
   return false; // unknown ability — deny by default
+}
+
+async function evaluate(user: User, ability: string, args: Args): Promise<boolean> {
+  const result = await decide(user, ability, args);
+  if (afterCallback) {
+    const overridden = await afterCallback(user, ability, args, result);
+    if (typeof overridden === "boolean") return overridden;
+  }
+  return result;
 }
 
 /** Whether the current user is allowed the ability (with the given arguments). */
