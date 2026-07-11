@@ -36,6 +36,13 @@ A missing or malformed body is swallowed — you just get the query values.
 `request.headers()`, and `request.raw` (the underlying web `Request`). For the
 raw parsed JSON body without the query merge, use `request.json<T>()`.
 
+For URL and connection introspection there's `request.protocol`,
+`request.secure`, `request.host`, `request.hostname`, `request.origin`,
+`request.fullUrl`, and `request.querystring`. These are **proxy-aware**:
+`X-Forwarded-Proto` / `X-Forwarded-Host` win over the raw request URL, so an app
+behind a TLS-terminating proxy or load balancer sees the client's real scheme
+and host (handy for building absolute links or forcing HTTPS).
+
 > `input`/`only`/`except`/`all` are object methods that lean on `this`. Call
 > them off `request` (`request.input(…)`), not destructured (`const { input } =
 > request`), or `this` is lost.
@@ -111,11 +118,16 @@ request.accepts(["application/json", "text/html"]); // best match, or null
 request.types();                                     // accepted types, ordered
 request.language(["en", "fr"]);                       // best language, or null
 request.languages();
+request.encoding(["br", "gzip"]);                     // best content encoding
+request.charset(["utf-8"]);                            // best charset
 ```
 
-`accepts`/`language` parse the relevant `Accept` header by q-weight and return
-the highest-preference offered value, honoring `*/*` (or `*`) as "anything" —
-which resolves to the first thing you offer. No match returns `null`.
+`accepts`/`language`/`encoding`/`charset` parse the relevant `Accept*` header by
+q-weight and return the highest-preference offered value, honoring `*/*` (or
+`*`) as "anything" — which resolves to the first thing you offer. No match
+returns `null`. Each has a plural list form (`types()`, `languages()`,
+`encodings()`, `charsets()`) returning everything the client accepts, ordered by
+preference.
 
 ## Cookies
 
@@ -136,20 +148,23 @@ response.json({ ok: true });
 response.text("hello");
 response.html("<h1>Hi</h1>");
 response.redirect("/login");
+response.back("/");                   // back to the Referer, else the fallback
 response.send(anything);              // objects → JSON, else text
 
 response.status(201).json(created);   // chainable
 response.header("x-total", "42").json(rows);
 response.type("text/csv").append("vary", "accept");
+response.attachment("report.csv").text(csv);   // Content-Disposition download
 response.removeHeader("x-powered-by");
 response.cookie("flash", "saved").redirect("/");
 ```
 
-Every mutator (`status`, `header`, `type`, `append`, `removeHeader`, `cookie`,
-`clearCookie`) returns `response`, so they chain; the terminal
-`json`/`text`/`html`/`redirect`/`send` produce the `Response`. `send` inspects
-its argument — a non-null object becomes JSON, anything else is stringified to
-text.
+Every mutator (`status`, `header`, `type`, `attachment`, `append`,
+`removeHeader`, `cookie`, `clearCookie`) returns `response`, so they chain; the
+terminal `json`/`text`/`html`/`redirect`/`back`/`send` produce the `Response`.
+`send` inspects its argument — a non-null object becomes JSON, anything else is
+stringified to text. `back` bounces to the `Referer` header (falling back to the
+argument, default `"/"`); `redirect("back")` is the same shortcut.
 
 ## Aborting with guards
 
@@ -295,6 +310,27 @@ The full request URL, including query string.
 ```ts
 request.url;    // "https://api.example.com/users/1?tab=posts"
 ```
+
+#### `request.protocol` · `request.secure` · `request.host` · `request.hostname` · `request.origin` · `request.fullUrl` · `request.querystring`
+
+Proxy-aware URL and connection accessors — `X-Forwarded-Proto` and
+`X-Forwarded-Host` take precedence over the raw request URL, so an app behind a
+TLS-terminating proxy sees the client's real scheme and host.
+
+```ts
+request.protocol;    // "https"   (get protocol(): string)
+request.secure;      // true      (get secure(): boolean — protocol === "https")
+request.host;        // "example.com:443"   (host with port)
+request.hostname;    // "example.com"       (host without port)
+request.origin;      // "https://example.com"
+request.fullUrl;     // "https://example.com/users/1?tab=posts"
+request.querystring; // "tab=posts"         (no leading "?", "" when none)
+```
+
+**Notes:** `fullUrl` is rebuilt from the (forwarded) origin plus the path and
+query, so it reflects the client-facing URL rather than the internal one the
+proxy dialed. Use `origin` to build absolute links and `secure` to gate or
+redirect insecure requests.
 
 #### `request.status`
 
@@ -603,6 +639,29 @@ Accepted languages, ordered by preference.
 request.languages();   // ["fr", "en"]
 ```
 
+#### `request.encoding(encodings)` · `request.encodings()`
+
+`encoding(encodings: string[]): string | null` · `encodings(): string[]`
+
+Negotiate the response's content encoding against `Accept-Encoding` — same
+q-weight and `*` rules as `accepts`.
+
+```ts
+request.encoding(["br", "gzip"]);   // "br"
+request.encodings();                // ["br", "gzip", "identity"]
+```
+
+#### `request.charset(charsets)` · `request.charsets()`
+
+`charset(charsets: string[]): string | null` · `charsets(): string[]`
+
+Negotiate the response charset against `Accept-Charset`.
+
+```ts
+request.charset(["utf-8", "iso-8859-1"]);   // "utf-8"
+request.charsets();                          // ["utf-8"]
+```
+
 ### `response`
 
 The flat response accessor — a singleton object mirroring `request`. Mutators
@@ -646,6 +705,22 @@ A redirect response.
 
 ```ts
 response.cookie("flash", "saved").redirect("/");
+```
+
+Passing `"back"` as the location bounces to the `Referer` header, or `"/"` when
+there isn't one — see `response.back` for a version with a custom fallback.
+
+#### `response.back(fallback?, status?)`
+
+`back(fallback = "/", status?: number): Response`
+
+Redirects to the request's `Referer` header, falling back to `fallback` (default
+`"/"`) when the header is absent. Handy for "return to where you came from" flows
+after a form post.
+
+```ts
+response.abortUnless(ok, "Nope");
+return response.back("/dashboard");
 ```
 
 #### `response.send(data, status?)`
@@ -715,6 +790,20 @@ Sets the `Content-Type`. Chainable.
 
 ```ts
 response.type("text/csv").send(csv);
+```
+
+#### `response.attachment(filename?)`
+
+`attachment(filename?: string): ResponseHelper`
+
+Marks the response as a downloadable attachment via `Content-Disposition`.
+Chainable. With no argument it sets a bare `attachment`; with a filename it adds
+both a quoted ASCII `filename` and an RFC 5987 `filename*` so non-ASCII names
+survive. Pair it with `type()` to set the download's content type.
+
+```ts
+response.attachment("report.csv").type("text/csv").send(csv);
+// Content-Disposition: attachment; filename="report.csv"; filename*=UTF-8''report.csv
 ```
 
 #### `response.append(name, value)`

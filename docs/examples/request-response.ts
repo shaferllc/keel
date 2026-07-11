@@ -62,6 +62,17 @@ export function requestMeta() {
   return { method, path, url, status, raw, hasBody, headers, ip, ips };
 }
 
+export function requestUrl() {
+  const protocol: string = request.protocol;
+  const secure: boolean = request.secure;
+  const host: string = request.host;
+  const hostname: string = request.hostname;
+  const origin: string = request.origin;
+  const fullUrl: string = request.fullUrl;
+  const querystring: string = request.querystring;
+  return { protocol, secure, host, hostname, origin, fullUrl, querystring };
+}
+
 export async function middleware() {
   await next();
   if (request.status >= 500) log(request.path);
@@ -103,7 +114,11 @@ export function negotiation() {
   const types: string[] = request.types();
   const lang: string | null = request.language(["en", "fr"]);
   const langs: string[] = request.languages();
-  return { best, types, lang, langs };
+  const enc: string | null = request.encoding(["br", "gzip"]);
+  const encs: string[] = request.encodings();
+  const charset: string | null = request.charset(["utf-8"]);
+  const charsets: string[] = request.charsets();
+  return { best, types, lang, langs, enc, encs, charset, charsets };
 }
 
 export function negotiateSwitch(): Response {
@@ -152,6 +167,11 @@ export function writingOutput() {
 
   response.status(202).json({ queued: true });
   response.type("text/csv").send(csv);
+  response.attachment("report.csv").type("text/csv").send(csv);
+  response.attachment().text("x");
+  response.back();
+  response.back("/dashboard");
+  redirect("back");
   response.append("vary", "accept").append("vary", "accept-language");
   response.send({ ok: true });
   response.send("pong");

@@ -222,6 +222,20 @@ export const response: ResponseHelper = {
     ctx().header("content-type", mime);
     return response;
   },
+  attachment(filename) {
+    if (filename === undefined) {
+      ctx().header("content-disposition", "attachment");
+    } else {
+      // Quote the ASCII-safe name; add RFC 5987 filename* for anything else.
+      const ascii = filename.replace(/[^\x20-\x7e]/g, "?").replace(/["\\]/g, "_");
+      const encoded = encodeURIComponent(filename);
+      ctx().header(
+        "content-disposition",
+        `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`,
+      );
+    }
+    return response;
+  },
   append(name, value) {
     ctx().header(name, value, { append: true });
     return response;
@@ -267,6 +281,35 @@ export const request = {
   },
   get url(): string {
     return ctx().req.url;
+  },
+  /** The request protocol — "https" or "http" — honoring X-Forwarded-Proto. */
+  get protocol(): string {
+    return requestProtocol();
+  },
+  /** Whether the request came in over HTTPS. */
+  get secure(): boolean {
+    return requestProtocol() === "https";
+  },
+  /** The host with port, honoring X-Forwarded-Host (e.g. "example.com:443"). */
+  get host(): string {
+    return requestHost();
+  },
+  /** The host without port (e.g. "example.com"). */
+  get hostname(): string {
+    return requestHost().split(":")[0]!;
+  },
+  /** Scheme + host — "https://example.com" — with no trailing slash. */
+  get origin(): string {
+    return `${requestProtocol()}://${requestHost()}`;
+  },
+  /** The absolute request URL, rebuilt from the (proxy-aware) origin. */
+  get fullUrl(): string {
+    const u = new URL(ctx().req.url);
+    return `${requestProtocol()}://${requestHost()}${u.pathname}${u.search}`;
+  },
+  /** The raw query string without the leading "?" (empty when none). */
+  get querystring(): string {
+    return new URL(ctx().req.url).search.replace(/^\?/, "");
   },
   /** The response status (useful after `await next()` in middleware). */
   get status(): number {
@@ -412,6 +455,22 @@ export const request = {
   /** Accepted languages, ordered by preference. */
   languages(): string[] {
     return parseAccept(ctx().req.header("accept-language"));
+  },
+  /** The best of the offered content encodings per Accept-Encoding, or null. */
+  encoding(encodings: string[]): string | null {
+    return negotiate("accept-encoding", encodings);
+  },
+  /** Accepted content encodings, ordered by preference. */
+  encodings(): string[] {
+    return parseAccept(ctx().req.header("accept-encoding"));
+  },
+  /** The best of the offered charsets per Accept-Charset, or null. */
+  charset(charsets: string[]): string | null {
+    return negotiate("accept-charset", charsets);
+  },
+  /** Accepted charsets, ordered by preference. */
+  charsets(): string[] {
+    return parseAccept(ctx().req.header("accept-charset"));
   },
 
   /** A single input (from query or body), with an optional fallback (async). */

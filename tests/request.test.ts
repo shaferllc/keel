@@ -53,6 +53,96 @@ test("request/response accessor variants inside a request", async () => {
   assert.equal((await hono.request("/all")).status, 200);
 });
 
+test("request: proxy-aware URL accessors", async () => {
+  const hono = await build((r) => {
+    r.get("/u", () =>
+      response.json({
+        protocol: request.protocol,
+        secure: request.secure,
+        host: request.host,
+        hostname: request.hostname,
+        origin: request.origin,
+        fullUrl: request.fullUrl,
+        querystring: request.querystring,
+      }),
+    );
+  });
+
+  // Behind a TLS-terminating proxy: X-Forwarded-* win over the raw URL.
+  const fwd = await hono.request("http://internal:3000/u?a=1&b=2", {
+    headers: { "x-forwarded-proto": "https", "x-forwarded-host": "example.com" },
+  });
+  assert.deepEqual(await fwd.json(), {
+    protocol: "https",
+    secure: true,
+    host: "example.com",
+    hostname: "example.com",
+    origin: "https://example.com",
+    fullUrl: "https://example.com/u?a=1&b=2",
+    querystring: "a=1&b=2",
+  });
+
+  // Direct request: falls back to the Host header / raw URL.
+  const direct = await hono.request("http://localhost:8080/u", {
+    headers: { host: "localhost:8080" },
+  });
+  const d = (await direct.json()) as Record<string, unknown>;
+  assert.equal(d.protocol, "http");
+  assert.equal(d.secure, false);
+  assert.equal(d.hostname, "localhost");
+  assert.equal(d.querystring, "");
+});
+
+test("response: back redirects to Referer, attachment sets Content-Disposition", async () => {
+  const hono = await build((r) => {
+    r.get("/back", () => response.back());
+    r.get("/back-fb", () => response.back("/home"));
+    r.get("/back-kw", () => redirect("back"));
+    r.get("/dl", () => response.attachment("réport.csv").text("a,b"));
+    r.get("/dl-bare", () => response.attachment().text("x"));
+  });
+
+  const withRef = await hono.request("/back", { headers: { referer: "/prev" } });
+  assert.equal(withRef.headers.get("location"), "/prev");
+
+  const noRef = await hono.request("/back-fb");
+  assert.equal(noRef.headers.get("location"), "/home");
+
+  const kw = await hono.request("/back-kw"); // no referer -> "/"
+  assert.equal(kw.headers.get("location"), "/");
+
+  const dl = await hono.request("/dl");
+  const cd = dl.headers.get("content-disposition") ?? "";
+  assert.match(cd, /attachment; filename="r\?port\.csv"/);
+  assert.match(cd, /filename\*=UTF-8''r%C3%A9port\.csv/);
+
+  const bare = await hono.request("/dl-bare");
+  assert.equal(bare.headers.get("content-disposition"), "attachment");
+});
+
+test("request: encoding and charset negotiation", async () => {
+  const hono = await build((r) => {
+    r.get("/neg", () =>
+      response.json({
+        encoding: request.encoding(["br", "gzip"]),
+        encodings: request.encodings(),
+        charset: request.charset(["utf-8"]),
+        noMatch: request.encoding(["deflate"]),
+      }),
+    );
+  });
+
+  const res = await hono.request("/neg", {
+    headers: { "accept-encoding": "gzip, br;q=0.9", "accept-charset": "utf-8" },
+  });
+  assert.deepEqual(await res.json(), {
+    encoding: "gzip",
+    encodings: ["gzip", "br"],
+    charset: "utf-8",
+    noMatch: null,
+  });
+});
+
 test("raw body accessors read non-JSON content types", async () => {
   const hono = await build((r) => {
     r.post("/xml", async () => response.text(`text:${await request.text()}`));

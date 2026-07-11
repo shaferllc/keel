@@ -4,6 +4,29 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.62.0] — 2026-07-11
+
+### Added
+
+- **Proxy-aware URL accessors on `request`.** `request.protocol`,
+  `request.secure`, `request.host`, `request.hostname`, `request.origin`,
+  `request.fullUrl`, and `request.querystring` introspect the request URL and
+  connection. They honor `X-Forwarded-Proto` / `X-Forwarded-Host` over the raw
+  URL, so an app behind a TLS-terminating proxy or load balancer sees the
+  client's real scheme and host — use `origin` to build absolute links and
+  `secure` to gate insecure requests. (Koa-inspired.)
+- **`response.back(fallback?)` and `redirect("back")`.** Redirect to the
+  request's `Referer`, falling back to `fallback` (default `"/"`) when it's
+  absent — the "return where you came from" shortcut for post-form flows.
+- **`response.attachment(filename?)`.** Marks the response as a downloadable
+  attachment via `Content-Disposition`, emitting both a quoted ASCII `filename`
+  and an RFC 5987 `filename*` so non-ASCII names survive. Chainable, so pair it
+  with `type()`.
+- **Encoding & charset negotiation.** `request.encoding(encodings)` /
+  `request.encodings()` and `request.charset(charsets)` / `request.charsets()`
+  complete the content-negotiation set alongside the existing `accepts` and
+  `language` helpers, using the same q-weight and `*` rules.
+
 ## [0.61.0] — 2026-07-11
 
 ### Added
