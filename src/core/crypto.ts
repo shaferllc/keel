@@ -108,11 +108,28 @@ async function aesKey(): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
+export interface EncryptOptions {
+  /** Time-to-live — seconds (number) or a duration string (`"30m"`, `"1h"`, `"7d"`). */
+  expiresIn?: number | string;
+  /** Bind the token to a context; `decrypt` must pass the same `purpose` or gets `null`. */
+  purpose?: string;
+}
+
 export const encryption = {
-  /** Encrypt any JSON-serializable value (AES-GCM), keyed by config('app.key'). */
-  async encrypt(value: unknown): Promise<string> {
+  /**
+   * Encrypt any JSON-serializable value (AES-GCM), keyed by `config('app.key')`.
+   * `expiresIn` makes the token self-expire; `purpose` binds it to a context
+   * (e.g. `"password-reset"`) so a token minted for one use can't be replayed for
+   * another.
+   */
+  async encrypt(value: unknown, options: EncryptOptions = {}): Promise<string> {
+    // Wrap in a small envelope so expiry/purpose travel inside the ciphertext.
+    const envelope: Record<string, unknown> = { __k: 1, v: value };
+    if (options.expiresIn != null) envelope.exp = Date.now() + seconds(options.expiresIn) * 1000;
+    if (options.purpose != null) envelope.p = options.purpose;
+
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const data = new TextEncoder().encode(JSON.stringify(value));
+    const data = new TextEncoder().encode(JSON.stringify(envelope));
     const cipher = new Uint8Array(
       await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv as unknown as ArrayBuffer }, await aesKey(), data as unknown as ArrayBuffer),
     );
@@ -122,8 +139,11 @@ export const encryption = {
     return b64(packed);
   },
 
-  /** Decrypt a value; returns null if the payload is tampered or invalid. */
-  async decrypt<T = unknown>(payload: string): Promise<T | null> {
+  /**
+   * Decrypt a value; returns `null` if the payload is tampered, invalid, expired,
+   * or minted for a different `purpose`. Never throws.
+   */
+  async decrypt<T = unknown>(payload: string, options: { purpose?: string } = {}): Promise<T | null> {
     try {
       const bytes = fromB64(payload);
       const iv = bytes.slice(0, 12);
@@ -133,7 +153,18 @@ export const encryption = {
         await aesKey(),
         cipher as unknown as ArrayBuffer,
       );
-      return JSON.parse(new TextDecoder().decode(plain)) as T;
+      const parsed = JSON.parse(new TextDecoder().decode(plain)) as unknown;
+
+      // Envelope (new format): enforce expiry + purpose.
+      if (parsed && typeof parsed === "object" && (parsed as { __k?: number }).__k === 1) {
+        const env = parsed as { v: T; exp?: number; p?: string };
+        if (typeof env.exp === "number" && Date.now() >= env.exp) return null;
+        if ((options.purpose ?? null) !== (env.p ?? null)) return null;
+        return env.v;
+      }
+      // Legacy plain value (encrypted before envelopes). A required purpose can't match.
+      if (options.purpose != null) return null;
+      return parsed as T;
     } catch {
       return null;
     }

@@ -211,8 +211,20 @@ export class Application extends Container {
       await provider.boot();
     }
 
+    // A provider's shutdown() joins the app's shutdown hooks, so it runs (LIFO)
+    // on terminate() alongside any onShutdown() a provider registered by hand.
+    // ready()/shutdown() are optional — plain duck-typed providers may omit them.
+    for (const provider of this.providers) {
+      if (typeof provider.shutdown === "function") {
+        this.onShutdown(() => provider.shutdown());
+      }
+    }
+
     this.booted = true;
     for (const hook of this.readyHooks) await hook(this);
+    for (const provider of this.providers) {
+      if (typeof provider.ready === "function") await provider.ready();
+    }
     return this;
   }
 

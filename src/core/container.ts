@@ -17,9 +17,16 @@ interface Binding<T = unknown> {
   shared: boolean;
 }
 
+interface SavedBinding {
+  binding: Binding | undefined;
+  instance: unknown;
+  hadInstance: boolean;
+}
+
 export class Container {
   private bindings = new Map<Token, Binding>();
   private instances = new Map<Token, unknown>();
+  private swaps = new Map<Token, SavedBinding>();
 
   /** Register a transient binding — a fresh value every resolve. */
   bind<T>(token: Token<T>, factory: Factory<T>): this {
@@ -37,6 +44,55 @@ export class Container {
   instance<T>(token: Token<T>, value: T): T {
     this.instances.set(token, value);
     return value;
+  }
+
+  /**
+   * Register an alias that resolves to another token — `alias("router", Router)`
+   * lets `make("router")` return whatever `make(Router)` does, honoring the
+   * target's own sharing (the target owns the singleton; the alias just points).
+   */
+  alias<T>(alias: Token<T>, target: Token<T>): this {
+    this.bindings.set(alias, { factory: (app) => app.make(target), shared: false });
+    return this;
+  }
+
+  /**
+   * Temporarily replace a binding with a fake — for tests. The replacement is
+   * shared (resolved once), and the original binding/instance is remembered so
+   * `restore()` can put it back. Idempotent per token: the first swap saves the
+   * original; later swaps just change the fake.
+   *
+   *   app.swap(Mailer, () => fakeMailer);
+   *   // … exercise code that resolves Mailer …
+   *   app.restore(Mailer);
+   */
+  swap<T>(token: Token<T>, factory: Factory<T>): this {
+    if (!this.swaps.has(token)) {
+      this.swaps.set(token, {
+        binding: this.bindings.get(token),
+        instance: this.instances.get(token),
+        hadInstance: this.instances.has(token),
+      });
+    }
+    this.bindings.set(token, { factory, shared: true });
+    this.instances.delete(token); // force the next make() through the fake
+    return this;
+  }
+
+  /** Undo a `swap()` — restore the original binding. No token restores every swap. */
+  restore(token?: Token): this {
+    if (token === undefined) {
+      for (const t of [...this.swaps.keys()]) this.restore(t);
+      return this;
+    }
+    const saved = this.swaps.get(token);
+    if (!saved) return this;
+    this.swaps.delete(token);
+    this.instances.delete(token);
+    if (saved.binding) this.bindings.set(token, saved.binding);
+    else this.bindings.delete(token);
+    if (saved.hadInstance) this.instances.set(token, saved.instance);
+    return this;
   }
 
   /** True if the token is bound or has a cached instance. */

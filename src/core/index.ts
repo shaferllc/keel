@@ -14,6 +14,9 @@ export {
   instance,
   make,
   bound,
+  alias,
+  swap,
+  restore,
   events,
   emit,
   listen,
@@ -37,9 +40,15 @@ export { Storage, MemoryDisk, storage, setDisk } from "./storage.js";
 export type { Disk, Contents } from "./storage.js";
 export { dump, dd } from "./debug.js";
 export { hash, encryption, jwt } from "./crypto.js";
-export type { JwtPayload, JwtSignOptions, JwtVerifyOptions } from "./crypto.js";
+export type { JwtPayload, JwtSignOptions, JwtVerifyOptions, EncryptOptions } from "./crypto.js";
 export { rateLimiter } from "./rate-limit.js";
 export type { RateLimiterOptions } from "./rate-limit.js";
+export { cors } from "./cors.js";
+export type { CorsOptions } from "./cors.js";
+export { securityHeaders } from "./shield.js";
+export type { SecurityHeadersOptions, HstsOptions } from "./shield.js";
+export { csrf, csrfToken, csrfField } from "./csrf.js";
+export type { CsrfOptions } from "./csrf.js";
 export {
   db,
   connection,

@@ -84,6 +84,21 @@ export function bound(token: Token): boolean {
   return app().bound(token);
 }
 
+/** Register an alias token that resolves to another token. */
+export function alias<T>(aliasToken: Token<T>, target: Token<T>): void {
+  app().alias(aliasToken, target);
+}
+
+/** Temporarily replace a binding with a fake (tests). Undo with `restore()`. */
+export function swap<T>(token: Token<T>, factory: Factory<T>): void {
+  app().swap(token, factory);
+}
+
+/** Undo a `swap()` — restore the original binding. No token restores every swap. */
+export function restore(token?: Token): void {
+  app().restore(token);
+}
+
 /* ------------------------------- events -------------------------------- */
 
 /** The application's event emitter. */

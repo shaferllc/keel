@@ -4,6 +4,36 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.65.0] — 2026-07-11
+
+### Added
+
+- **Security middleware suite.** Filled the gaps against the
+  [AdonisJS security guides](https://docs.adonisjs.com/guides/security/hashing)
+  (hashing/encryption already existed) — all edge-native:
+  - **`cors()`** — Cross-Origin Resource Sharing with automatic preflight
+    handling. `origin` as boolean / `"*"` / allowlist / predicate, plus
+    `methods`, `headers`, `exposeHeaders`, `credentials` (auto-downgrades `"*"`
+    to the concrete origin), and `maxAge`. New [CORS](https://keeljs.com/docs/cors)
+    guide.
+  - **`securityHeaders()`** — the SSR "shield": Content-Security-Policy (string or
+    a camelCase directives object), HSTS, `X-Frame-Options`, `X-Content-Type-Options:
+    nosniff`, and `Referrer-Policy`, each individually toggleable.
+  - **`csrf()`** — session-backed CSRF protection; rejects unsafe requests without
+    a valid token (`419`), with `csrfField()` / `csrfToken()` helpers, an
+    `XSRF-TOKEN` cookie for SPAs, and route exemptions. New
+    [Securing SSR apps](https://keeljs.com/docs/security) guide.
+
+### Changed
+
+- **`encryption.encrypt(value, { expiresIn, purpose })`** — encrypted values can
+  now self-expire and be bound to a purpose (e.g. `"password-reset"`), verified on
+  `decrypt(token, { purpose })`; a wrong/absent purpose or an expired token returns
+  `null`. Backward compatible — tokens made without options decrypt as before.
+- **`rateLimiter`** now also emits the `X-RateLimit-Reset` header.
+
+[0.65.0]: https://github.com/shaferllc/keel/releases/tag/v0.65.0
+
 ## [0.64.0] — 2026-07-11
 
 ### Added

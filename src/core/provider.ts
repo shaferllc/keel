@@ -6,6 +6,11 @@
  *             here — nothing is guaranteed to be registered yet.
  * boot():     called after every provider has registered. Safe to resolve
  *             and wire things together here.
+ * ready():    called once the whole app has booted (after every provider's
+ *             boot() and any onReady hooks). For work that needs a fully-live
+ *             app — attaching to the running server, warming a cache.
+ * shutdown(): called during graceful termination, in reverse registration
+ *             order (LIFO). Close connections, flush queues, cancel timers.
  *
  * Register with options to make a provider reusable:
  *
@@ -26,6 +31,10 @@ export abstract class ServiceProvider<O = Record<string, unknown>> {
   register(): void | Promise<void> {}
 
   boot(): void | Promise<void> {}
+
+  ready(): void | Promise<void> {}
+
+  shutdown(): void | Promise<void> {}
 }
 
 // `any` on the options param keeps this construct signature compatible with

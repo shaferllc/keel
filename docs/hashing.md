@@ -95,6 +95,27 @@ strings, numbers, booleans. It is not deterministic: the random IV means the sam
 input encrypts to a different string every time, so you can't use the ciphertext
 as a lookup key.
 
+### Expiring and purpose-bound tokens
+
+`encrypt()` takes options that make the ciphertext self-expire and bind it to a
+context — ideal for one-shot links like password resets or email confirmations:
+
+```ts
+const token = await encryption.encrypt(
+  { userId: 1 },
+  { expiresIn: "1h", purpose: "password-reset" },
+);
+
+// later — decrypt with the SAME purpose, or you get null
+const data = await encryption.decrypt(token, { purpose: "password-reset" });
+```
+
+`expiresIn` is seconds or a duration string (`"30m"`, `"1h"`, `"7d"`); an expired
+token decrypts to `null`. `purpose` binds the token to a use — decrypting with a
+different purpose (or none) returns `null`, so a reset token can't be replayed as,
+say, a login token. Both travel inside the ciphertext, so they can't be tampered
+with. Tokens made without these options keep decrypting as before.
+
 ## The app key
 
 Both encryption and [signed URLs](./url-builder.md) use `config('app.key')`. Set

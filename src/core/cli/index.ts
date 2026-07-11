@@ -75,10 +75,27 @@ export async function run(argv: string[]): Promise<void> {
       const port = Number(
         opts.port ?? app.config().get("app.port", 3000),
       );
-      serve({ fetch: hono.fetch, port }, (info) => {
+      const server = serve({ fetch: hono.fetch, port }, (info) => {
         const name = app.config().get("app.name", "Keel");
         console.log(`⚓ ${name} listening on http://localhost:${info.port}`);
       });
+
+      // Graceful shutdown: stop accepting connections, run the app's shutdown
+      // hooks (and every provider's shutdown()), then exit. `once` so a second
+      // signal isn't swallowed if cleanup hangs — hit Ctrl-C again to force it.
+      const shutdown = async (signal: string) => {
+        console.log(`\n${signal} received — shutting down…`);
+        server.close();
+        try {
+          await app.terminate();
+        } catch (err) {
+          console.error("Error during shutdown:", err);
+          process.exit(1);
+        }
+        process.exit(0);
+      };
+      process.once("SIGINT", () => void shutdown("SIGINT"));
+      process.once("SIGTERM", () => void shutdown("SIGTERM"));
     });
 
   program

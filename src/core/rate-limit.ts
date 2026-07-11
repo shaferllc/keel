@@ -54,10 +54,12 @@ export function rateLimiter(options: RateLimiterOptions = {}): MiddlewareHandler
     bucket.count++;
     const remaining = Math.max(0, max - bucket.count);
 
+    const resetSeconds = Math.ceil(bucket.reset / 1000);
     if (bucket.count > max) {
       return c.json({ error: options.message ?? "Too Many Requests", status: 429 }, 429, {
         "X-RateLimit-Limit": String(max),
         "X-RateLimit-Remaining": "0",
+        "X-RateLimit-Reset": String(resetSeconds),
         "Retry-After": String(Math.ceil((bucket.reset - now) / 1000)),
       });
     }
@@ -66,5 +68,6 @@ export function rateLimiter(options: RateLimiterOptions = {}): MiddlewareHandler
     // Set headers on the final response (survives any handler type).
     c.header("X-RateLimit-Limit", String(max));
     c.header("X-RateLimit-Remaining", String(remaining));
+    c.header("X-RateLimit-Reset", String(resetSeconds));
   };
 }
