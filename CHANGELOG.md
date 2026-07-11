@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0] — 2026-07-10
+
+### Added
+
+- **Request decorators.** Attach named, computed values to the current request
+  — `request.user` / `tenant` / `locale` — resolved lazily and memoized for the
+  life of the request. `decorateRequest(name, resolver)` registers a resolver
+  (sync or async), `decorated(name)` reads it (computed once, then cached),
+  `setRequestValue(name, value)` sets it imperatively (e.g. from middleware), and
+  `hasRequestDecorator(name)` checks. Inspired by Fastify's `decorateRequest`,
+  but without the null-placeholder/`onRequest`-hook dance — the per-request memo
+  is keyed off the context via a WeakMap, so nothing leaks between requests.
+  (Decorating the *app* is already the container's job.) See
+  [docs/decorators.md](./docs/decorators.md).
+
+[0.40.0]: https://github.com/shaferllc/keel/releases/tag/v0.40.0
+
 ## [0.39.0] — 2026-07-10
 
 ### Added

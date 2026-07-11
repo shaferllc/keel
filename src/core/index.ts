@@ -90,6 +90,14 @@ export {
   request,
   response,
 } from "./request.js";
+export {
+  decorateRequest,
+  hasRequestDecorator,
+  decorated,
+  setRequestValue,
+  clearRequestDecorators,
+} from "./decorators.js";
+export type { RequestResolver } from "./decorators.js";
 export type { ConfigData } from "./config.js";
 export { View } from "./view.js";
 export type { Renderable, ViewConfig } from "./view.js";

@@ -170,6 +170,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Hashing & Encryption](./docs/hashing.md) | Password hashing, AES value encryption |
 | [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
 | [Request & Response](./docs/request-response.md) | Input, cookies, output, `abort()` |
+| [Request Decorators](./docs/decorators.md) | Lazy, memoized per-request values |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
