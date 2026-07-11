@@ -1,14 +1,14 @@
 /**
- * A string templating engine in the spirit of Laravel Blade and AdonisJS Edge —
- * `{{ }}` interpolation and `@`-prefixed tags for logic, includes, layouts, and
+ * A string templating engine in the spirit of AdonisJS Edge — `{{ }}`
+ * interpolation and `@`-prefixed tags for logic, includes, layouts, and
  * components.
  *
  *   const t = new TemplateEngine();
  *   t.register("hello", "Hello, {{ name }}!");
  *   await t.render("hello", { name: "Ada" }); // "Hello, Ada!"
  *
- * Unlike Blade/Edge, which compile templates to a function via `eval`/`new
- * Function`, this engine *interprets* them against a small, safe expression
+ * Unlike engines that compile templates to a function via `eval`/`new
+ * Function`, this one *interprets* them against a small, safe expression
  * evaluator — no dynamic code generation — so it runs unchanged on Node and on
  * Cloudflare Workers (where `eval` is forbidden). The expression language is a
  * practical subset of JS: literals, property/index access, method and helper

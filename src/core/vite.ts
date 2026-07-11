@@ -1,7 +1,7 @@
 /**
  * Vite integration. Wire a modern frontend build — bundling, hashed filenames,
- * hot module reload — to Keel's server-rendered HTML, the way Laravel and
- * AdonisJS do. `Vite` is the *server* half: it emits the `<script>`/`<link>`
+ * hot module reload — to Keel's server-rendered HTML, the way modern full-stack
+ * frameworks do. `Vite` is the *server* half: it emits the `<script>`/`<link>`
  * tags for your entrypoints and resolves individual asset URLs, switching
  * automatically between two modes:
  *

@@ -2,7 +2,7 @@
 
 Where [authentication](./authentication.md) answers *who you are*, authorization
 answers *what you're allowed to do*. Keel gives you **gates** (ad-hoc abilities)
-and **policies** (abilities grouped per model), in the spirit of Laravel's Gate.
+and **policies** (abilities grouped per model) — a compact authorization layer.
 
 The current user is resolved from `auth().user()` by default, so authorization
 composes with the session auth you already have.

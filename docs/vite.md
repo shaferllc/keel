@@ -1,7 +1,7 @@
 # Vite
 
 Wire a modern frontend build — bundling, hashed filenames, hot module reload —
-to Keel's server-rendered HTML, the way Laravel and AdonisJS do. There are two
+to Keel's server-rendered HTML, the way modern full-stack frameworks do. There are two
 halves:
 
 - **`keelVite()`** — a plugin for `vite.config.ts` (from `@shaferllc/keel/vite`).

@@ -235,8 +235,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Find-or-create & convenience writes.** `Model.firstOrCreate(match, values)`,
   `Model.updateOrCreate(match, values)`, instance `update(attrs)` (fill + save),
   and `refresh()` (re-read the row). See [docs/models.md](./docs/models.md).
-- **Full Vite support.** A first-class frontend build, the way Laravel and
-  AdonisJS do it. A `keelVite()` plugin (new `@shaferllc/keel/vite` entry) wires
+- **Full Vite support.** A first-class frontend build, the way modern full-stack
+  frameworks do it. A `keelVite()` plugin (new `@shaferllc/keel/vite` entry) wires
   `vite.config.ts` — manifest, output, entrypoints, `base` — and writes a
   `public/hot` marker while the dev server runs; optional `reload` globs
   full-reload the browser on server-view changes. The `Vite` service renders the
@@ -283,14 +283,15 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the payload under a key (`data` by default) with top-level `meta`. Edge-safe;
   depends on nothing but the value you hand it. New generator
   `keel make:transformer`. See [docs/transformers.md](./docs/transformers.md).
-- **Templates.** A string templating engine in the spirit of Blade and Edge:
+- **Templates.** A string templating engine in the spirit of AdonisJS Edge:
   `{{ }}` / `{{{ }}}` interpolation, `{{-- comments --}}`, and `@`-tags —
   `@if` / `@elseif` / `@else`, `@each` (with `$loop`), `@include` / `@includeIf`,
   `@set`, layouts (`@layout` / `@section` / `@yield`), components with slots
   (`@component` / `@slot`), filters (`{{ name | upper }}`), globals, and `@dump`.
-  `templates().register(name, src)` then `render(name, state)`. Unlike Blade/Edge
-  it *interprets* templates against a safe expression evaluator instead of
-  `eval` / `new Function`, so the same templates run on Node and on Workers.
+  `templates().register(name, src)` then `render(name, state)`. Unlike engines
+  that compile to a function, Keel *interprets* templates against a safe
+  expression evaluator instead of `eval` / `new Function`, so the same templates
+  run on Node and on Workers.
   See [docs/templates.md](./docs/templates.md).
 
 [0.37.0]: https://github.com/shaferllc/keel/releases/tag/v0.37.0

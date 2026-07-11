@@ -1,7 +1,7 @@
 # Task Scheduling
 
 Declare recurring work with a fluent cadence, then let a **single cron trigger**
-drive it — Laravel's scheduler, but edge-first. Instead of a crontab entry per
+drive it — a code-defined scheduler, edge-first. Instead of a crontab entry per
 job, you register tasks in code and run the scheduler once a minute; it runs
 whatever's due.
 

@@ -1,12 +1,12 @@
 # Templates
 
-A string templating engine in the spirit of Laravel **Blade** and AdonisJS
-**Edge** — `{{ }}` interpolation and `@`-prefixed tags for logic, includes,
-layouts, and components. Reach for it when you want plain-text templates instead
-of (or alongside) [JSX views](./views.md).
+A string templating engine in the spirit of AdonisJS **Edge** — `{{ }}`
+interpolation and `@`-prefixed tags for logic, includes, layouts, and
+components. Reach for it when you want plain-text templates instead of (or
+alongside) [JSX views](./views.md).
 
-Unlike Blade and Edge — which compile a template to a function with `eval` /
-`new Function` — Keel **interprets** templates against a small, safe expression
+Unlike engines that compile a template to a function with `eval` /
+`new Function`, Keel **interprets** templates against a small, safe expression
 evaluator. No dynamic code generation, so the same templates run on Node **and**
 on Cloudflare Workers (where `eval` is forbidden).
 

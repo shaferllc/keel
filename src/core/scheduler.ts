@@ -1,6 +1,6 @@
 /**
  * Task scheduling — declare recurring work with a fluent cadence, then let a
- * cron trigger drive it. Like Laravel's scheduler, but edge-first: you run the
+ * cron trigger drive it. A code-defined scheduler, edge-first: you run the
  * scheduler from a single per-minute trigger (Cloudflare Cron Triggers, or a
  * Node interval), and it runs whatever's due.
  *
