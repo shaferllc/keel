@@ -91,6 +91,14 @@ export {
 export type { ConfigData } from "./config.js";
 export { View } from "./view.js";
 export type { Renderable, ViewConfig } from "./view.js";
+export {
+  TemplateEngine,
+  escapeHtml,
+  templates,
+  setTemplateEngine,
+  render,
+} from "./template.js";
+export type { Filter, RenderContext } from "./template.js";
 export { ServiceProvider } from "./provider.js";
 export type { ProviderClass } from "./provider.js";
 export { Router, Route, RouteGroup, RouteResource, matchers } from "./http/router.js";

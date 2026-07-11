@@ -18,6 +18,15 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the payload under a key (`data` by default) with top-level `meta`. Edge-safe;
   depends on nothing but the value you hand it. New generator
   `keel make:transformer`. See [docs/transformers.md](./docs/transformers.md).
+- **Templates.** A string templating engine in the spirit of Blade and Edge:
+  `{{ }}` / `{{{ }}}` interpolation, `{{-- comments --}}`, and `@`-tags —
+  `@if` / `@elseif` / `@else`, `@each` (with `$loop`), `@include` / `@includeIf`,
+  `@set`, layouts (`@layout` / `@section` / `@yield`), components with slots
+  (`@component` / `@slot`), filters (`{{ name | upper }}`), globals, and `@dump`.
+  `templates().register(name, src)` then `render(name, state)`. Unlike Blade/Edge
+  it *interprets* templates against a safe expression evaluator instead of
+  `eval` / `new Function`, so the same templates run on Node and on Workers.
+  See [docs/templates.md](./docs/templates.md).
 
 [0.37.0]: https://github.com/shaferllc/keel/releases/tag/v0.37.0
 
