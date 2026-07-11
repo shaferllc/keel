@@ -5,7 +5,7 @@ import type { Method } from "./http/router.js";
 declare module "hono" {
   interface ContextVariableMap {
     app: Application;
-    route?: { name?: string; pattern: string; methods: Method[] };
+    route?: { name?: string; pattern: string; methods: Method[]; config: Record<string, unknown> };
     subdomains?: Record<string, string>;
     session?: Record<string, unknown>;
   }

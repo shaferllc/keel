@@ -278,7 +278,7 @@ export const request = {
   get raw(): Request {
     return ctx().req.raw;
   },
-  /** The matched route: `{ name, pattern, methods }`. */
+  /** The matched route: `{ name, pattern, methods, config }`. */
   get route() {
     return ctx().get("route");
   },

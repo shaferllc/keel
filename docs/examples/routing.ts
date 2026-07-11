@@ -9,6 +9,7 @@ import {
   matchers,
   json,
   text,
+  request,
   type Ctx,
   type RouteHandler,
   type RouteDefinition,
@@ -97,6 +98,18 @@ export function grouping() {
   g.where("id", matchers.uuid()).domain(":tenant.example.com").use([logRequests]);
 }
 
+export function routeConfig() {
+  router.get("/admin", handler).config({ scope: "admin", rateTier: "high" });
+  router
+    .group(() => {
+      router.get("/billing", handler);
+      router.get("/billing/export", handler).config({ heavy: true });
+    })
+    .config({ area: "billing" });
+  const cfg = request.route?.config; // { … } | undefined
+  void cfg;
+}
+
 export function resources() {
   const res: RouteResource = router.resource("posts", PostController);
   res.only(["index", "show"]);
@@ -167,6 +180,7 @@ const routeDef: RouteDefinition = {
   handler: (c: Ctx) => c.text("ok"),
   middleware: [],
   wheres: {},
+  config: {},
 };
 const someHandler: RouteHandler = (c: Ctx) => c.json({ ok: true });
 export { aMatcher, bMatcher, cMatcher, method, methods, ref, refFn, routeDef, someHandler, admin };

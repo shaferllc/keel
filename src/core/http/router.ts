@@ -91,6 +91,8 @@ export interface RouteDefinition {
   wheres: Record<string, string>;
   /** Host pattern this route is bound to, e.g. ":tenant.example.com". */
   domain?: string;
+  /** Arbitrary per-route metadata, readable in the handler via `request.route.config`. */
+  config: Record<string, unknown>;
 }
 
 /** A single registered route — chain to name it, guard it, or constrain params. */
@@ -128,6 +130,12 @@ export class Route {
     this.def.domain = pattern;
     return this;
   }
+
+  /** Attach arbitrary metadata to the route — read it via `request.route.config`. */
+  config(data: Record<string, unknown>): this {
+    Object.assign(this.def.config, data);
+    return this;
+  }
 }
 
 /** A group of routes sharing a prefix, middleware, and/or name prefix. */
@@ -148,6 +156,12 @@ export class RouteGroup {
   /** Alias for middleware(), matching AdonisJS. */
   use(mw: MiddlewareRef | MiddlewareRef[]): this {
     return this.middleware(mw);
+  }
+
+  /** Attach metadata to every route in the group (a route's own config wins). */
+  config(data: Record<string, unknown>): this {
+    for (const r of this.routes) r.config = { ...data, ...r.config };
+    return this;
   }
 
   /** Constrain a parameter across every route in the group. */
@@ -384,6 +398,7 @@ export class Router {
       handler,
       middleware: [...this.group_mw],
       wheres: {},
+      config: {},
     };
     this.routes.push(def);
     for (const hook of this.routeHooks) hook(def);

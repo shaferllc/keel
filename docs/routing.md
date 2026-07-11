@@ -212,12 +212,38 @@ router.get("/", [BlogController, "index"]).domain("blog.example.com");
 Requests are dispatched by their `Host` header; non-matching hosts fall through
 to your default (undomained) routes.
 
+## Route config
+
+Attach arbitrary metadata to a route (or a whole group) with `.config()`, then
+read it in the handler or route middleware via `request.route.config` — for
+per-route flags like an auth scope, a rate tier, or a layout choice:
+
+```ts
+router.get("/admin", [Admin, "index"]).config({ scope: "admin", rateTier: "high" });
+
+router
+  .group(() => {
+    router.get("/billing", [Billing, "index"]); // inherits { area: "billing" }
+    router.get("/billing/export", [Billing, "export"]).config({ heavy: true });
+  })
+  .config({ area: "billing" }); // a route's own config wins on conflict
+```
+
+```ts
+// in a guard middleware attached to the route/group:
+if (request.route?.config.scope === "admin") await authorize("access-admin");
+```
+
+Group config is merged into every route in the group, with a route's own keys
+winning. Route config is available to **route/group middleware** and the handler
+(not global middleware, which runs before route matching).
+
 ## The current route
 
 `request.route` exposes the matched route, and `request.routeIs()` checks it:
 
 ```ts
-request.route;                 // { name, pattern, methods }
+request.route;                 // { name, pattern, methods, config }
 request.routeIs("posts.show"); // boolean
 ```
 

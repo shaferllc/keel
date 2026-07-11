@@ -4,6 +4,53 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.0] — 2026-07-11
+
+### Added
+
+- **Route config / metadata.** Attach arbitrary data to a route or group with
+  `.config({ … })` and read it in the handler or route middleware via
+  `request.route.config` — per-route flags like an auth scope, rate tier, or
+  layout choice (Fastify's route `config`). Group config merges into every route,
+  with a route's own keys winning. The matched-route context is now set *before*
+  a route's middleware, so route/group middleware can branch on `request.route`.
+  See [docs/routing.md](./docs/routing.md#route-config).
+
+[0.53.0]: https://github.com/shaferllc/keel/releases/tag/v0.53.0
+
+## [0.52.0] — 2026-07-11
+
+### Added
+
+- **Service broker: Moleculer-parity actions & services.** The
+  [broker](./docs/broker.md) grows the pieces a service-oriented app leans on,
+  drawn from Moleculer's [services](https://moleculer.services/docs/0.15/services)
+  and [actions](https://moleculer.services/docs/0.15/actions) pages:
+  - **Full action definitions** — an action may now be `{ handler, visibility,
+    timeout, hooks }` instead of only a bare handler.
+  - **Action hooks** — `before` / `after` / `error` at the service level (keyed by
+    action name, with `*`, `"a|b"`, and glob matching) or inline per action, run
+    in Moleculer's order (before: wildcard → named → action; after/error reversed).
+  - **Visibility** — `published` / `public` / `protected` / `private`; `private`
+    actions are hidden from `call` but reachable internally via `this.actions.x`.
+  - **`mcall`** — batch calls as an array or keyed map, with `settled` for
+    per-call `{ status, value | reason }`.
+  - **Mixins** — reusable schemas merged by type (settings/metadata deep-merge,
+    actions/events/methods/hooks by key, lifecycle hooks chained), with a
+    `merged()` hook; the service's own schema wins on conflict.
+  - **Dependencies** — `dependencies` gates a service's `started` hook on other
+    services being registered; `broker.waitForServices()` / `this.waitForServices()`
+    wait explicitly.
+  - **Richer context** — `ctx.locals` (per-call scratch), `ctx.headers` (transient,
+    not propagated), and `ctx.requestID` (correlation id threaded through the
+    request tree); `metadata` on the service instance; event listeners may declare
+    a `group` that `emit`'s `groups` option targets.
+
+  All additive and backward compatible — a bare-handler action, function-shorthand
+  event, and hook-less service behave exactly as before.
+
+[0.52.0]: https://github.com/shaferllc/keel/releases/tag/v0.52.0
+
 ## [0.51.0] — 2026-07-11
 
 ### Added

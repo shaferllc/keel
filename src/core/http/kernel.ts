@@ -124,8 +124,18 @@ export class HttpKernel {
 
     for (const route of routes) {
       const fn: HandlerFn = router.resolve(route.handler);
+      // Set the matched-route context *before* this route's middleware, so both
+      // route middleware and the handler can read `request.route` (incl. config).
+      const setRoute = async (c: Context, next: () => Promise<void>) => {
+        c.set("route", {
+          name: route.name,
+          pattern: route.path,
+          methods: route.methods,
+          config: route.config,
+        });
+        await next();
+      };
       const honoHandler = async (c: Context) => {
-        c.set("route", { name: route.name, pattern: route.path, methods: route.methods });
         const result = await fn(c);
         return typeof result === "string" ? c.html(result) : result;
       };
@@ -137,7 +147,7 @@ export class HttpKernel {
       }
 
       const middleware = route.middleware.map((m) => router.resolveMiddleware(m));
-      hono.on(route.methods, [path], ...middleware, honoHandler);
+      hono.on(route.methods, [path], setRoute, ...middleware, honoHandler);
     }
 
     hono.notFound((c) =>
