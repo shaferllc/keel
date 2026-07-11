@@ -40,6 +40,29 @@ raw parsed JSON body without the query merge, use `request.json<T>()`.
 > them off `request` (`request.input(…)`), not destructured (`const { input } =
 > request`), or `this` is lost.
 
+### Other content types
+
+`all()` understands JSON and form bodies. For anything else — XML, CSV, a binary
+payload, a custom format — read the raw body and parse it yourself. There's no
+content-type parser registry to configure (unlike Fastify): parsing is explicit,
+so you call the accessor you want.
+
+```ts
+await request.text();          // the body as a string  (XML, CSV, …)
+await request.arrayBuffer();   // the body as bytes      (protobuf, msgpack, …)
+await request.blob();          // the body as a Blob
+```
+
+```ts
+r.post("/webhook", async () => {
+  const xml = await request.text();
+  return response.json(parseXml(xml));
+});
+```
+
+These read from the same underlying `Request` as `request.raw`, so a middleware
+can equally parse a custom type once and stash it with `ctx().set("body", …)`.
+
 ## Route info
 
 The kernel stashes the matched route on the context, so you can branch on it:
@@ -332,6 +355,21 @@ const body = await request.json<{ email: string }>();
 
 **Notes:** rejects if the body isn't valid JSON. For a query+body merge instead,
 use `request.all()`.
+
+#### `request.text()` · `request.arrayBuffer()` · `request.blob()`
+
+`text(): Promise<string>` · `arrayBuffer(): Promise<ArrayBuffer>` · `blob(): Promise<Blob>`
+
+The raw request body, for content types `json()`/`all()` don't handle — parse it
+yourself.
+
+```ts
+const xml = await request.text();          // XML, CSV, plain text
+const bytes = await request.arrayBuffer(); // protobuf, msgpack, binary
+```
+
+**Notes:** thin passes to the underlying Hono request, which caches the body, so
+these compose with each other (the body isn't re-read).
 
 #### `request.raw`
 

@@ -243,6 +243,21 @@ export const request = {
   json<T = unknown>(): Promise<T> {
     return ctx().req.json() as Promise<T>;
   },
+  /**
+   * The raw request body as text — for content types `json()`/`all()` don't
+   * handle (XML, CSV, a custom format). Parse it yourself from here.
+   */
+  text(): Promise<string> {
+    return ctx().req.text();
+  },
+  /** The raw request body as an ArrayBuffer (binary payloads). */
+  arrayBuffer(): Promise<ArrayBuffer> {
+    return ctx().req.arrayBuffer();
+  },
+  /** The raw request body as a Blob. */
+  blob(): Promise<Blob> {
+    return ctx().req.blob();
+  },
   /** The raw web Request. */
   get raw(): Request {
     return ctx().req.raw;

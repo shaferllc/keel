@@ -4,6 +4,19 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.1] — 2026-07-10
+
+### Added
+
+- **Raw request-body accessors.** `request.text()`, `request.arrayBuffer()`, and
+  `request.blob()` read the body for content types `json()` / `all()` don't
+  handle — XML, CSV, protobuf, msgpack, or any custom format — which you then
+  parse yourself. Keel keeps body parsing explicit (no Fastify-style content-type
+  parser registry): you call the accessor you want. See
+  [docs/request-response.md](./docs/request-response.md#other-content-types).
+
+[0.40.1]: https://github.com/shaferllc/keel/releases/tag/v0.40.1
+
 ## [0.40.0] — 2026-07-10
 
 ### Added

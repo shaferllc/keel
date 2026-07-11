@@ -52,3 +52,38 @@ test("request/response accessor variants inside a request", async () => {
 
   assert.equal((await hono.request("/all")).status, 200);
 });
+
+test("raw body accessors read non-JSON content types", async () => {
+  const hono = await build((r) => {
+    r.post("/xml", async () => response.text(`text:${await request.text()}`));
+    r.post("/bin", async () => {
+      const buf = await request.arrayBuffer();
+      return response.json({ bytes: new Uint8Array(buf).length });
+    });
+    r.post("/blob", async () => {
+      const blob = await request.blob();
+      return response.json({ type: blob.type, size: blob.size });
+    });
+  });
+
+  const xml = await hono.request("/xml", {
+    method: "POST",
+    headers: { "content-type": "application/xml" },
+    body: "<note>hi</note>",
+  });
+  assert.equal(await xml.text(), "text:<note>hi</note>");
+
+  const bin = await hono.request("/bin", {
+    method: "POST",
+    headers: { "content-type": "application/octet-stream" },
+    body: new Uint8Array([1, 2, 3, 4, 5]),
+  });
+  assert.deepEqual(await bin.json(), { bytes: 5 });
+
+  const blob = await hono.request("/blob", {
+    method: "POST",
+    headers: { "content-type": "text/csv" },
+    body: "a,b,c",
+  });
+  assert.deepEqual(await blob.json(), { type: "text/csv", size: 5 });
+});

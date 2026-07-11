@@ -40,7 +40,13 @@ export async function readingInput() {
   await request.except(["password"]);
 
   const body1 = await request.json<{ email: string }>();
-  return { page, body1 };
+
+  // Raw body accessors for other content types.
+  const asText: string = await request.text();
+  const asBytes: ArrayBuffer = await request.arrayBuffer();
+  const asBlob: Blob = await request.blob();
+
+  return { page, body1, asText, asBytes, asBlob };
 }
 
 export function requestMeta() {
