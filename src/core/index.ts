@@ -146,6 +146,19 @@ export { Session, session, sessionMiddleware } from "./session.js";
 export type { SessionOptions } from "./session.js";
 export { Auth, auth, authGuard, setUserProvider } from "./auth.js";
 export type { UserProvider } from "./auth.js";
+export {
+  define,
+  policy,
+  gateBefore,
+  setUserResolver,
+  clearAuthorization,
+  can,
+  cannot,
+  canFor,
+  authorize,
+  authorizeFor,
+} from "./authorization.js";
+export type { GateCallback, BeforeCallback } from "./authorization.js";
 export { Transformer } from "./transformer.js";
 export type { Attributes, DocumentOptions } from "./transformer.js";
 export {

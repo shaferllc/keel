@@ -174,6 +174,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Lifecycle Hooks](./docs/hooks.md) | onReady/onShutdown, graceful shutdown, onRoute |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
+| [Authorization](./docs/authorization.md) | Gates & policies, `can`/`authorize` |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
 | [Models](./docs/models.md) | Active-record: find/create/save, casts, relations |
 | [Migrations](./docs/migrations.md) | Schema builder + migrator, dialect-aware |

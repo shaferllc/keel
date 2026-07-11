@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.0] — 2026-07-11
+
+### Added
+
+- **Authorization — gates & policies.** Where `auth()` is *who you are*, this is
+  *what you're allowed to do*. `define(ability, (user, ...args) => …)` registers a
+  gate; `policy(Model, PolicyClass)` groups abilities as methods on a plain class,
+  and `can("update", post)` routes to `PostPolicy.update(user, post)` by the
+  argument's class. `can` / `cannot` return booleans; `authorize` throws a `403`;
+  `canFor` / `authorizeFor` check a specific user; `gateBefore` short-circuits
+  every check (admin bypass). The current user resolves from `auth().user()` by
+  default (overridable with `setUserResolver`); unknown abilities deny. See
+  [docs/authorization.md](./docs/authorization.md).
+
+[0.46.0]: https://github.com/shaferllc/keel/releases/tag/v0.46.0
+
 ## [0.45.0] — 2026-07-11
 
 ### Added
