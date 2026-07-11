@@ -146,10 +146,22 @@ export { HttpKernel } from "./http/kernel.js";
 export { TestClient, TestResponse, testClient } from "./testing.js";
 export {
   HttpException,
-  NotFoundException,
+  BadRequestException,
   UnauthorizedException,
+  PaymentRequiredException,
   ForbiddenException,
+  NotFoundException,
+  MethodNotAllowedException,
+  NotAcceptableException,
+  RequestTimeoutException,
+  ConflictException,
+  LengthRequiredException,
   ValidationException,
+  TooManyRequestsException,
+  ServerErrorException,
+  NotImplementedException,
+  BadGatewayException,
+  ServiceUnavailableException,
   createError,
   STATUS_TEXT,
 } from "./exceptions.js";

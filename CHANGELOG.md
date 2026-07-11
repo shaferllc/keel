@@ -4,6 +4,31 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.58.0] — 2026-07-11
+
+### Added
+
+- **Errors: the full HTTP exception family.** Rounded out the built-in exceptions
+  against the [Feathers errors API](https://feathersjs.com/api/errors.html) — the
+  set now covers every common status, each with a fixed `status` and a stable
+  machine `code`: `BadRequestException` (400), `PaymentRequiredException` (402),
+  `MethodNotAllowedException` (405), `NotAcceptableException` (406),
+  `RequestTimeoutException` (408), `ConflictException` (409),
+  `LengthRequiredException` (411), `TooManyRequestsException` (429),
+  `ServerErrorException` (500), `NotImplementedException` (501),
+  `BadGatewayException` (502), and `ServiceUnavailableException` (503) — joining
+  the existing `NotFoundException`, `UnauthorizedException`, `ForbiddenException`,
+  and `ValidationException`. `STATUS_TEXT` gained labels for the new statuses.
+- **Structured error data.** `HttpException` gained an optional `data` bag
+  (`new ConflictException(message, data)`) that surfaces in the JSON error body
+  under `data`, plus a `toJSON()` returning the exact rendered body shape
+  (`{ error, status, code?, data? }`, and `errors` for `ValidationException`) so
+  an exception can be serialized outside the HTTP kernel.
+
+  All additive and backward compatible.
+
+[0.58.0]: https://github.com/shaferllc/keel/releases/tag/v0.58.0
+
 ## [0.57.0] — 2026-07-11
 
 ### Added

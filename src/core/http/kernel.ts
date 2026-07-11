@@ -201,6 +201,7 @@ export class HttpKernel {
 
     const body: Record<string, unknown> = { error: message, status };
     if (isHttp && err.code) body.code = err.code;
+    if (isHttp && err.data !== undefined) body.data = err.data;
     if (err instanceof ValidationException) body.errors = err.errors;
     if (debug && !isHttp && err instanceof Error) {
       body.exception = err.name;

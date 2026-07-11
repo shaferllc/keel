@@ -6,10 +6,22 @@ import { Router } from "../src/core/http/router.js";
 import { HttpKernel } from "../src/core/http/kernel.js";
 import {
   HttpException,
-  NotFoundException,
+  BadRequestException,
   UnauthorizedException,
+  PaymentRequiredException,
   ForbiddenException,
+  NotFoundException,
+  MethodNotAllowedException,
+  NotAcceptableException,
+  RequestTimeoutException,
+  ConflictException,
+  LengthRequiredException,
   ValidationException,
+  TooManyRequestsException,
+  ServerErrorException,
+  NotImplementedException,
+  BadGatewayException,
+  ServiceUnavailableException,
   createError,
 } from "../src/core/exceptions.js";
 
@@ -41,6 +53,66 @@ test("built-in exceptions carry stable machine codes", () => {
   assert.equal(new UnauthorizedException().code, "E_UNAUTHORIZED");
   assert.equal(new ForbiddenException().code, "E_FORBIDDEN");
   assert.equal(new ValidationException({ email: ["required"] }).code, "E_VALIDATION");
+});
+
+test("the full HTTP error family maps names to statuses and codes", () => {
+  const cases: [HttpException, number, string, string][] = [
+    [new BadRequestException(), 400, "BadRequestException", "E_BAD_REQUEST"],
+    [new UnauthorizedException(), 401, "UnauthorizedException", "E_UNAUTHORIZED"],
+    [new PaymentRequiredException(), 402, "PaymentRequiredException", "E_PAYMENT_REQUIRED"],
+    [new ForbiddenException(), 403, "ForbiddenException", "E_FORBIDDEN"],
+    [new NotFoundException(), 404, "NotFoundException", "E_NOT_FOUND"],
+    [new MethodNotAllowedException(), 405, "MethodNotAllowedException", "E_METHOD_NOT_ALLOWED"],
+    [new NotAcceptableException(), 406, "NotAcceptableException", "E_NOT_ACCEPTABLE"],
+    [new RequestTimeoutException(), 408, "RequestTimeoutException", "E_REQUEST_TIMEOUT"],
+    [new ConflictException(), 409, "ConflictException", "E_CONFLICT"],
+    [new LengthRequiredException(), 411, "LengthRequiredException", "E_LENGTH_REQUIRED"],
+    [new TooManyRequestsException(), 429, "TooManyRequestsException", "E_TOO_MANY_REQUESTS"],
+    [new ServerErrorException(), 500, "ServerErrorException", "E_SERVER_ERROR"],
+    [new NotImplementedException(), 501, "NotImplementedException", "E_NOT_IMPLEMENTED"],
+    [new BadGatewayException(), 502, "BadGatewayException", "E_BAD_GATEWAY"],
+    [new ServiceUnavailableException(), 503, "ServiceUnavailableException", "E_SERVICE_UNAVAILABLE"],
+  ];
+  for (const [err, status, name, code] of cases) {
+    assert.ok(err instanceof HttpException, `${name} extends HttpException`);
+    assert.equal(err.status, status, `${name} status`);
+    assert.equal(err.name, name);
+    assert.equal(err.code, code, `${name} code`);
+  }
+});
+
+test("an exception's data bag surfaces via toJSON and in the JSON body", async () => {
+  const err = new ConflictException("Email taken", { email: "a@b.com" });
+  assert.deepEqual(err.toJSON(), {
+    error: "Email taken",
+    status: 409,
+    code: "E_CONFLICT",
+    data: { email: "a@b.com" },
+  });
+
+  const hono = await build((r) => {
+    r.post("/signup", () => {
+      throw new ConflictException("Email taken", { email: "a@b.com" });
+    });
+  });
+  const res = await hono.request("/signup", { method: "POST" });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), {
+    error: "Email taken",
+    status: 409,
+    code: "E_CONFLICT",
+    data: { email: "a@b.com" },
+  });
+});
+
+test("ValidationException.toJSON includes per-field errors", () => {
+  const err = new ValidationException({ email: ["required"] });
+  assert.deepEqual(err.toJSON(), {
+    error: "The given data was invalid.",
+    status: 422,
+    code: "E_VALIDATION",
+    errors: { email: ["required"] },
+  });
 });
 
 async function build(configure: (r: Router) => void) {

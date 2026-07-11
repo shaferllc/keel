@@ -24,6 +24,49 @@ throw new HttpException(429, "Slow down");         // any status
 throw new HttpException(503, "Down for maintenance", { "Retry-After": "120" });
 ```
 
+### The full HTTP error family
+
+Every common HTTP status has a named subclass with a fixed `status` and a stable
+machine `code`. Each takes an optional message and an optional `data` bag (see
+[below](#attaching-structured-data)):
+
+| Class | Status | `code` |
+|-------|--------|--------|
+| `BadRequestException` | 400 | `E_BAD_REQUEST` |
+| `UnauthorizedException` | 401 | `E_UNAUTHORIZED` |
+| `PaymentRequiredException` | 402 | `E_PAYMENT_REQUIRED` |
+| `ForbiddenException` | 403 | `E_FORBIDDEN` |
+| `NotFoundException` | 404 | `E_NOT_FOUND` |
+| `MethodNotAllowedException` | 405 | `E_METHOD_NOT_ALLOWED` |
+| `NotAcceptableException` | 406 | `E_NOT_ACCEPTABLE` |
+| `RequestTimeoutException` | 408 | `E_REQUEST_TIMEOUT` |
+| `ConflictException` | 409 | `E_CONFLICT` |
+| `LengthRequiredException` | 411 | `E_LENGTH_REQUIRED` |
+| `ValidationException` | 422 | `E_VALIDATION` |
+| `TooManyRequestsException` | 429 | `E_TOO_MANY_REQUESTS` |
+| `ServerErrorException` | 500 | `E_SERVER_ERROR` |
+| `NotImplementedException` | 501 | `E_NOT_IMPLEMENTED` |
+| `BadGatewayException` | 502 | `E_BAD_GATEWAY` |
+| `ServiceUnavailableException` | 503 | `E_SERVICE_UNAVAILABLE` |
+
+`ValidationException` is special — it takes a per-field error map first (see
+[Validation errors](#validation-errors)); the rest take `(message?, data?)`.
+
+### Attaching structured data
+
+Any exception can carry a `data` bag that lands in the JSON body under `data`:
+
+```ts
+throw new ConflictException("Email already registered", { email: "a@b.com" });
+// -> 409  { "error": "Email already registered", "status": 409,
+//           "code": "E_CONFLICT", "data": { "email": "a@b.com" } }
+```
+
+Every exception also has a `toJSON()` that returns exactly this body shape
+(`{ error, status, code?, data? }`, plus `errors` for `ValidationException`), so
+you can serialize one yourself outside the HTTP kernel — logging, a queue payload,
+a websocket frame.
+
 A controller that always throws can be typed `: never`:
 
 ```ts
@@ -61,9 +104,9 @@ The kernel negotiates the response by `Accept` and by your `app.debug` config:
 
 Unexpected errors (anything that isn't an `HttpException`) become `500`. In
 production their message and stack are hidden so you never leak internals; the
-intentional message on an `HttpException` is always shown. A subclass `code` is
-added to the JSON body (`{ error, status, code }`), and any `headers` you passed
-are set on the response.
+intentional message on an `HttpException` is always shown. A subclass `code` and
+any `data` bag are added to the JSON body (`{ error, status, code, data }`), and
+any `headers` you passed are set on the response.
 
 The title on both the JSON and HTML paths comes from
 [`STATUS_TEXT`](#status_text) — the kernel looks the status up there (`STATUS_TEXT[status] ?? "Error"`),
