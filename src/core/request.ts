@@ -70,6 +70,24 @@ function negotiate(headerName: string, offered: string[]): string | null {
   return null;
 }
 
+/* ------------------------------ url / host ----------------------------- */
+/* Proxy-aware URL introspection: X-Forwarded-* wins over the raw URL, so an
+ * app behind a TLS-terminating proxy sees the client's protocol and host. */
+
+/** The first value of a (possibly comma-listed) header. */
+function firstForwarded(name: string): string | undefined {
+  const v = ctx().req.header(name);
+  return v ? v.split(",")[0]!.trim() : undefined;
+}
+
+function requestProtocol(): string {
+  return firstForwarded("x-forwarded-proto") ?? new URL(ctx().req.url).protocol.replace(/:$/, "");
+}
+
+function requestHost(): string {
+  return firstForwarded("x-forwarded-host") ?? ctx().req.header("host") ?? new URL(ctx().req.url).host;
+}
+
 /* ------------------------------ responses ------------------------------ */
 /* These work inside a handler AND standalone (e.g. as a static route value).
  * Inside a request they build on the context (merging any headers); outside a
@@ -105,6 +123,8 @@ export function html(body: string, status?: number): Response {
 
 export function redirect(location: string, status?: number): Response {
   const c = maybeCtx();
+  // Koa-style `redirect("back")`: bounce to the Referer, or "/" if there isn't one.
+  if (location === "back") location = c?.req.header("referer") ?? "/";
   return c
     ? c.redirect(location, status as never)
     : new Response(null, { status: status ?? 302, headers: { location } });
@@ -125,6 +145,8 @@ interface ResponseHelper {
   text(body: string, status?: number): Response;
   html(body: string, status?: number): Response;
   redirect(location: string, status?: number): Response;
+  /** Redirect to the `Referer` header, or `fallback` (default "/") if absent. */
+  back(fallback?: string, status?: number): Response;
   /** Send a value — objects become JSON, everything else becomes text. */
   send(data: unknown, status?: number): Response;
   /** Set the response status (chainable). */
@@ -139,6 +161,8 @@ interface ResponseHelper {
   hasHeader(name: string): boolean;
   /** Set the Content-Type (chainable). */
   type(mime: string): ResponseHelper;
+  /** Mark the response as a downloadable attachment via Content-Disposition (chainable). */
+  attachment(filename?: string): ResponseHelper;
   /** Append a value to a (possibly multi-value) header (chainable). */
   append(name: string, value: string): ResponseHelper;
   /** Remove a response header (chainable). */
@@ -167,6 +191,9 @@ export const response: ResponseHelper = {
   },
   redirect(location, status) {
     return redirect(location, status);
+  },
+  back(fallback = "/", status) {
+    return redirect(ctx().req.header("referer") ?? fallback, status);
   },
   send(data, status) {
     return typeof data === "object" && data !== null

@@ -31,6 +31,35 @@ methods, which is why the same app runs on Node and the edge — only the
 connection changes. The type parameter on `db<T>()` types the *results*; the
 `Connection` itself just deals in `Row`s.
 
+### Ready-made adapters
+
+You don't have to hand-write the bridge for the common drivers — Keel ships
+`Connection` adapters as optional subpath imports. Each takes your driver
+instance and returns a `Connection`. They import no driver themselves (the client
+is duck-typed), so Keel's core stays dependency-free and nothing is bundled until
+you import it:
+
+```ts
+// Cloudflare D1 (sqlite)
+import { d1Connection } from "@shaferllc/keel/db/d1";
+setConnection(d1Connection(env.DB), "sqlite");
+
+// Postgres — pg (Node) or @neondatabase/serverless (edge)
+import { pgConnection } from "@shaferllc/keel/db/pg";
+import { Pool } from "pg";
+setConnection(pgConnection(new Pool({ connectionString })), "postgres");
+
+// libSQL / Turso (sqlite, Node + edge)
+import { libsqlConnection } from "@shaferllc/keel/db/libsql";
+import { createClient } from "@libsql/client";
+setConnection(libsqlConnection(createClient({ url, authToken })), "sqlite");
+```
+
+Install only the driver you use — it's a peer, not a Keel dependency. **Postgres
+note:** `INSERT` returns an id only with a `RETURNING` clause, so `insertGetId()`
+needs `RETURNING id` on Postgres; the D1 and libSQL adapters return the last
+insert id natively.
+
 ## Multiple databases
 
 `setConnection` registers the *default* connection. To talk to more than one

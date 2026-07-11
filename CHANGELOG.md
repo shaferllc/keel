@@ -4,6 +4,27 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.0] — 2026-07-11
+
+### Added
+
+- **Batteries-included database adapters.** Ready-made `Connection` implementations
+  for the common drivers, so you no longer hand-write the `select`/`write` bridge.
+  Each ships as an optional subpath import and takes your driver instance:
+  - `@shaferllc/keel/db/d1` — `d1Connection(env.DB)` for Cloudflare D1 (sqlite).
+  - `@shaferllc/keel/db/pg` — `pgConnection(client)` for any node-postgres-compatible
+    client: `pg` on Node or `@neondatabase/serverless` on the edge (postgres).
+  - `@shaferllc/keel/db/libsql` — `libsqlConnection(client)` for `@libsql/client` /
+    Turso, on Node and the edge (sqlite).
+
+  Each adapter **duck-types its driver** (a minimal structural interface) and
+  imports no driver — so Keel's core stays dependency-free and nothing is bundled
+  until you import an adapter, and you install only the driver you use (a peer, not
+  a Keel dependency). D1 and libSQL return the last insert id natively; Postgres
+  needs a `RETURNING id` clause for `insertGetId()`.
+
+[0.61.0]: https://github.com/shaferllc/keel/releases/tag/v0.61.0
+
 ## [0.60.0] — 2026-07-11
 
 ### Added
