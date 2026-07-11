@@ -37,22 +37,72 @@ export interface Connection {
 export type Dialect = "sqlite" | "mysql" | "postgres";
 export type Operator = "=" | "!=" | "<" | "<=" | ">" | ">=" | "like";
 
-let connection: Connection | undefined;
-let dialect: Dialect = "sqlite";
+/* ----------------------------- connections ---------------------------- */
 
-/** Register the database connection (and dialect) used by `db()`. */
+/** A registered connection — the driver bridge plus its SQL dialect. */
+interface Source {
+  conn: Connection;
+  dialect: Dialect;
+}
+
+/**
+ * The connection registry. An app can talk to several databases at once —
+ * register each by name, then route a query with `db(table, name)`, a whole
+ * model with `static connection`, or a handle from `connection(name)`. The
+ * unnamed default lives under `"default"` so `db(table)` and `setConnection()`
+ * keep working unchanged.
+ */
+const registry = new Map<string, Source>();
+let defaultConnection = "default";
+
+/** Register the default connection (and dialect) used by `db()`. */
 export function setConnection(conn: Connection, driverDialect: Dialect = "sqlite"): void {
-  connection = conn;
-  dialect = driverDialect;
+  registry.set("default", { conn, dialect: driverDialect });
+  defaultConnection = "default";
 }
 
-function conn(): Connection {
-  if (!connection) throw new Error("No database connection. Call setConnection(conn, dialect).");
-  return connection;
+/**
+ * Register a *named* connection alongside any others — the way to use more than
+ * one database. Point a query or model at it by name; nothing else changes.
+ *
+ *   addConnection("reporting", pgConn, "postgres");
+ *   await db("events", "reporting").where("kind", "signup").count();
+ */
+export function addConnection(name: string, conn: Connection, driverDialect: Dialect = "sqlite"): void {
+  registry.set(name, { conn, dialect: driverDialect });
 }
 
-/** Render `?` placeholders for the active dialect (Postgres uses $1, $2, …). */
-function placeholders(sql: string): string {
+/** Choose which registered connection `db()` and models use when none is named. */
+export function setDefaultConnection(name: string): void {
+  if (!registry.has(name)) throw new Error(`No database connection "${name}" to make default.`);
+  defaultConnection = name;
+}
+
+/** The names of every registered connection. */
+export function connectionNames(): string[] {
+  return [...registry.keys()];
+}
+
+/** Unregister every connection — a test helper for a clean slate. */
+export function clearConnections(): void {
+  registry.clear();
+  defaultConnection = "default";
+}
+
+/** Resolve a connection by name (or the default); throws if it isn't registered. */
+function resolve(name?: string): Source {
+  const source = registry.get(name ?? defaultConnection);
+  if (!source) {
+    throw new Error(
+      `No database connection${name ? ` "${name}"` : ""}. ` +
+        `Call setConnection(conn, dialect) or addConnection(name, conn, dialect).`,
+    );
+  }
+  return source;
+}
+
+/** Render `?` placeholders for a dialect (Postgres uses $1, $2, …). */
+function placeholders(sql: string, dialect: Dialect): string {
   if (dialect !== "postgres") return sql;
   let i = 0;
   return sql.replace(/\?/g, () => `$${++i}`);
@@ -71,7 +121,21 @@ export class QueryBuilder<T extends Row = Row> {
   private _limit?: number;
   private _offset?: number;
 
-  constructor(private table: string) {}
+  // The connection is resolved lazily, when a query actually runs — so building
+  // a query never throws, and an unregistered connection surfaces as a rejected
+  // read/write rather than a synchronous error at construction.
+  constructor(private table: string, private getSource: () => Source) {}
+
+  /** Run a row-returning query on this builder's connection, dialect-adjusted. */
+  private runSelect(sql: string, bindings: unknown[]): Promise<Row[]> {
+    const source = this.getSource();
+    return source.conn.select(placeholders(sql, source.dialect), bindings);
+  }
+  /** Run a write on this builder's connection, dialect-adjusted. */
+  private runWrite(sql: string, bindings: unknown[]): Promise<WriteResult> {
+    const source = this.getSource();
+    return source.conn.write(placeholders(sql, source.dialect), bindings);
+  }
 
   select(...columns: string[]): this {
     this.columns = columns.length ? columns.join(", ") : "*";
@@ -163,7 +227,7 @@ export class QueryBuilder<T extends Row = Row> {
     if (this.orders.length) sql += ` ORDER BY ${this.orders.join(", ")}`;
     if (this._limit != null) sql += ` LIMIT ${this._limit}`;
     if (this._offset != null) sql += ` OFFSET ${this._offset}`;
-    return (await conn().select(placeholders(sql), where.bindings)) as T[];
+    return (await this.runSelect(sql, where.bindings)) as T[];
   }
 
   async first(): Promise<T | null> {
@@ -174,8 +238,8 @@ export class QueryBuilder<T extends Row = Row> {
 
   async count(): Promise<number> {
     const where = this.whereClause();
-    const rows = (await conn().select(
-      placeholders(`SELECT COUNT(*) AS count FROM ${this.table}${where.sql}`),
+    const rows = (await this.runSelect(
+      `SELECT COUNT(*) AS count FROM ${this.table}${where.sql}`,
       where.bindings,
     )) as { count: number }[];
     return Number(rows[0]?.count ?? 0);
@@ -187,8 +251,8 @@ export class QueryBuilder<T extends Row = Row> {
 
   private async aggregate(fn: string, column: string): Promise<number> {
     const where = this.whereClause();
-    const rows = (await conn().select(
-      placeholders(`SELECT ${fn}(${column}) AS agg FROM ${this.table}${where.sql}`),
+    const rows = (await this.runSelect(
+      `SELECT ${fn}(${column}) AS agg FROM ${this.table}${where.sql}`,
       where.bindings,
     )) as { agg: number | null }[];
     return Number(rows[0]?.agg ?? 0);
@@ -243,7 +307,7 @@ export class QueryBuilder<T extends Row = Row> {
     const sql = `INSERT INTO ${this.table} (${keys.join(", ")}) VALUES (${keys
       .map(() => "?")
       .join(", ")})`;
-    return conn().write(placeholders(sql), Object.values(data));
+    return this.runWrite(sql, Object.values(data));
   }
 
   async insertGetId(data: Row): Promise<number | string | undefined> {
@@ -254,7 +318,7 @@ export class QueryBuilder<T extends Row = Row> {
     const keys = Object.keys(data);
     const set = keys.map((k) => `${k} = ?`).join(", ");
     const where = this.whereClause();
-    return conn().write(placeholders(`UPDATE ${this.table} SET ${set}${where.sql}`), [
+    return this.runWrite(`UPDATE ${this.table} SET ${set}${where.sql}`, [
       ...Object.values(data),
       ...where.bindings,
     ]);
@@ -262,11 +326,41 @@ export class QueryBuilder<T extends Row = Row> {
 
   async delete(): Promise<WriteResult> {
     const where = this.whereClause();
-    return conn().write(placeholders(`DELETE FROM ${this.table}${where.sql}`), where.bindings);
+    return this.runWrite(`DELETE FROM ${this.table}${where.sql}`, where.bindings);
   }
 }
 
-/** Start a query against a table. */
-export function db<T extends Row = Row>(table: string): QueryBuilder<T> {
-  return new QueryBuilder<T>(table);
+/** Start a query against a table, on the default connection or a named one. */
+export function db<T extends Row = Row>(table: string, connectionName?: string): QueryBuilder<T> {
+  return new QueryBuilder<T>(table, () => resolve(connectionName));
+}
+
+/** A handle to one registered connection — query it, or run raw SQL on it. */
+export interface ConnectionHandle {
+  /** Start a query against a table on this connection. */
+  table<T extends Row = Row>(table: string): QueryBuilder<T>;
+  /** Run a raw row-returning query (`?` placeholders, dialect-adjusted). */
+  select(sql: string, bindings?: unknown[]): Promise<Row[]>;
+  /** Run a raw write (`?` placeholders, dialect-adjusted). */
+  write(sql: string, bindings?: unknown[]): Promise<WriteResult>;
+  /** This connection's SQL dialect. */
+  readonly dialect: Dialect;
+}
+
+/**
+ * Get a handle to a named connection (or the default). Use it to run several
+ * queries against one database without repeating the name, or to reach the raw
+ * `select`/`write` bridge.
+ *
+ *   const reporting = connection("reporting");
+ *   await reporting.table("events").where("kind", "signup").count();
+ */
+export function connection(name?: string): ConnectionHandle {
+  const source = resolve(name);
+  return {
+    table: <T extends Row = Row>(t: string) => new QueryBuilder<T>(t, () => source),
+    select: (sql, bindings = []) => source.conn.select(placeholders(sql, source.dialect), bindings),
+    write: (sql, bindings = []) => source.conn.write(placeholders(sql, source.dialect), bindings),
+    dialect: source.dialect,
+  };
 }

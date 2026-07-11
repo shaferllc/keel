@@ -38,6 +38,8 @@ function serialize(value: unknown): unknown {
 export class Model {
   static table = "";
   static primaryKey = "id";
+  /** Which registered connection this model uses; the default when unset. */
+  static connection: string | undefined = undefined;
 
   /** Columns mass-assignable via `create`/`fill` (allowlist). */
   static fillable: string[] = [];
@@ -62,7 +64,7 @@ export class Model {
 
   /** A raw query builder scoped to this model's table. */
   static query(): QueryBuilder {
-    return db(this.table);
+    return db(this.table, this.connection);
   }
 
   /** Keep only the attributes mass-assignment allows (fillable / guarded). */
@@ -96,12 +98,12 @@ export class Model {
   }
 
   static async all<T extends Model>(this: ModelClass<T>): Promise<T[]> {
-    const rows = await db(this.table).get();
+    const rows = await db(this.table, this.connection).get();
     return rows.map((row) => new this(row));
   }
 
   static async find<T extends Model>(this: ModelClass<T>, id: unknown): Promise<T | null> {
-    const row = await db(this.table).where(this.primaryKey, id).first();
+    const row = await db(this.table, this.connection).where(this.primaryKey, id).first();
     return row ? new this(row) : null;
   }
 
@@ -112,7 +114,7 @@ export class Model {
   }
 
   static async first<T extends Model>(this: ModelClass<T>): Promise<T | null> {
-    const row = await db(this.table).first();
+    const row = await db(this.table, this.connection).first();
     return row ? new this(row) : null;
   }
 
@@ -122,14 +124,14 @@ export class Model {
     column: string,
     value: unknown,
   ): Promise<T[]> {
-    const rows = await db(this.table).where(column, value).get();
+    const rows = await db(this.table, this.connection).where(column, value).get();
     return rows.map((row) => new this(row));
   }
 
   static async create<T extends Model>(this: ModelClass<T>, attributes: Row): Promise<T> {
     const filtered = this.filterFillable(attributes);
     const write = this.stampTimestamps(this.toDatabase(filtered), true);
-    const id = await db(this.table).insertGetId(write);
+    const id = await db(this.table, this.connection).insertGetId(write);
     const model = new this(filtered);
     if (this.timestamps) {
       (model as Row)[this.createdAtColumn] = write[this.createdAtColumn];
@@ -145,7 +147,7 @@ export class Model {
     page = 1,
     perPage = 15,
   ): Promise<Paginated<T>> {
-    const result = await db(this.table).paginate(page, perPage);
+    const result = await db(this.table, this.connection).paginate(page, perPage);
     return { ...result, data: result.data.map((row) => new this(row)) };
   }
 
@@ -177,7 +179,7 @@ export class Model {
 
   /** A query scoped to every column/value in `match`. */
   private static matching(match: Row): QueryBuilder {
-    let q = db(this.table);
+    let q = db(this.table, this.connection);
     for (const [column, value] of Object.entries(match)) q = q.where(column, value);
     return q;
   }
@@ -280,7 +282,7 @@ export class Model {
   /** Insert (no primary key) or update (has one). */
   async save(): Promise<this> {
     const ctor = this.ctor();
-    const { table, primaryKey } = ctor;
+    const { table, primaryKey, connection } = ctor;
     const idValue = (this as Row)[primaryKey];
     const forInsert = idValue == null;
 
@@ -293,9 +295,9 @@ export class Model {
     delete data[primaryKey];
 
     if (!forInsert) {
-      await db(table).where(primaryKey, idValue).update(data);
+      await db(table, connection).where(primaryKey, idValue).update(data);
     } else {
-      const id = await db(table).insertGetId(data);
+      const id = await db(table, connection).insertGetId(data);
       if (id != null) (this as Row)[primaryKey] = id;
     }
     return this;
@@ -309,14 +311,14 @@ export class Model {
   /** Reload this model's columns from the database. */
   async refresh(): Promise<this> {
     const ctor = this.ctor();
-    const row = await db(ctor.table).where(ctor.primaryKey, this[ctor.primaryKey]).first();
+    const row = await db(ctor.table, ctor.connection).where(ctor.primaryKey, this[ctor.primaryKey]).first();
     if (row) Object.assign(this, applyCasts(row, ctor.casts, castGet));
     return this;
   }
 
   async delete(): Promise<void> {
-    const { table, primaryKey } = this.ctor();
-    await db(table).where(primaryKey, this[primaryKey]).delete();
+    const { table, primaryKey, connection } = this.ctor();
+    await db(table, connection).where(primaryKey, this[primaryKey]).delete();
   }
 
   /** Merge mass-assignable attributes into the model (cast, not saved). */

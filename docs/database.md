@@ -31,6 +31,56 @@ methods, which is why the same app runs on Node and the edge — only the
 connection changes. The type parameter on `db<T>()` types the *results*; the
 `Connection` itself just deals in `Row`s.
 
+## Multiple databases
+
+`setConnection` registers the *default* connection. To talk to more than one
+database at once — a Postgres primary and a SQLite/D1 cache, a separate reporting
+warehouse, a per-tenant shard — register each by name with `addConnection`, and
+each keeps its own dialect:
+
+```ts
+import { setConnection, addConnection } from "@shaferllc/keel/core";
+
+setConnection(primary, "postgres");            // the default
+addConnection("reporting", warehouse, "postgres");
+addConnection("cache", d1Cache, "sqlite");
+```
+
+Route a single query with a second argument to `db()`:
+
+```ts
+await db("users").where("active", true).get();          // default
+await db("events", "reporting").where("kind", "signup").count();
+```
+
+Or grab a reusable handle with `connection(name)` — it exposes `table()` plus the
+raw `select`/`write` bridge, all dialect-adjusted for that database:
+
+```ts
+import { connection } from "@shaferllc/keel/core";
+
+const reporting = connection("reporting");
+await reporting.table("events").latest().limit(100).get();
+await reporting.write("REFRESH MATERIALIZED VIEW daily_signups", []);
+```
+
+A whole [model](./models.md) can live on a connection — set `static connection`
+and every query, save, and relation for that model routes there:
+
+```ts
+class Event extends Model {
+  static table = "events";
+  static connection = "reporting"; // reads, writes, and relations use "reporting"
+}
+```
+
+`setDefaultConnection(name)` switches which registered connection the unnamed
+`db(table)` (and any model without a `static connection`) uses — handy for
+request-scoped tenant selection. `connectionNames()` lists what's registered.
+An unregistered connection name doesn't fail when you *build* a query, only when
+it runs — so a misconfigured name surfaces as a rejected read/write, not a
+construction-time throw.
+
 ## Querying
 
 Start a query with `db(table)`, chain constraints, and finish with a terminal
@@ -130,14 +180,15 @@ build on this builder — reach for them for CRUD and schema work, and drop back
 
 ### `db(table)`
 
-`db<T extends Row = Row>(table: string): QueryBuilder<T>`
+`db<T extends Row = Row>(table: string, connectionName?: string): QueryBuilder<T>`
 
-Starts a new query against `table`. The optional type parameter types the rows
-returned by `get()`/`first()`.
+Starts a new query against `table`, on the default connection or a named one.
+The optional type parameter types the rows returned by `get()`/`first()`.
 
 ```ts
-db("users");             // QueryBuilder<Row>
+db("users");                 // QueryBuilder<Row>, default connection
 db<{ id: number }>("users"); // typed rows
+db("events", "reporting");   // the "reporting" connection
 ```
 
 **Notes:** returns a fresh builder each call — nothing is shared between queries.
@@ -155,9 +206,43 @@ Registers the connection every `db()` query runs through, plus the dialect
 setConnection(connection, "postgres");
 ```
 
-**Notes:** global — the last call wins. Calling `db()` before `setConnection`
-throws `No database connection…` on the first query. The dialect only changes
-placeholder rendering (`?` → `$1, $2` for Postgres).
+**Notes:** registers the `"default"` connection — the last call wins. Calling
+`db()` before any connection is registered throws `No database connection…` on
+the first query. The dialect only changes placeholder rendering (`?` → `$1, $2`
+for Postgres).
+
+### `addConnection(name, conn, dialect?)`
+
+`addConnection(name: string, conn: Connection, driverDialect?: Dialect): void`
+
+Registers a *named* connection alongside the default and any others — the way to
+use more than one database. Reach it with `db(table, name)`, `connection(name)`,
+or a model's `static connection = name`.
+
+```ts
+addConnection("reporting", warehouse, "postgres");
+```
+
+### `connection(name?)`
+
+`connection(name?: string): ConnectionHandle`
+
+Returns a handle to a registered connection (or the default): `table(name)` to
+start a query, `select`/`write` for raw SQL (dialect-adjusted, `?` placeholders),
+and `dialect`.
+
+```ts
+const reporting = connection("reporting");
+await reporting.table("events").count();
+await reporting.select("SELECT 1", []);
+```
+
+### `setDefaultConnection(name)` · `connectionNames()` · `clearConnections()`
+
+`setDefaultConnection(name: string)` picks which registered connection the
+unnamed `db(table)` and connectionless models use (throws if `name` isn't
+registered). `connectionNames()` returns the registered names.
+`clearConnections()` unregisters everything — a test helper.
 
 ### `QueryBuilder`
 

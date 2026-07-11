@@ -79,7 +79,7 @@ export class HasMany<T extends Model> extends Relation<T, T[]> {
   }
 
   query(): QueryBuilder {
-    return db(this.related.table).where(this.foreignKey, this.localValue());
+    return db(this.related.table, this.related.connection).where(this.foreignKey, this.localValue());
   }
 
   async get(): Promise<T[]> {
@@ -89,7 +89,7 @@ export class HasMany<T extends Model> extends Relation<T, T[]> {
   async eager(models: Model[], name: string): Promise<void> {
     const keys = unique(models.map((m) => (m as Row)[this.localKey]).filter((v) => v != null));
     const rows = keys.length
-      ? await db(this.related.table).whereIn(this.foreignKey, keys).get()
+      ? await db(this.related.table, this.related.connection).whereIn(this.foreignKey, keys).get()
       : [];
 
     const grouped = new Map<unknown, T[]>();
@@ -121,7 +121,7 @@ export class HasOne<T extends Model> extends Relation<T, T | null> {
   }
 
   query(): QueryBuilder {
-    return db(this.related.table).where(this.foreignKey, this.localValue());
+    return db(this.related.table, this.related.connection).where(this.foreignKey, this.localValue());
   }
 
   async get(): Promise<T | null> {
@@ -132,7 +132,7 @@ export class HasOne<T extends Model> extends Relation<T, T | null> {
   async eager(models: Model[], name: string): Promise<void> {
     const keys = unique(models.map((m) => (m as Row)[this.localKey]).filter((v) => v != null));
     const rows = keys.length
-      ? await db(this.related.table).whereIn(this.foreignKey, keys).get()
+      ? await db(this.related.table, this.related.connection).whereIn(this.foreignKey, keys).get()
       : [];
 
     const byKey = new Map<unknown, T>();
@@ -162,7 +162,7 @@ export class BelongsTo<T extends Model> extends Relation<T, T | null> {
   }
 
   query(): QueryBuilder {
-    return db(this.related.table).where(this.ownerKey, this.foreignValue());
+    return db(this.related.table, this.related.connection).where(this.ownerKey, this.foreignValue());
   }
 
   async get(): Promise<T | null> {
@@ -174,7 +174,7 @@ export class BelongsTo<T extends Model> extends Relation<T, T | null> {
   async eager(models: Model[], name: string): Promise<void> {
     const keys = unique(models.map((m) => (m as Row)[this.foreignKey]).filter((v) => v != null));
     const rows = keys.length
-      ? await db(this.related.table).whereIn(this.ownerKey, keys).get()
+      ? await db(this.related.table, this.related.connection).whereIn(this.ownerKey, keys).get()
       : [];
 
     const byKey = new Map<unknown, T>();
@@ -206,17 +206,17 @@ export class BelongsToMany<T extends Model> extends Relation<T, T[]> {
 
   /** The query against the related table, once pivot rows are known. */
   query(): QueryBuilder {
-    return db(this.related.table);
+    return db(this.related.table, this.related.connection);
   }
 
   async get(): Promise<T[]> {
     if (this.parentValue() == null) return [];
-    const pivots = await db(this.pivotTable)
+    const pivots = await db(this.pivotTable, this.related.connection)
       .where(this.foreignPivotKey, this.parentValue())
       .get();
     const relatedIds = unique(pivots.map((p) => p[this.relatedPivotKey]));
     if (!relatedIds.length) return [];
-    const rows = await db(this.related.table).whereIn(this.relatedKey, relatedIds).get();
+    const rows = await db(this.related.table, this.related.connection).whereIn(this.relatedKey, relatedIds).get();
     return this.hydrate(rows);
   }
 
@@ -229,10 +229,10 @@ export class BelongsToMany<T extends Model> extends Relation<T, T[]> {
       return;
     }
 
-    const pivots = await db(this.pivotTable).whereIn(this.foreignPivotKey, parentIds).get();
+    const pivots = await db(this.pivotTable, this.related.connection).whereIn(this.foreignPivotKey, parentIds).get();
     const relatedIds = unique(pivots.map((p) => p[this.relatedPivotKey]));
     const rows = relatedIds.length
-      ? await db(this.related.table).whereIn(this.relatedKey, relatedIds).get()
+      ? await db(this.related.table, this.related.connection).whereIn(this.relatedKey, relatedIds).get()
       : [];
     const relatedById = new Map(rows.map((row) => [row[this.relatedKey], row]));
 
@@ -251,7 +251,7 @@ export class BelongsToMany<T extends Model> extends Relation<T, T[]> {
 
   /** Attach a related row by linking it through the pivot table. */
   async attach(id: unknown, extra: Row = {}): Promise<void> {
-    await db(this.pivotTable).insert({
+    await db(this.pivotTable, this.related.connection).insert({
       [this.foreignPivotKey]: this.parentValue(),
       [this.relatedPivotKey]: id,
       ...extra,
@@ -260,7 +260,7 @@ export class BelongsToMany<T extends Model> extends Relation<T, T[]> {
 
   /** Detach one related row (or all, when no id is given). */
   async detach(id?: unknown): Promise<void> {
-    let q = db(this.pivotTable).where(this.foreignPivotKey, this.parentValue());
+    let q = db(this.pivotTable, this.related.connection).where(this.foreignPivotKey, this.parentValue());
     if (id !== undefined) q = q.where(this.relatedPivotKey, id);
     await q.delete();
   }

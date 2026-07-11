@@ -4,6 +4,34 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.60.0] — 2026-07-11
+
+### Added
+
+- **Multiple database connections.** The database layer grew from a single global
+  connection to a named registry, so an app can talk to several databases at once
+  — a Postgres primary and a SQLite/D1 cache, a separate reporting warehouse, a
+  per-tenant shard — each with its own dialect. Inspired by the common API behind
+  the [Feathers database adapters](https://feathersjs.com/api/databases/adapters.html)
+  (register many, route per resource), but kept in Keel's driver-agnostic,
+  edge-safe `Connection` model (still no bundled driver):
+  - `addConnection(name, conn, dialect?)` registers a named connection alongside
+    the default; `setConnection` still registers the default (unchanged).
+  - `db(table, connectionName?)` routes a single query to a named connection.
+  - `connection(name?)` returns a `ConnectionHandle` — `table()` plus a raw,
+    dialect-adjusted `select`/`write` bridge.
+  - `Model.connection` (a `static`) puts a whole model — reads, writes, and
+    relations — on a chosen connection.
+  - `setDefaultConnection(name)` switches the default; `connectionNames()` lists
+    the registered ones; `clearConnections()` resets (test helper).
+  - New type `ConnectionHandle`.
+
+  Fully backward compatible: `setConnection` + `db(table)` behave exactly as
+  before (the unnamed default lives under `"default"`), and connection resolution
+  stays lazy — building a query never throws, only running one does.
+
+[0.60.0]: https://github.com/shaferllc/keel/releases/tag/v0.60.0
+
 ## [0.59.0] — 2026-07-11
 
 ### Added

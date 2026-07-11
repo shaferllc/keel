@@ -40,8 +40,17 @@ export { hash, encryption, jwt } from "./crypto.js";
 export type { JwtPayload, JwtSignOptions, JwtVerifyOptions } from "./crypto.js";
 export { rateLimiter } from "./rate-limit.js";
 export type { RateLimiterOptions } from "./rate-limit.js";
-export { db, setConnection, QueryBuilder } from "./database.js";
-export type { Connection, WriteResult, Row, Dialect, Operator, Paginated } from "./database.js";
+export {
+  db,
+  connection,
+  setConnection,
+  addConnection,
+  setDefaultConnection,
+  connectionNames,
+  clearConnections,
+  QueryBuilder,
+} from "./database.js";
+export type { Connection, ConnectionHandle, WriteResult, Row, Dialect, Operator, Paginated } from "./database.js";
 export { Model } from "./model.js";
 export type { CastType, Casts } from "./casts.js";
 export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
