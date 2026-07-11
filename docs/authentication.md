@@ -110,6 +110,62 @@ The guard only checks that *someone* is logged in — it runs no provider lookup
 and loads no user. It gates on `guest()`, so it's cheap; load the user inside the
 handler with `auth().user()` when you actually need it.
 
+## Token (API) authentication
+
+Sessions ride on a cookie — great for a server-rendered app, awkward for an SPA,
+a mobile client, or another service. For those, issue a **stateless bearer
+token**: an HS256 JWT signed with `config('app.key')`, built on the Web Crypto
+API so it works the same on Node and the edge (no `jsonwebtoken`, no native
+bindings). This is the Cloudflare-Workers-friendly path — nothing to store
+server-side.
+
+Issue a token in your login handler instead of (or alongside) `auth().login()`:
+
+```ts
+import { jwt, hash, response } from "@shaferllc/keel/core";
+
+async login() {
+  const { email, password } = await request.only(["email", "password"]);
+  const user = await db.users.findByEmail(email);
+  if (!user || !(await hash.verify(user.password, password))) {
+    return response.abort("Invalid credentials", 401);
+  }
+
+  const token = await jwt.sign({ sub: String(user.id) }, { expiresIn: "1h" });
+  return response.json({ token });
+}
+```
+
+Protect API routes with `bearerAuth()`. It reads `Authorization: Bearer <token>`,
+verifies it, and makes the token's `sub` the authenticated id — so `auth()` works
+downstream exactly as it does for sessions, provider lookup and all:
+
+```ts
+import { bearerAuth, auth } from "@shaferllc/keel/core";
+
+router.get("/api/me", async () => response.json(await auth().user())).use(bearerAuth());
+```
+
+A missing or invalid token gets `401 Unauthenticated`. Pass `{ optional: true }`
+to let the request through unauthenticated (`auth().check()` is then `false`). A
+token verified this way takes precedence over any session cookie on the same
+request, and — unlike sessions — needs no session store, so `bearerAuth()` works
+without `sessionMiddleware()`.
+
+`jwt` is a standalone primitive if you need tokens outside the guard:
+
+```ts
+const token = await jwt.sign({ sub: "42", role: "admin" }, { expiresIn: "7d" });
+const payload = await jwt.verify(token); // { sub, role, iat, exp } | null
+```
+
+`verify()` returns `null` — never throws — for a token that's malformed,
+tampered, expired, not-yet-valid, or fails an `issuer`/`audience` check. Only
+HS256 is accepted: `alg: none` and asymmetric algorithms are refused, closing the
+classic JWT algorithm-confusion hole. `sign()` accepts `expiresIn` (seconds, or a
+duration string like `"30s"`, `"15m"`, `"1h"`, `"7d"`), plus `subject`, `issuer`,
+`audience`, and a `secret` override.
+
 ## Registration
 
 Registration is the same flow in reverse — hash the password on the way in:

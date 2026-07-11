@@ -4,6 +4,38 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.59.0] — 2026-07-11
+
+### Added
+
+- **Stateless token authentication (JWT + bearer guard).** Took the token half of
+  the [Feathers authentication API](https://feathersjs.com/api/authentication/)
+  ([service](https://feathersjs.com/api/authentication/service.html),
+  [JWT](https://feathersjs.com/api/authentication/jwt.html),
+  [hook](https://feathersjs.com/api/authentication/hook.html)) — the piece Keel
+  was missing next to its session/cookie `Auth` — and built it edge-native:
+  - **`jwt`** — HS256 sign/verify on the Web Crypto API (no `jsonwebtoken`, no
+    native bindings), signed with `config('app.key')`. `jwt.sign(payload, opts?)`
+    stamps `iat` and (with `expiresIn`) `exp`, and supports `subject`/`issuer`/
+    `audience`/`secret`; `jwt.verify()` returns the payload or `null` for a
+    malformed, tampered, expired, not-yet-valid, or wrong-issuer/audience token.
+    Only HS256 is accepted — `alg: none` and asymmetric algs are refused, closing
+    the JWT algorithm-confusion hole. New types `JwtPayload`, `JwtSignOptions`,
+    `JwtVerifyOptions`.
+  - **`bearerAuth(options?)`** — a guard middleware that reads `Authorization:
+    Bearer <token>`, verifies it, and makes the token's `sub` the authenticated
+    id, so `auth().user()` resolves through the registered provider exactly as
+    with sessions. Needs no session store (ideal on Workers). `{ optional: true }`
+    lets unauthenticated requests through.
+  - **`auth().id()`** now honors a `bearerAuth()` token (it wins over the session)
+    and reads the request context directly, so token-only APIs work without
+    `sessionMiddleware()`.
+
+  Username/password login is unchanged — `hash` + `auth().login()` already cover
+  the local flow. OAuth remains out of scope. All additive and backward compatible.
+
+[0.59.0]: https://github.com/shaferllc/keel/releases/tag/v0.59.0
+
 ## [0.58.0] — 2026-07-11
 
 ### Added

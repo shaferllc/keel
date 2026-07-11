@@ -14,6 +14,8 @@
 
 import type { MiddlewareHandler } from "hono";
 import { session } from "./session.js";
+import { ctx } from "./request.js";
+import { jwt } from "./crypto.js";
 
 const KEY = "auth_id";
 
@@ -37,9 +39,16 @@ export class Auth {
     session().forget(KEY);
   }
 
-  /** The authenticated user's id, or null. */
+  /**
+   * The authenticated user's id, or null. A token verified by `bearerAuth()`
+   * wins; otherwise it falls back to the session (set via `login()`). Reads the
+   * request context directly so token-only APIs work without a session store.
+   */
   id(): string | null {
-    return session().get<string | null>(KEY, null);
+    const fromToken = ctx().get("auth_id");
+    if (fromToken != null) return String(fromToken);
+    const data = ctx().get("session") as Record<string, unknown> | undefined;
+    return data && data[KEY] != null ? String(data[KEY]) : null;
   }
 
   /** Whether a user is authenticated. */
@@ -70,7 +79,7 @@ export function auth(): Auth {
 
 /**
  * A guard middleware: rejects unauthenticated requests with a 401, or redirects
- * if `redirectTo` is set.
+ * if `redirectTo` is set. Honors both session logins and a `bearerAuth()` token.
  */
 export function authGuard(options: { redirectTo?: string } = {}): MiddlewareHandler {
   return async (c, next) => {
@@ -78,6 +87,31 @@ export function authGuard(options: { redirectTo?: string } = {}): MiddlewareHand
       if (options.redirectTo) return c.redirect(options.redirectTo);
       return c.json({ error: "Unauthenticated", status: 401 }, 401);
     }
+    await next();
+  };
+}
+
+/**
+ * Token (API) auth: read a `Bearer` JWT from the `Authorization` header, verify
+ * it, and make its `sub` the authenticated user id — so `auth().user()` resolves
+ * through your registered provider, exactly as with session auth. Issue the
+ * token in your login handler with `jwt.sign({ sub: String(user.id) }, …)`.
+ *
+ *   router.get("/api/me", bearerAuth(), async () => json(await auth().user()));
+ *
+ * Rejects a missing or invalid token with a 401. Pass `{ optional: true }` to
+ * let the request through unauthenticated (e.g. content that varies by login
+ * but doesn't require it) — `auth().check()` is then false downstream.
+ */
+export function bearerAuth(options: { optional?: boolean } = {}): MiddlewareHandler {
+  return async (c, next) => {
+    const token = c.req.header("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const payload = token ? await jwt.verify(token) : null;
+    if (!payload || payload.sub == null) {
+      if (options.optional) return next();
+      return c.json({ error: "Unauthenticated", status: 401 }, 401);
+    }
+    c.set("auth_id", String(payload.sub));
     await next();
   };
 }

@@ -8,5 +8,7 @@ declare module "hono" {
     route?: { name?: string; pattern: string; methods: Method[]; config: Record<string, unknown> };
     subdomains?: Record<string, string>;
     session?: Record<string, unknown>;
+    /** The token-authenticated user id, set by `bearerAuth()`. */
+    auth_id?: string;
   }
 }

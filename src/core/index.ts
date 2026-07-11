@@ -36,7 +36,8 @@ export type { StaticOptions } from "./static.js";
 export { Storage, MemoryDisk, storage, setDisk } from "./storage.js";
 export type { Disk, Contents } from "./storage.js";
 export { dump, dd } from "./debug.js";
-export { hash, encryption } from "./crypto.js";
+export { hash, encryption, jwt } from "./crypto.js";
+export type { JwtPayload, JwtSignOptions, JwtVerifyOptions } from "./crypto.js";
 export { rateLimiter } from "./rate-limit.js";
 export type { RateLimiterOptions } from "./rate-limit.js";
 export { db, setConnection, QueryBuilder } from "./database.js";
@@ -169,7 +170,7 @@ export { validate, validateRequest, validated } from "./validation.js";
 export type { Schema, RequestSchemas } from "./validation.js";
 export { Session, session, sessionMiddleware } from "./session.js";
 export type { SessionOptions } from "./session.js";
-export { Auth, auth, authGuard, setUserProvider } from "./auth.js";
+export { Auth, auth, authGuard, bearerAuth, setUserProvider } from "./auth.js";
 export type { UserProvider } from "./auth.js";
 export {
   define,

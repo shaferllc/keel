@@ -7,6 +7,9 @@
  *
  *   const token = await encryption.encrypt({ userId: 1 });
  *   await encryption.decrypt(token);             // { userId: 1 } | null
+ *
+ *   const token = await jwt.sign({ sub: "42" }, { expiresIn: "1h" });
+ *   await jwt.verify(token);                      // { sub: "42", iat, exp } | null
  */
 
 import { config } from "./helpers.js";
@@ -119,6 +122,137 @@ export const encryption = {
         cipher as unknown as ArrayBuffer,
       );
       return JSON.parse(new TextDecoder().decode(plain)) as T;
+    } catch {
+      return null;
+    }
+  },
+};
+
+/* ---------------------------------- jwt --------------------------------- */
+
+/*
+ * Stateless bearer tokens — an HS256 JWT signed with `config('app.key')`, built
+ * on the same Web Crypto primitives as `hash`/`encryption` (no `jsonwebtoken`,
+ * no native bindings, runs on the edge). This is the token half of the auth
+ * story; `bearerAuth()` in ./auth.ts verifies these on the way in.
+ */
+
+/** Standard registered claims, plus whatever custom fields you sign. */
+export interface JwtPayload {
+  /** Subject — conventionally the user id. */
+  sub?: string;
+  /** Issued-at (seconds since the epoch); set automatically by `sign`. */
+  iat?: number;
+  /** Expiry (seconds since the epoch); set from `expiresIn`. */
+  exp?: number;
+  /** Not-before (seconds since the epoch); the token is invalid until then. */
+  nbf?: number;
+  /** Issuer. */
+  iss?: string;
+  /** Audience. */
+  aud?: string;
+  [claim: string]: unknown;
+}
+
+export interface JwtSignOptions {
+  /** Lifetime — seconds (number) or a duration string like `"30s"`, `"15m"`, `"1h"`, `"7d"`. */
+  expiresIn?: number | string;
+  /** Sets the `iss` claim. */
+  issuer?: string;
+  /** Sets the `aud` claim. */
+  audience?: string;
+  /** Sets the `sub` claim (overrides any `sub` already in the payload). */
+  subject?: string;
+  /** Signing secret; defaults to `config('app.key')`. */
+  secret?: string;
+}
+
+export interface JwtVerifyOptions {
+  /** Require this `iss`; a token that doesn't match is rejected. */
+  issuer?: string;
+  /** Require this `aud`; a token that doesn't match is rejected. */
+  audience?: string;
+  /** Verifying secret; defaults to `config('app.key')`. */
+  secret?: string;
+}
+
+const DURATION = /^(\d+)\s*(s|m|h|d)$/;
+const UNIT: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
+
+/** Coerce a lifetime to seconds — a bare number passes through; `"1h"` → 3600. */
+function seconds(value: number | string): number {
+  if (typeof value === "number") return value;
+  const match = DURATION.exec(value.trim());
+  if (!match) throw new Error(`Invalid duration "${value}" (use e.g. 30, "30s", "15m", "1h", "7d").`);
+  return Number(match[1]) * UNIT[match[2]!]!;
+}
+
+/* base64url — JWT segments use the URL-safe alphabet with no padding. */
+function b64url(bytes: Uint8Array): string {
+  return b64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function fromB64url(str: string): Uint8Array {
+  const pad = str.length % 4 ? "=".repeat(4 - (str.length % 4)) : "";
+  return fromB64(str.replace(/-/g, "+").replace(/_/g, "/") + pad);
+}
+function b64urlJson(value: unknown): string {
+  return b64url(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+/** HMAC-SHA256 the signing input, returned base64url — the JWT signature. */
+async function hmacSha256(data: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret) as unknown as ArrayBuffer,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data) as unknown as ArrayBuffer);
+  return b64url(new Uint8Array(sig));
+}
+
+const JWT_HEADER = b64urlJson({ alg: "HS256", typ: "JWT" });
+
+export const jwt = {
+  /** Sign a payload into an HS256 JWT. Adds `iat`, and `exp` when `expiresIn` is set. */
+  async sign(payload: JwtPayload, options: JwtSignOptions = {}): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    const claims: JwtPayload = { ...payload, iat: now };
+    if (options.subject !== undefined) claims.sub = options.subject;
+    if (options.issuer !== undefined) claims.iss = options.issuer;
+    if (options.audience !== undefined) claims.aud = options.audience;
+    if (options.expiresIn !== undefined) claims.exp = now + seconds(options.expiresIn);
+    const body = `${JWT_HEADER}.${b64urlJson(claims)}`;
+    const sig = await hmacSha256(body, options.secret ?? appKey());
+    return `${body}.${sig}`;
+  },
+
+  /**
+   * Verify an HS256 JWT and return its payload, or `null` if the token is
+   * malformed, tampered, expired, not-yet-valid, or fails an issuer/audience
+   * check. Only HS256 is accepted — `alg: none` and asymmetric algs are refused,
+   * closing the classic JWT algorithm-confusion hole.
+   */
+  async verify<T extends JwtPayload = JwtPayload>(token: string, options: JwtVerifyOptions = {}): Promise<T | null> {
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) return null;
+      const [header, body, sig] = parts as [string, string, string];
+
+      const alg = (JSON.parse(new TextDecoder().decode(fromB64url(header))) as { alg?: string }).alg;
+      if (alg !== "HS256") return null;
+
+      const expected = await hmacSha256(`${header}.${body}`, options.secret ?? appKey());
+      if (!safeEqual(sig, expected)) return null;
+
+      const claims = JSON.parse(new TextDecoder().decode(fromB64url(body))) as T;
+      const now = Math.floor(Date.now() / 1000);
+      if (typeof claims.exp === "number" && now >= claims.exp) return null;
+      if (typeof claims.nbf === "number" && now < claims.nbf) return null;
+      if (options.issuer !== undefined && claims.iss !== options.issuer) return null;
+      if (options.audience !== undefined && claims.aud !== options.audience) return null;
+      return claims;
     } catch {
       return null;
     }
