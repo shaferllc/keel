@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.0] — 2026-07-10
+
+### Added
+
+- **Redis.** A Redis integration on a pluggable `RedisConnection` driver — the
+  core imports no client, so it runs on Node and the edge. `setRedis(driver)`
+  then `redis()`: `get` / `set` (with `{ ex }` / `{ px }` TTL) / `del` / `exists`
+  / `incr` / `decr` / `expire` / `ttl` / `keys` / `flushAll`, plus `getJson` /
+  `setJson` and a `remember` read-through cache. `MemoryRedis` is a full
+  in-memory driver (TTL-aware) and the default, so `redis()` works in tests with
+  no setup; point it at Upstash (`fetch`), ioredis, or node-redis in production.
+  `redisStore()` adapts it into a `CacheStore` so the cache can be Redis-backed.
+  See [docs/redis.md](./docs/redis.md).
+
+[0.39.0]: https://github.com/shaferllc/keel/releases/tag/v0.39.0
+
 ## [0.38.0] — 2026-07-10
 
 ### Added

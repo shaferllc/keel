@@ -182,6 +182,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Transformers](./docs/transformers.md) | Shape models into API JSON; conditional fields, relations |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
+| [Redis](./docs/redis.md) | Pluggable client, memory driver, cache adapter |
 | [Logger](./docs/logger.md) | Leveled structured logging, child loggers |
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
