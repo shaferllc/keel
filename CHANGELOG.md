@@ -4,6 +4,29 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.64.0] — 2026-07-11
+
+### Added
+
+- **OAuth 1.0a social sign-in.** Social auth grew a second flow for the older,
+  three-legged providers (Twitter/X, and any OAuth 1.0a API). Every request is
+  HMAC-SHA1-signed with Web Crypto, so it's edge-native like the OAuth2 side:
+  - `social.twitter(config)` preset, and `social.driver1(spec, config)` /
+    `oauth1Driver` for any OAuth 1.0a provider.
+  - `OAuth1Driver` — `requestToken()` → `redirect()` → `accessToken()` /
+    `user()`, plus a signed `get()` for profile calls. Returns the same
+    normalized `SocialUser` (its `token` is an `OAuth1Token`).
+  - `oauth1Signature()` — the low-level RFC 5849 HMAC-SHA1 signer, exposed for
+    signing arbitrary provider API requests (verified against the canonical
+    Twitter test vector).
+  - New types `OAuth1Config`, `OAuth1Token`, `OAuth1ProviderSpec`; `SocialUser`
+    is now generic over its token type. Documented in the
+    [Social authentication](https://keeljs.com/docs/social-auth) guide.
+
+  Additive and backward compatible — the OAuth2 presets are unchanged.
+
+[0.64.0]: https://github.com/shaferllc/keel/releases/tag/v0.64.0
+
 ## [0.63.0] — 2026-07-11
 
 ### Added

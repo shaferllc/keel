@@ -33,8 +33,12 @@ export interface OAuthToken {
   raw: Record<string, unknown>;
 }
 
-/** A provider's user, normalized to a common shape across every driver. */
-export interface SocialUser {
+/**
+ * A provider's user, normalized to a common shape across every driver. `Token`
+ * is the OAuth2 `OAuthToken` by default, or an `OAuth1Token` for OAuth 1.0a
+ * providers.
+ */
+export interface SocialUser<Token = OAuthToken> {
   /** The provider's stable id for this user (always a string). */
   id: string;
   email: string | null;
@@ -43,7 +47,7 @@ export interface SocialUser {
   nickname: string | null;
   avatarUrl: string | null;
   /** The token used to fetch this profile — for calling the provider's API. */
-  token: OAuthToken;
+  token: Token;
   /** The raw provider profile, for fields not in the normalized shape. */
   raw: Record<string, unknown>;
 }
@@ -256,5 +260,227 @@ export function discord(config: OAuthConfig): OAuthDriver {
   );
 }
 
-/** All social providers under one namespace: `social.github({...})`. */
-export const social = { github, google, discord, driver: oauthDriver, state: oauthState };
+/* ------------------------------- OAuth 1.0a ------------------------------ */
+
+/*
+ * The older, three-legged OAuth 1.0a flow (Twitter/X, Trello, some enterprise
+ * APIs). Every request is HMAC-SHA1-signed — done here with Web Crypto, so it's
+ * edge-native too. The flow: get a temporary *request token*, send the user to
+ * authorize, then swap the returned `oauth_verifier` for an *access token*.
+ */
+
+export interface OAuth1Config {
+  /** Consumer (API) key. */
+  clientId: string;
+  /** Consumer (API) secret. */
+  clientSecret: string;
+  /** The `oauth_callback` URL registered with the provider. */
+  redirectUri: string;
+}
+
+/** An OAuth 1.0a token pair — both the request token and the final access token. */
+export interface OAuth1Token {
+  token: string;
+  tokenSecret: string;
+  raw: Record<string, string>;
+}
+
+export interface OAuth1ProviderSpec {
+  name: string;
+  requestTokenUrl: string;
+  authorizeUrl: string;
+  accessTokenUrl: string;
+  fetchUser(token: OAuth1Token, driver: OAuth1Driver): Promise<SocialUser<OAuth1Token>>;
+}
+
+/** Percent-encode per RFC 3986 (OAuth's stricter rules — encodes `!*'()` too). */
+function pctEncode(value: string): string {
+  return encodeURIComponent(value).replace(/[!*'()]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
+async function hmacSha1(base: string, key: string): Promise<string> {
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(key) as unknown as ArrayBuffer,
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(base) as unknown as ArrayBuffer);
+  return bytesToB64(new Uint8Array(sig));
+}
+
+/**
+ * Compute an OAuth 1.0a HMAC-SHA1 signature (RFC 5849). `params` holds every
+ * signed parameter with *raw* (unencoded) values — the oauth_* fields plus any
+ * query/body params, minus `oauth_signature`. Exposed for signing custom API
+ * requests beyond the built-in flow.
+ */
+export async function oauth1Signature(input: {
+  method: string;
+  url: string;
+  params: Record<string, string>;
+  consumerSecret: string;
+  tokenSecret?: string;
+}): Promise<string> {
+  const paramString = Object.keys(input.params)
+    .sort()
+    .map((k) => `${pctEncode(k)}=${pctEncode(input.params[k]!)}`)
+    .join("&");
+  const baseUrl = input.url.split(/[?#]/)[0]!; // the base string excludes query/fragment
+  const base = [input.method.toUpperCase(), pctEncode(baseUrl), pctEncode(paramString)].join("&");
+  const key = `${pctEncode(input.consumerSecret)}&${pctEncode(input.tokenSecret ?? "")}`;
+  return hmacSha1(base, key);
+}
+
+function oauthNonce(): string {
+  return bytesToB64(crypto.getRandomValues(new Uint8Array(16))).replace(/[^A-Za-z0-9]/g, "");
+}
+
+function parseForm(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pair of body.split("&")) {
+    const i = pair.indexOf("=");
+    if (i === -1) continue;
+    out[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1));
+  }
+  return out;
+}
+
+/** A generic OAuth 1.0a driver. */
+export class OAuth1Driver {
+  constructor(private spec: OAuth1ProviderSpec, private config: OAuth1Config) {}
+
+  /** Sign a request and build its `Authorization: OAuth …` header. */
+  private async authHeader(
+    method: string,
+    url: string,
+    extraOauth: Record<string, string>,
+    tokenSecret: string,
+    queryParams: Record<string, string> = {},
+  ): Promise<string> {
+    const oauth: Record<string, string> = {
+      oauth_consumer_key: this.config.clientId,
+      oauth_nonce: oauthNonce(),
+      oauth_signature_method: "HMAC-SHA1",
+      oauth_timestamp: String(Math.floor(Date.now() / 1000)),
+      oauth_version: "1.0",
+      ...extraOauth,
+    };
+    const signature = await oauth1Signature({
+      method,
+      url,
+      params: { ...oauth, ...queryParams },
+      consumerSecret: this.config.clientSecret,
+      tokenSecret,
+    });
+    const header: Record<string, string> = { ...oauth, oauth_signature: signature };
+    return (
+      "OAuth " +
+      Object.keys(header)
+        .sort()
+        .map((k) => `${pctEncode(k)}="${pctEncode(header[k]!)}"`)
+        .join(", ")
+    );
+  }
+
+  /** Step 1 — obtain a temporary request token. Stash its `tokenSecret` for the callback. */
+  async requestToken(): Promise<OAuth1Token> {
+    const header = await this.authHeader("POST", this.spec.requestTokenUrl, { oauth_callback: this.config.redirectUri }, "");
+    const res = await fetch(this.spec.requestTokenUrl, { method: "POST", headers: { authorization: header } });
+    const body = await res.text();
+    if (!res.ok) throw new OAuthError(`Request token failed: ${res.status} ${body}`, this.spec.name);
+    const parsed = parseForm(body);
+    return { token: parsed.oauth_token ?? "", tokenSecret: parsed.oauth_token_secret ?? "", raw: parsed };
+  }
+
+  /** Step 2 — the URL to send the user to, carrying the request token. */
+  redirect(requestToken: string | OAuth1Token): string {
+    const t = typeof requestToken === "string" ? requestToken : requestToken.token;
+    const url = new URL(this.spec.authorizeUrl);
+    url.searchParams.set("oauth_token", t);
+    return url.toString();
+  }
+
+  /** Step 3 — swap the callback's `oauth_token` + `oauth_verifier` for an access token. */
+  async accessToken(oauthToken: string, verifier: string, requestTokenSecret: string): Promise<OAuth1Token> {
+    const header = await this.authHeader(
+      "POST",
+      this.spec.accessTokenUrl,
+      { oauth_token: oauthToken, oauth_verifier: verifier },
+      requestTokenSecret,
+    );
+    const res = await fetch(this.spec.accessTokenUrl, { method: "POST", headers: { authorization: header } });
+    const body = await res.text();
+    if (!res.ok) throw new OAuthError(`Access token failed: ${res.status} ${body}`, this.spec.name);
+    const parsed = parseForm(body);
+    return { token: parsed.oauth_token ?? "", tokenSecret: parsed.oauth_token_secret ?? "", raw: parsed };
+  }
+
+  /** The full callback step: exchange for an access token, then fetch the user. */
+  async user(oauthToken: string, verifier: string, requestTokenSecret: string): Promise<SocialUser<OAuth1Token>> {
+    const token = await this.accessToken(oauthToken, verifier, requestTokenSecret);
+    return this.spec.fetchUser(token, this);
+  }
+
+  /** A signed GET against the provider's API on the user's behalf (for `fetchUser`). */
+  async get(url: string, token: OAuth1Token): Promise<Record<string, unknown>> {
+    const query: Record<string, string> = {};
+    new URL(url).searchParams.forEach((v, k) => (query[k] = v));
+    const header = await this.authHeader("GET", url, { oauth_token: token.token }, token.tokenSecret, query);
+    const res = await fetch(url, { headers: { authorization: header } });
+    return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  }
+}
+
+/** Build a driver for any OAuth 1.0a provider from a spec + config. */
+export function oauth1Driver(spec: OAuth1ProviderSpec, config: OAuth1Config): OAuth1Driver {
+  return new OAuth1Driver(spec, config);
+}
+
+/** Twitter / X (OAuth 1.0a). Enable "Request email" in your app settings for `email`. */
+export function twitter(config: OAuth1Config): OAuth1Driver {
+  return new OAuth1Driver(
+    {
+      name: "twitter",
+      requestTokenUrl: "https://api.twitter.com/oauth/request_token",
+      authorizeUrl: "https://api.twitter.com/oauth/authenticate",
+      accessTokenUrl: "https://api.twitter.com/oauth/access_token",
+      async fetchUser(token, driver) {
+        const data = await driver.get(
+          "https://api.twitter.com/1.1/account/verify_credentials.json?include_email=true",
+          token,
+        );
+        return {
+          id: String(data.id_str ?? data.id),
+          email: (data.email as string | null) ?? null,
+          name: (data.name as string | null) ?? null,
+          nickname: (data.screen_name as string | null) ?? null,
+          avatarUrl: (data.profile_image_url_https as string | null) ?? null,
+          token,
+          raw: data,
+        };
+      },
+    },
+    config,
+  );
+}
+
+/** All social providers under one namespace: `social.github({...})`, `social.twitter({...})`. */
+export const social = {
+  // OAuth 2.0
+  github,
+  google,
+  discord,
+  driver: oauthDriver,
+  state: oauthState,
+  // OAuth 1.0a
+  twitter,
+  driver1: oauth1Driver,
+};

@@ -104,6 +104,49 @@ const gh = await github.userFromToken(token);     // normalized user
 
 A failed exchange or profile fetch throws `OAuthError` (with the `provider` name).
 
+## OAuth 1.0a (Twitter/X)
+
+Some providers still speak the older, three-legged **OAuth 1.0a** — every request
+is HMAC-SHA1-signed (done here with Web Crypto, so it stays edge-native). The flow
+has an extra hop: get a temporary *request token*, send the user to authorize,
+then swap the returned `oauth_verifier` for the access token. Stash the request
+token's secret between the two steps.
+
+```ts
+import { social, session, redirect } from "@shaferllc/keel/core";
+
+const twitter = social.twitter({
+  clientId: config("services.twitter.key"),
+  clientSecret: config("services.twitter.secret"),
+  redirectUri: "https://app.example.com/auth/twitter/callback",
+});
+
+// 1. request token → redirect
+router.get("/auth/twitter", async () => {
+  const request = await twitter.requestToken();
+  session().put("twitter_secret", request.tokenSecret); // needed on the way back
+  return redirect(twitter.redirect(request));
+});
+
+// 2. callback → access token → user
+router.get("/auth/twitter/callback", async () => {
+  const tw = await twitter.user(
+    request.query("oauth_token"),
+    request.query("oauth_verifier"),
+    session().pull("twitter_secret"),
+  );
+  // tw is a SocialUser — same shape as OAuth2, but tw.token is an OAuth1Token
+  const user = await User.firstOrCreate({ twitter_id: tw.id }, { name: tw.name });
+  auth().login(user.id);
+  return redirect("/dashboard");
+});
+```
+
+For any other OAuth 1.0a provider, use `social.driver1(spec, config)` with
+`requestTokenUrl` / `authorizeUrl` / `accessTokenUrl` and a `fetchUser` that calls
+`driver.get(url, token)` (a signed request). The low-level `oauth1Signature()` is
+exported too, if you need to sign an arbitrary API call yourself.
+
 ## Any other OAuth2 provider
 
 Build a driver for anything OAuth2 with `social.driver(spec, config)` — supply the

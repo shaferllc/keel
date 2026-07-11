@@ -201,8 +201,21 @@ export {
   oauthState,
   OAuthDriver,
   OAuthError,
+  twitter,
+  oauth1Driver,
+  oauth1Signature,
+  OAuth1Driver,
 } from "./social.js";
-export type { SocialUser, OAuthToken, OAuthConfig, ProviderSpec, RedirectOptions } from "./social.js";
+export type {
+  SocialUser,
+  OAuthToken,
+  OAuthConfig,
+  ProviderSpec,
+  RedirectOptions,
+  OAuth1Config,
+  OAuth1Token,
+  OAuth1ProviderSpec,
+} from "./social.js";
 export {
   define,
   policy,
