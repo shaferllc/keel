@@ -3,7 +3,7 @@
 export { Container } from "./container.js";
 export type { Token, Constructor, Factory } from "./container.js";
 export { Application } from "./application.js";
-export type { BootOptions } from "./application.js";
+export type { BootOptions, LifecycleHook } from "./application.js";
 export { Config, env } from "./config.js";
 export {
   app,
@@ -19,6 +19,9 @@ export {
   listen,
   cache,
   logger,
+  onReady,
+  onShutdown,
+  terminate,
 } from "./helpers.js";
 export { Logger } from "./logger.js";
 export type { LogLevel, LoggerOptions } from "./logger.js";

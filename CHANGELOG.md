@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] — 2026-07-10
+
+### Added
+
+- **Application lifecycle hooks & graceful shutdown.** `onReady(hook)` runs after
+  boot (or immediately if already booted); `onShutdown(hook)` registers cleanup
+  and `terminate()` runs every shutdown hook newest-first (LIFO) — close DB/Redis
+  connections, flush queues on `SIGTERM`. `terminate()` is idempotent and a
+  throwing hook can't strand the rest (first error re-thrown after all run).
+  `Router.onRoute(hook)` observes route registration (fired live and replayed for
+  existing routes). Available as `Application` methods and global helpers.
+  Request-lifecycle hooks remain [middleware](./docs/middleware.md). See
+  [docs/hooks.md](./docs/hooks.md).
+
+[0.42.0]: https://github.com/shaferllc/keel/releases/tag/v0.42.0
+
 ## [0.41.1] — 2026-07-10
 
 ### Added

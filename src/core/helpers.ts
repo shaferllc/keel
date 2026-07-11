@@ -33,6 +33,21 @@ export function app(): Application {
   return current;
 }
 
+/** Run a callback once the active application has booted (see `Application.onReady`). */
+export function onReady(hook: (app: Application) => void | Promise<void>): void {
+  app().onReady(hook);
+}
+
+/** Register a graceful-shutdown hook on the active application (see `Application.onShutdown`). */
+export function onShutdown(hook: (app: Application) => void | Promise<void>): void {
+  app().onShutdown(hook);
+}
+
+/** Gracefully terminate the active application, running its shutdown hooks. */
+export function terminate(): Promise<void> {
+  return app().terminate();
+}
+
 /**
  * Read configuration with dot notation: `config('app.name')`, or with a
  * fallback: `config('app.port', 3000)`.

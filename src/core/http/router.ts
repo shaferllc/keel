@@ -386,7 +386,22 @@ export class Router {
       wheres: {},
     };
     this.routes.push(def);
+    for (const hook of this.routeHooks) hook(def);
     return new Route(def);
+  }
+
+  private routeHooks: ((def: RouteDefinition) => void)[] = [];
+
+  /**
+   * Observe route registration — called with each route's definition as it's
+   * added (and replayed for routes already registered). Handy for logging or
+   * building an API map. The `def` is live, so reading it later reflects fluent
+   * config (`.name()`, `.middleware()`) applied after registration.
+   */
+  onRoute(hook: (def: RouteDefinition) => void): this {
+    for (const def of this.routes) hook(def);
+    this.routeHooks.push(hook);
+    return this;
   }
 
   /** Register a global parameter constraint, applied to every matching route. */

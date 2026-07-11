@@ -171,6 +171,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Controllers](./docs/controllers.md) | Classes, DI, single-action, lazy-loaded |
 | [Request & Response](./docs/request-response.md) | Input, cookies, output, `abort()` |
 | [Request Decorators](./docs/decorators.md) | Lazy, memoized per-request values |
+| [Lifecycle Hooks](./docs/hooks.md) | onReady/onShutdown, graceful shutdown, onRoute |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
