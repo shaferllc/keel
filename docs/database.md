@@ -56,6 +56,33 @@ Constraint methods return the builder, so they chain in any order; the query
 isn't sent until you call a terminal method. Multiple `where` calls combine with
 `AND`; `orWhere` joins with `OR`.
 
+More `where` clauses and ordering shortcuts:
+
+```ts
+await db("posts").whereBetween("views", [10, 100]).get();
+await db("posts").whereNotIn("id", [4, 5]).get();
+await db("posts").whereLike("title", "%keel%").get();
+await db("posts").latest().get();          // ORDER BY created_at DESC
+await db("posts").oldest("published_at").get();
+```
+
+## Aggregates, single values, and pagination
+
+```ts
+await db("orders").where("paid", true).sum("total");   // number
+await db("orders").avg("total");
+await db("orders").min("total");
+await db("orders").max("total");
+
+await db("users").where("id", 1).value("email");        // one column, first row
+await db("posts").pluck("title");                        // string[] of one column
+
+const page = await db("posts").latest().paginate(2, 15); // { data, total, perPage, currentPage, lastPage }
+```
+
+`paginate(page, perPage)` runs a `COUNT` then a `LIMIT`/`OFFSET` query and returns
+a `Paginated<T>` with the page and the metadata to render pager controls.
+
 ## Writing
 
 ```ts

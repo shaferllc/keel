@@ -16,7 +16,7 @@
  *   await user.save();
  */
 
-import { db, type QueryBuilder, type Row } from "./database.js";
+import { db, type QueryBuilder, type Row, type Paginated } from "./database.js";
 import { NotFoundException } from "./exceptions.js";
 import { BelongsTo, BelongsToMany, HasMany, HasOne } from "./relations.js";
 import { applyCasts, castGet, castSet, type Casts } from "./casts.js";
@@ -45,6 +45,11 @@ export class Model {
   static guarded: string[] = [];
   /** Column -> cast type; values round-trip as real JS types. */
   static casts: Casts = {};
+
+  /** Auto-manage `created_at` / `updated_at` on write. Off by default. */
+  static timestamps = false;
+  static createdAtColumn = "created_at";
+  static updatedAtColumn = "updated_at";
 
   [key: string]: unknown;
 
@@ -80,6 +85,16 @@ export class Model {
     return applyCasts(attributes, this.casts, castSet);
   }
 
+  /** Stamp created_at/updated_at onto a write payload when timestamps are on. */
+  static stampTimestamps(data: Row, forInsert: boolean): Row {
+    if (!this.timestamps) return data;
+    const now = new Date().toISOString();
+    const out = { ...data };
+    if (forInsert) out[this.createdAtColumn] = now;
+    out[this.updatedAtColumn] = now;
+    return out;
+  }
+
   static async all<T extends Model>(this: ModelClass<T>): Promise<T[]> {
     const rows = await db(this.table).get();
     return rows.map((row) => new this(row));
@@ -113,10 +128,58 @@ export class Model {
 
   static async create<T extends Model>(this: ModelClass<T>, attributes: Row): Promise<T> {
     const filtered = this.filterFillable(attributes);
-    const id = await db(this.table).insertGetId(this.toDatabase(filtered));
+    const write = this.stampTimestamps(this.toDatabase(filtered), true);
+    const id = await db(this.table).insertGetId(write);
     const model = new this(filtered);
+    if (this.timestamps) {
+      (model as Row)[this.createdAtColumn] = write[this.createdAtColumn];
+      (model as Row)[this.updatedAtColumn] = write[this.updatedAtColumn];
+    }
     if (id != null) (model as Row)[this.primaryKey] = id;
     return model;
+  }
+
+  /** A page of models plus pagination metadata. */
+  static async paginate<T extends Model>(
+    this: ModelClass<T>,
+    page = 1,
+    perPage = 15,
+  ): Promise<Paginated<T>> {
+    const result = await db(this.table).paginate(page, perPage);
+    return { ...result, data: result.data.map((row) => new this(row)) };
+  }
+
+  /** Find the first row matching `match`, or create one from `{ ...match, ...values }`. */
+  static async firstOrCreate<T extends Model>(
+    this: ModelClass<T>,
+    match: Row,
+    values: Row = {},
+  ): Promise<T> {
+    const row = await this.matching(match).first();
+    if (row) return new this(row);
+    return (this as ModelClass<T>).create({ ...match, ...values });
+  }
+
+  /** Update the first row matching `match` with `values`, or create it. */
+  static async updateOrCreate<T extends Model>(
+    this: ModelClass<T>,
+    match: Row,
+    values: Row = {},
+  ): Promise<T> {
+    const row = await this.matching(match).first();
+    if (row) {
+      const model = new this(row);
+      await model.forceFill(values).save();
+      return model;
+    }
+    return (this as ModelClass<T>).create({ ...match, ...values });
+  }
+
+  /** A query scoped to every column/value in `match`. */
+  private static matching(match: Row): QueryBuilder {
+    let q = db(this.table);
+    for (const [column, value] of Object.entries(match)) q = q.where(column, value);
+    return q;
   }
 
   /**
@@ -218,16 +281,36 @@ export class Model {
   async save(): Promise<this> {
     const ctor = this.ctor();
     const { table, primaryKey } = ctor;
-    const data: Row = ctor.toDatabase({ ...this });
-    const idValue = data[primaryKey];
+    const idValue = (this as Row)[primaryKey];
+    const forInsert = idValue == null;
+
+    const data: Row = ctor.stampTimestamps(ctor.toDatabase({ ...this }), forInsert);
+    // Reflect the stamps back onto the instance.
+    if (ctor.timestamps) {
+      if (forInsert) (this as Row)[ctor.createdAtColumn] = data[ctor.createdAtColumn];
+      (this as Row)[ctor.updatedAtColumn] = data[ctor.updatedAtColumn];
+    }
     delete data[primaryKey];
 
-    if (idValue != null) {
+    if (!forInsert) {
       await db(table).where(primaryKey, idValue).update(data);
     } else {
       const id = await db(table).insertGetId(data);
       if (id != null) (this as Row)[primaryKey] = id;
     }
+    return this;
+  }
+
+  /** Mass-assign then save — `fill` + `save` in one call. */
+  async update(attributes: Row): Promise<this> {
+    return this.fill(attributes).save();
+  }
+
+  /** Reload this model's columns from the database. */
+  async refresh(): Promise<this> {
+    const ctor = this.ctor();
+    const row = await db(ctor.table).where(ctor.primaryKey, this[ctor.primaryKey]).first();
+    if (row) Object.assign(this, applyCasts(row, ctor.casts, castGet));
     return this;
   }
 

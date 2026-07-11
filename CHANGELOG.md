@@ -4,6 +4,26 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.38.0] — 2026-07-10
+
+### Added
+
+- **ORM maturity — timestamps.** `static timestamps = true` auto-manages
+  `created_at` / `updated_at` (both on insert, only `updated_at` on update);
+  column names are overridable via `createdAtColumn` / `updatedAtColumn`.
+- **Pagination.** `Model.paginate(page, perPage)` and `db(table).paginate(...)`
+  return a `Paginated<T>` — `{ data, total, perPage, currentPage, lastPage }`.
+- **Aggregates & single values.** Query builder `sum` / `avg` / `min` / `max`,
+  plus `value(column)` (one column of the first row) and `pluck(column)` (a
+  column across all rows).
+- **More query clauses.** `whereBetween`, `whereNotIn`, `whereLike`, and
+  `latest()` / `oldest()` ordering by a timestamp column.
+- **Find-or-create & convenience writes.** `Model.firstOrCreate(match, values)`,
+  `Model.updateOrCreate(match, values)`, instance `update(attrs)` (fill + save),
+  and `refresh()` (re-read the row). See [docs/models.md](./docs/models.md).
+
+[0.38.0]: https://github.com/shaferllc/keel/releases/tag/v0.38.0
+
 ## [0.37.1] — 2026-07-10
 
 ### Fixed

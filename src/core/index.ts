@@ -33,7 +33,7 @@ export { hash, encryption } from "./crypto.js";
 export { rateLimiter } from "./rate-limit.js";
 export type { RateLimiterOptions } from "./rate-limit.js";
 export { db, setConnection, QueryBuilder } from "./database.js";
-export type { Connection, WriteResult, Row, Dialect, Operator } from "./database.js";
+export type { Connection, WriteResult, Row, Dialect, Operator, Paginated } from "./database.js";
 export { Model } from "./model.js";
 export type { CastType, Casts } from "./casts.js";
 export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
@@ -131,3 +131,11 @@ export { Auth, auth, authGuard, setUserProvider } from "./auth.js";
 export type { UserProvider } from "./auth.js";
 export { Transformer } from "./transformer.js";
 export type { Attributes, DocumentOptions } from "./transformer.js";
+export { Vite, viteTags, viteAsset, viteReactRefresh } from "./vite.js";
+export type {
+  ViteOptions,
+  Manifest,
+  ManifestChunk,
+  Attributes as ViteAttributes,
+  AttrValue,
+} from "./vite.js";

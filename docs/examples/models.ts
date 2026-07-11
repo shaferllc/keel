@@ -213,7 +213,23 @@ export function configuration() {
   Post.fillable;
   Post.guarded;
   Post.casts;
+  Post.timestamps;
+  Post.createdAtColumn;
+  Post.updatedAtColumn;
   Post.query();
+}
+
+export async function ormMaturity() {
+  const page = await User.paginate(2, 15); // Paginated<User>
+  const users: User[] = page.data;
+  const meta = { total: page.total, currentPage: page.currentPage, lastPage: page.lastPage };
+
+  const tag = await User.firstOrCreate({ email: "a@b.com" }, { name: "Ada" });
+  const sub = await User.updateOrCreate({ email: "a@b.com" }, { name: "Grace" });
+
+  await tag.update({ name: "Ada L." });
+  await sub.refresh();
+  return { users, meta, tag, sub };
 }
 
 /* ---------------------------- interface / type seams ------------------------ */

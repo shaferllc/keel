@@ -89,6 +89,24 @@ export async function reference() {
   return { rows, first, active, taken, result, newId, upd };
 }
 
+export async function ormExtras() {
+  await db("posts").whereBetween("views", [10, 100]).get();
+  await db("posts").whereNotIn("id", [4, 5]).get();
+  await db("posts").whereLike("title", "%keel%").get();
+  await db("posts").latest().get();
+  await db("posts").oldest("published_at").get();
+
+  const total: number = await db("orders").where("paid", true).sum("total");
+  const a: number = await db("orders").avg("total");
+  const mn: number = await db("orders").min("total");
+  const mx: number = await db("orders").max("total");
+  const email = await db("users").where("id", 1).value<string>("email");
+  const titles = await db("posts").pluck<string>("title");
+  const page = await db("posts").latest().paginate(2, 15);
+  const rows = page.data;
+  return { total, a, mn, mx, email, titles, page: page.currentPage, last: page.lastPage, rows };
+}
+
 // Interface / type seams
 const mock: Connection = {
   select: async () => [{ id: 1 }],

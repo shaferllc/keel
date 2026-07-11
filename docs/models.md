@@ -59,7 +59,52 @@ await user.delete();
 ```
 
 `save()` inserts when there's no primary key and updates when there is — one
-method for both.
+method for both. `update(attrs)` is `fill` + `save`, and `refresh()` reloads a
+model's columns from the database:
+
+```ts
+await user.update({ name: "Grace" });   // mass-assign + save
+await user.refresh();                    // re-read the row
+```
+
+### Find-or-create
+
+```ts
+// Return the first matching row, or create it from { ...match, ...values }.
+const tag = await Tag.firstOrCreate({ slug: "keel" }, { name: "Keel" });
+// Update the match if it exists, otherwise create it.
+const sub = await Subscription.updateOrCreate({ user_id: 1 }, { plan: "pro" });
+```
+
+## Timestamps
+
+Set `static timestamps = true` and Keel manages `created_at` / `updated_at` — both
+on insert, just `updated_at` on update:
+
+```ts
+class Post extends Model {
+  static table = "posts";
+  static timestamps = true;
+  // override the column names if yours differ:
+  // static createdAtColumn = "inserted_at";
+  // static updatedAtColumn = "modified_at";
+}
+
+const post = await Post.create({ title: "Hi" });
+post.created_at; // set
+post.updated_at; // set (same instant)
+```
+
+## Pagination
+
+`Model.paginate(page, perPage)` returns a page of models plus metadata:
+
+```ts
+const { data, total, currentPage, lastPage, perPage } = await Post.paginate(2, 15);
+```
+
+`data` is `Post[]`; the rest is pagination state (defaults: page `1`, `15` per
+page). The query builder has the same `paginate()` if you're not using models.
 
 ## Attribute casts
 

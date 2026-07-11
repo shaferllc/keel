@@ -17,6 +17,15 @@ export interface WriteResult {
   insertId?: number | string;
 }
 
+/** A page of results plus pagination metadata, returned by `paginate()`. */
+export interface Paginated<T> {
+  data: T[];
+  total: number;
+  perPage: number;
+  currentPage: number;
+  lastPage: number;
+}
+
 /** The bridge to your database driver. */
 export interface Connection {
   /** Run a SELECT (or any row-returning query) and return the rows. */
@@ -100,9 +109,33 @@ export class QueryBuilder<T extends Row = Row> {
     return this;
   }
 
+  whereNotIn(column: string, values: unknown[]): this {
+    const marks = values.map(() => "?").join(", ");
+    this.wheres.push({ boolean: "AND", sql: `${column} NOT IN (${marks})`, bindings: values });
+    return this;
+  }
+
+  whereBetween(column: string, [min, max]: [unknown, unknown]): this {
+    this.wheres.push({ boolean: "AND", sql: `${column} BETWEEN ? AND ?`, bindings: [min, max] });
+    return this;
+  }
+
+  whereLike(column: string, pattern: string): this {
+    this.wheres.push({ boolean: "AND", sql: `${column} LIKE ?`, bindings: [pattern] });
+    return this;
+  }
+
   orderBy(column: string, direction: "asc" | "desc" = "asc"): this {
     this.orders.push(`${column} ${direction.toUpperCase()}`);
     return this;
+  }
+
+  /** Newest-first / oldest-first by a timestamp column (default `created_at`). */
+  latest(column = "created_at"): this {
+    return this.orderBy(column, "desc");
+  }
+  oldest(column = "created_at"): this {
+    return this.orderBy(column, "asc");
   }
 
   limit(n: number): this {
@@ -150,6 +183,57 @@ export class QueryBuilder<T extends Row = Row> {
 
   async exists(): Promise<boolean> {
     return (await this.count()) > 0;
+  }
+
+  private async aggregate(fn: string, column: string): Promise<number> {
+    const where = this.whereClause();
+    const rows = (await conn().select(
+      placeholders(`SELECT ${fn}(${column}) AS agg FROM ${this.table}${where.sql}`),
+      where.bindings,
+    )) as { agg: number | null }[];
+    return Number(rows[0]?.agg ?? 0);
+  }
+
+  sum(column: string): Promise<number> {
+    return this.aggregate("SUM", column);
+  }
+  avg(column: string): Promise<number> {
+    return this.aggregate("AVG", column);
+  }
+  min(column: string): Promise<number> {
+    return this.aggregate("MIN", column);
+  }
+  max(column: string): Promise<number> {
+    return this.aggregate("MAX", column);
+  }
+
+  /** The value of a single column from the first matching row (or null). */
+  async value<V = unknown>(column: string): Promise<V | null> {
+    this.columns = column;
+    const row = await this.first();
+    return row ? ((row as Row)[column] as V) : null;
+  }
+
+  /** An array of a single column across all matching rows. */
+  async pluck<V = unknown>(column: string): Promise<V[]> {
+    this.columns = column;
+    const rows = await this.get();
+    return rows.map((row) => (row as Row)[column] as V);
+  }
+
+  /** A page of results plus pagination metadata. */
+  async paginate(page = 1, perPage = 15): Promise<Paginated<T>> {
+    const total = await this.count();
+    this._limit = perPage;
+    this._offset = (Math.max(1, page) - 1) * perPage;
+    const data = await this.get();
+    return {
+      data,
+      total,
+      perPage,
+      currentPage: page,
+      lastPage: Math.max(1, Math.ceil(total / perPage)),
+    };
   }
 
   /* ------------------------------- writes ------------------------------ */
