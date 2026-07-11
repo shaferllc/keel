@@ -53,6 +53,39 @@ if (bound("clock")) { /* … */ }
 
 Both styles work everywhere; the helpers are just less to type.
 
+## Aliases
+
+Point a second token at an existing binding with `alias(name, target)`. The
+target owns the binding (and its singleton, if any); the alias just resolves
+through to it:
+
+```ts
+import { alias, make } from "@shaferllc/keel/core";
+
+alias("router", Router);        // make("router") === make(Router)
+```
+
+## Swapping bindings in tests
+
+`swap(token, factory)` temporarily replaces a binding with a fake, and
+`restore(token)` puts the original back — the container remembers the real one
+(binding *and* any resolved instance) so your test doesn't have to. `restore()`
+with no argument undoes every swap, which makes a tidy `afterEach`:
+
+```ts
+import { swap, restore } from "@shaferllc/keel/core";
+
+swap(Mailer, () => fakeMailer);   // resolved once, shared for the test
+// … exercise code that make()s Mailer …
+restore(Mailer);                  // or restore() to undo all swaps
+```
+
+This is Keel's answer to mocking a service without reaching into module
+internals: the code under test resolves `Mailer` the same way it always does,
+and gets the fake. (For request-scoped fakes, prefer plain
+[dependency injection](#dependency-injection-in-controllers) — pass the collaborator
+in — so there's no global to restore.)
+
 ## Resolving
 
 Use `make()` (or `this.app.make()`) to pull something out:
@@ -252,6 +285,55 @@ if (app.bound("clock")) app.make("clock");
 ```
 
 **Notes:** `true` for singletons even before first resolve (the binding exists).
+
+#### `alias(alias, target)`
+
+`alias<T>(alias: Token<T>, target: Token<T>): this`
+
+Registers a token that resolves through to another token.
+
+```ts
+app.singleton(Router, () => new Router(app));
+app.alias("router", Router);
+app.make("router") === app.make(Router); // true — same singleton
+```
+
+**Notes:** returns `this` (chainable). The alias is a thin transient wrapper that
+calls `make(target)`, so the target keeps ownership of its own sharing — aliasing
+a singleton still yields the one shared instance.
+
+#### `swap(token, factory)`
+
+`swap<T>(token: Token<T>, factory: Factory<T>): this`
+
+Temporarily replaces a binding with a fake, for tests. The replacement is shared
+(resolved once), and the original binding **and** any resolved instance are
+remembered for `restore()`.
+
+```ts
+app.swap(Mailer, () => fakeMailer);
+app.make(Mailer); // fakeMailer
+```
+
+**Notes:** returns `this`. Idempotent per token — the first `swap` saves the
+original, later swaps just change the fake. Clears the cached instance so the
+next `make()` goes through the fake.
+
+#### `restore(token?)`
+
+`restore(token?: Token): this`
+
+Undoes a `swap()`, restoring the original binding (and instance). Called with no
+token, it restores **every** swap — handy in an `afterEach`.
+
+```ts
+app.restore(Mailer); // one token
+app.restore();       // all swaps
+```
+
+**Notes:** returns `this`. A no-op for a token that wasn't swapped. If the token
+had no binding before the swap, `restore` removes it, leaving `bound()` false
+again.
 Does not consider auto-resolvable classes — an unbound class is `bound() === false`
 yet still `make()`-able.
 
@@ -329,6 +411,23 @@ if (bound("clock")) { /* … */ }
 ```
 
 **Notes:** proxies `Container.bound`.
+
+#### `alias(alias, target)` · `swap(token, factory)` · `restore(token?)`
+
+Global-helper forms of the container methods, resolving against the active
+application.
+
+```ts
+import { alias, swap, restore } from "@shaferllc/keel/core";
+
+alias("router", Router);
+swap(Mailer, () => fakeMailer);
+restore(); // undo every swap
+```
+
+**Notes:** `alias`/`swap` proxy `Container.alias`/`Container.swap`; `restore`
+proxies `Container.restore` (no token restores all). `swap`/`restore` are for
+tests — see [Swapping bindings in tests](#swapping-bindings-in-tests).
 
 ### Interfaces & types
 

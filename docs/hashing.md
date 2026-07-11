@@ -66,6 +66,20 @@ wrong algorithm prefix or a missing field. A hash whose iteration field or salt
 is unparsable is a corrupt store, not a wrong password (see the note on
 `verify` in the reference).
 
+### Faster tests
+
+PBKDF2 is deliberately slow, which makes a test suite that creates lots of users
+crawl. `hash.fake()` swaps in a trivial, **insecure** scheme (`make` returns
+`fake$<password>`, `verify` just compares) so hashing is near-instant; `restore()`
+brings back real PBKDF2. Call them in your test setup/teardown:
+
+```ts
+beforeEach(() => hash.fake());
+afterEach(() => hash.restore());
+```
+
+Never call `fake()` outside tests.
+
 ## Encrypting values
 
 `encryption` encrypts any JSON-serializable value with AES-GCM (a 256-bit key

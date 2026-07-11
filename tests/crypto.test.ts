@@ -23,6 +23,23 @@ test("hash.verify returns false (never throws) on malformed hashes", async () =>
   assert.equal(await hash.verify("", "x"), false);
 });
 
+test("hash.fake swaps in a trivial scheme, restore brings back PBKDF2", async () => {
+  hash.fake();
+  try {
+    const hashed = await hash.make("s3cret");
+    assert.equal(hashed, "fake$s3cret"); // trivial, no PBKDF2
+    assert.equal(await hash.verify(hashed, "s3cret"), true);
+    assert.equal(await hash.verify(hashed, "wrong"), false);
+    assert.equal(hash.needsRehash(hashed), false);
+  } finally {
+    hash.restore();
+  }
+  // Back to real hashing.
+  const real = await hash.make("s3cret");
+  assert.match(real, /^pbkdf2_sha256\$/);
+  assert.equal(await hash.verify(real, "s3cret"), true);
+});
+
 test("encryption: round-trips values and rejects tampering", async () => {
   const app = new Application();
   await app.boot([], { discoverConfig: false, config: { app: { key: "test-secret-key" } } });

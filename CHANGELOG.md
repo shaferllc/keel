@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.66.0] — 2026-07-11
+
+### Added
+
+- **`hash.fake()` / `hash.restore()`.** Swap real PBKDF2 for a trivial, insecure
+  scheme in tests so a suite that creates many users doesn't pay the (deliberate)
+  hashing cost — `make` returns `fake$<password>` and `verify` just compares.
+  Matches AdonisJS's `hash.fake()`. Never for use outside tests.
+
+[0.66.0]: https://github.com/shaferllc/keel/releases/tag/v0.66.0
+
 ## [0.65.0] — 2026-07-11
 
 ### Added
@@ -23,6 +34,34 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a valid token (`419`), with `csrfField()` / `csrfToken()` helpers, an
     `XSRF-TOKEN` cookie for SPAs, and route exemptions. New
     [Securing SSR apps](https://keeljs.com/docs/security) guide.
+
+- **Container & provider lifecycle parity.** Filled the gaps against the AdonisJS
+  [container](https://docs.adonisjs.com/guides/concepts/dependency-injection),
+  [service provider](https://docs.adonisjs.com/guides/concepts/service-providers),
+  and [application lifecycle](https://docs.adonisjs.com/guides/concepts/application-lifecycle)
+  guides (container services already existed as the global helpers in
+  [`helpers.ts`](https://keeljs.com/docs/container)):
+  - **Provider `ready()` and `shutdown()` hooks.** Providers grew two optional
+    lifecycle methods beyond `register()`/`boot()`: `ready()` runs once the whole
+    app is up (after every provider's `boot()` and the app's `onReady` hooks), and
+    `shutdown()` runs on `app.terminate()` in reverse registration order (LIFO).
+    Both are optional, so plain duck-typed providers keep working.
+  - **`Container.swap(token, factory)` / `restore(token?)`.** Temporarily replace a
+    binding with a fake for tests — the original binding and any resolved instance
+    are remembered; `restore()` with no token undoes every swap. Also as the
+    `swap` / `restore` global helpers.
+  - **`Container.alias(alias, target)`.** Point a token at another so
+    `make("router")` resolves through to `make(Router)`, honoring the target's own
+    sharing. Also as the `alias` global helper.
+  - **Graceful shutdown is now wired.** `keel serve` traps SIGINT/SIGTERM, stops
+    accepting connections, and runs `app.terminate()` (and thus every provider's
+    `shutdown()`) before exiting — the `onShutdown`/`terminate()` machinery
+    existed but nothing triggered it.
+
+  All additive and backward compatible. `@inject`-style reflective constructor
+  injection and contextual bindings were intentionally left out — Keel's DI is by
+  convention (a provider/controller constructor receives the container), which
+  keeps the core free of `reflect-metadata` and edge-native.
 
 ### Changed
 

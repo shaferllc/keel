@@ -43,6 +43,10 @@ function appKey(): string {
 
 const DEFAULT_ITERATIONS = 100_000;
 
+/** When true, `hash` skips PBKDF2 for a trivial (insecure) scheme — tests only. */
+let faking = false;
+const FAKE_PREFIX = "fake$";
+
 async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -62,6 +66,7 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
 export const hash = {
   /** Hash a password (PBKDF2-SHA256 with a random salt). */
   async make(password: string, iterations = DEFAULT_ITERATIONS): Promise<string> {
+    if (faking) return `${FAKE_PREFIX}${password}`;
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const derived = await pbkdf2(password, salt, iterations);
     return `pbkdf2_sha256$${iterations}$${b64(salt)}$${b64(derived)}`;
@@ -69,6 +74,7 @@ export const hash = {
 
   /** Verify a password against a stored hash. Returns false for any malformed hash. */
   async verify(hashed: string, password: string): Promise<boolean> {
+    if (faking) return hashed === `${FAKE_PREFIX}${password}`;
     const [algo, iter, salt64, hash64] = hashed.split("$");
     if (algo !== "pbkdf2_sha256" || !iter || !salt64 || !hash64) return false;
     const iterations = Number(iter);
@@ -84,8 +90,24 @@ export const hash = {
 
   /** Whether a hash was made with fewer iterations than the current default. */
   needsRehash(hashed: string, iterations = DEFAULT_ITERATIONS): boolean {
+    if (faking) return false;
     const iter = Number(hashed.split("$")[1]);
     return !iter || iter < iterations;
+  },
+
+  /**
+   * Swap real hashing for a trivial, **insecure** scheme so tests that create
+   * many users don't pay for PBKDF2. `make` returns `fake$<password>` and
+   * `verify` just compares — near-instant. Call in a test setup hook; undo with
+   * `restore()`. Never use outside tests.
+   */
+  fake(): void {
+    faking = true;
+  },
+
+  /** Restore real PBKDF2 hashing after `fake()`. */
+  restore(): void {
+    faking = false;
   },
 
   /**

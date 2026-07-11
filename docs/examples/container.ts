@@ -10,6 +10,9 @@ import {
   instance,
   make,
   bound,
+  alias,
+  swap,
+  restore,
   type Ctx,
   type Token,
   type Constructor,
@@ -23,6 +26,10 @@ class Mailer {
 class ReportService {
   constructor(private app: Container) {}
 }
+class Router {
+  constructor(_app?: unknown) {}
+}
+declare const fakeMailer: Mailer;
 
 declare const app: Container;
 
@@ -90,6 +97,32 @@ export function helperReference() {
   const ver = make<string>("version");
   const isBound = bound("clock");
   return { version, mailer, ver, isBound };
+}
+
+export function aliasesAndSwapping() {
+  // Guide: Aliases
+  alias("router", Router);
+  const viaAlias = make(Router);
+
+  // Guide: Swapping bindings in tests (global-helper forms)
+  swap(Mailer, () => fakeMailer);
+  make(Mailer);
+  restore(Mailer);
+  restore();
+
+  return { viaAlias };
+}
+
+export function aliasesAndSwappingContainer() {
+  app.singleton(Router, () => new Router(app));
+  app.alias("router", Router);
+  const same = app.make("router") === app.make(Router);
+
+  app.swap(Mailer, () => fakeMailer);
+  app.make(Mailer);
+  app.restore(Mailer);
+  app.restore();
+  return { same };
 }
 
 // Type seams.

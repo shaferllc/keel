@@ -21,8 +21,18 @@ class SearchClient {
     return Promise.resolve();
   }
 }
+class Cache {
+  warm(_keys: string[]): Promise<void> {
+    return Promise.resolve();
+  }
+}
+class Redis {
+  quit(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
-// --- The lifecycle ---------------------------------------------------------
+// --- The lifecycle (all four hooks) ----------------------------------------
 export class AppServiceProvider extends ServiceProvider {
   register(): void {
     this.app.bind("clock", () => new Date().toISOString());
@@ -30,6 +40,14 @@ export class AppServiceProvider extends ServiceProvider {
 
   boot(): void {
     // Phase 2 — safe to resolve.
+  }
+
+  async ready(): Promise<void> {
+    await this.app.make(Cache).warm(["home", "pricing"]);
+  }
+
+  async shutdown(): Promise<void> {
+    await this.app.make(Redis).quit();
   }
 }
 

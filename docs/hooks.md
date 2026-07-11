@@ -38,8 +38,13 @@ onShutdown(async () => {
   await db().close?.();
   await redis().flushAll();
 });
+```
 
-// wire it to process signals in your server entry (bin/keel.ts):
+**`keel serve` already traps SIGINT and SIGTERM**, stops accepting connections,
+and calls `terminate()` for you — so the hook above just runs. You only wire
+signals by hand in a **custom entrypoint** that doesn't go through `keel serve`:
+
+```ts
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
     await terminate(); // runs every shutdown hook
@@ -48,6 +53,8 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 ```
 
+A [service provider](./providers.md)'s `shutdown()` method joins the same queue,
+so provider teardown and hand-registered `onShutdown` hooks unwind together.
 `terminate()` is **idempotent** — a second call does nothing. A hook that throws
 doesn't stop the others; the first error is re-thrown after all have run, so one
 failing cleanup can't strand the rest.

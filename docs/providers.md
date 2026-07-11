@@ -6,7 +6,9 @@ provider.
 
 ## The lifecycle
 
-A provider has two methods, run in two distinct phases:
+A provider has four hooks, run across the application's lifecycle. Only
+`register()` and `boot()` are needed day-to-day; `ready()` and `shutdown()` are
+there for work that must happen once the whole app is live, or as it stops:
 
 ```ts
 import { ServiceProvider } from "@shaferllc/keel/core";
@@ -22,14 +24,27 @@ export class AppServiceProvider extends ServiceProvider {
     // Phase 2. Runs after EVERY provider has registered.
     // Safe to resolve services and wire them together.
   }
+
+  ready(): void {
+    // Phase 3. Runs after every provider has booted and the app is fully up.
+    // For work that needs a live app — warm a cache, attach to the server.
+  }
+
+  shutdown(): void {
+    // Phase 4. Runs on graceful termination, in reverse registration order.
+    // Close connections, flush queues, cancel timers.
+  }
 }
 ```
 
 The `Application` runs **all** `register()` methods first, then **all** `boot()`
-methods. That ordering is what lets providers depend on each other without
-worrying about load order.
-
-Both methods may be `async` — the application awaits them.
+methods, then **all** `ready()` methods — that ordering is what lets providers
+depend on each other without worrying about load order. On `app.terminate()`
+(wired to SIGINT/SIGTERM by `keel serve`), every `shutdown()` runs in **reverse**
+registration order (LIFO), so a provider tears down before the ones it depended
+on. All four hooks may be `async` — the application awaits them. `ready()` and
+`shutdown()` are optional and map onto the app's `onReady()` / `onShutdown()`
+hooks, so a provider's `shutdown()` runs alongside any it registered by hand.
 
 ## The `app` reference
 
@@ -271,6 +286,43 @@ async boot(): Promise<void> {
 **Notes:** providers boot in registration (array) order — the only place order
 matters, since all `register()` calls finish first. May be `async`; the
 application awaits it. Throwing rejects `app.boot()`.
+
+#### `ready()`
+
+`ready(): void | Promise<void>`
+
+Phase-three hook: runs after **every** provider has booted and the app is fully
+up (after the app's own `onReady` hooks). For work that needs a live app —
+warming a cache, attaching to the running server. Default implementation is
+empty.
+
+```ts
+async ready(): Promise<void> {
+  await this.app.make(Cache).warm(["home", "pricing"]);
+}
+```
+
+**Notes:** runs in registration order, once, at the end of `app.boot()`. Optional
+— omit it and nothing runs. May be `async`; the application awaits it.
+
+#### `shutdown()`
+
+`shutdown(): void | Promise<void>`
+
+Cleanup hook: runs on `app.terminate()` (which `keel serve` wires to SIGINT and
+SIGTERM) in **reverse** registration order. Close database/Redis connections,
+flush logs, cancel timers. Default implementation is empty.
+
+```ts
+async shutdown(): Promise<void> {
+  await this.app.make(Redis).quit();
+}
+```
+
+**Notes:** LIFO — the last provider registered shuts down first, so a provider
+tears down before the ones it depends on. It joins the app's `onShutdown` hooks,
+so a hook a provider registered by hand and its `shutdown()` both run. A throw
+doesn't stop the others; the first error is re-thrown after all have run.
 
 #### `app` (protected property)
 
