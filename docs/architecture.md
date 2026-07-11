@@ -176,6 +176,10 @@ filesystem to scan, you skip discovery and pass config inline:
 await app.boot(providers, { discoverConfig: false, config: { app: { name: "Keel" } } });
 ```
 
+The second argument is `BootOptions`: `discoverConfig` (skip filesystem config
+discovery — the default on the edge) and `config` (an inline config object merged
+in). Together they let the app boot with no filesystem at all.
+
 Everything that would normally reach for a platform API is designed around this
 seam: the [database](./database.md) layer talks to a `Connection` you provide
 rather than importing a driver; signed URLs use Web Crypto's `crypto.subtle`;

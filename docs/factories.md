@@ -115,3 +115,52 @@ const post = await factory(Post, (f) => ({ title: f.sentence() })).create({
   user_id: author.id,
 });
 ```
+
+## API reference
+
+### `factory(model, definition)`
+
+`factory<T extends Model>(model, definition: (f: Faker, i: number) => Row): ModelFactory<T>`
+
+Start a factory for `model`. The definition receives a `Faker` and the instance
+index, and returns the attributes.
+
+### `ModelFactory`
+
+Returned by `factory()` (the `Factory` class, exported as `ModelFactory`).
+
+| Method | Signature | Notes |
+|--------|-----------|-------|
+| `make` | `(overrides?) => T \| T[]` | build instance(s), unsaved |
+| `create` | `(overrides?) => Promise<T \| T[]>` | persist via `Model.create` |
+| `count` | `(n) => this` | how many the next `make`/`create` yields |
+| `usingFaker` | `(faker) => this` | use a seeded `Faker` for reproducible data |
+
+`count(1)` still returns an array; `count()` unset returns a single model.
+
+### `Faker`
+
+`new Faker(seed?)` — seedable (deterministic) xorshift32 generator.
+
+| Method | Returns |
+|--------|---------|
+| `name` / `firstName` / `lastName` | string |
+| `email` / `slug` / `uuid` | string |
+| `word` / `words(n?)` / `sentence(n?)` / `paragraph(n?)` | string |
+| `number(min?, max?)` | number |
+| `boolean` | boolean |
+| `pick(items)` | one element of `items` |
+
+`uuid()` is for fixtures, not security — use `crypto` for real ids.
+
+### `Seeder` / `seed(SeederClass)`
+
+Abstract `Seeder` with an `async run()`; `protected call([...Seeders])` composes
+others in order. `seed(DatabaseSeeder)` instantiates and runs one.
+
+### Interfaces & types
+
+#### `Definition`
+
+`type Definition<T> = (faker: Faker, index: number) => Row` — the factory
+definition function.
