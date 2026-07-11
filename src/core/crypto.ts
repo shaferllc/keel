@@ -64,12 +64,19 @@ export const hash = {
     return `pbkdf2_sha256$${iterations}$${b64(salt)}$${b64(derived)}`;
   },
 
-  /** Verify a password against a stored hash. */
+  /** Verify a password against a stored hash. Returns false for any malformed hash. */
   async verify(hashed: string, password: string): Promise<boolean> {
     const [algo, iter, salt64, hash64] = hashed.split("$");
     if (algo !== "pbkdf2_sha256" || !iter || !salt64 || !hash64) return false;
-    const derived = await pbkdf2(password, fromB64(salt64), Number(iter));
-    return safeEqual(b64(derived), hash64);
+    const iterations = Number(iter);
+    if (!Number.isInteger(iterations) || iterations < 1) return false;
+    try {
+      const derived = await pbkdf2(password, fromB64(salt64), iterations);
+      return safeEqual(b64(derived), hash64);
+    } catch {
+      // Malformed base64 salt/hash, etc. — treat as a non-match, never throw.
+      return false;
+    }
   },
 
   /** Whether a hash was made with fewer iterations than the current default. */

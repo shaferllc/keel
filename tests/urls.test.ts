@@ -19,6 +19,16 @@ test("url() supports params and query string", async () => {
   );
 });
 
+test("url() replaces every occurrence of a repeated param, and won't collide on prefixes", async () => {
+  const app = new Application();
+  await app.boot([], { discoverConfig: false, config: { app: {} } });
+  const router = app.make(Router);
+  router.get("/:lang/docs/:lang/:id", json({ ok: true })).name("doc");
+
+  // `:lang` appears twice — both must be filled; `:id` must not match inside another param.
+  assert.equal(router.url("doc", { lang: "en", id: 9 }), "/en/docs/en/9");
+});
+
 test("signed URLs verify, and reject tampering / expiry / missing", async () => {
   const app = new Application();
   await app.boot([], { discoverConfig: false, config: { app: { key: "test-secret" } } });

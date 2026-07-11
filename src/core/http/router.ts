@@ -417,7 +417,9 @@ export class Router {
     if (!def) throw new Error(`No route named [${name}].`);
     let path = def.path;
     for (const [k, v] of Object.entries(params)) {
-      path = path.replace(new RegExp(`:${k}\\??`), encodeURIComponent(String(v)));
+      // Global + word-boundary: replace every `:k` occurrence, and don't let
+      // `:id` match inside `:idx`.
+      path = path.replace(new RegExp(`:${k}\\b\\??`, "g"), encodeURIComponent(String(v)));
     }
     path = path.replace(/\/:[^/]+\?/g, "").replace(/:[^/]+/g, "");
     if (options.qs && Object.keys(options.qs).length) {

@@ -188,15 +188,15 @@ export class Migrator {
   /** Names of migrations already applied. */
   async ran(): Promise<string[]> {
     await this.ensure();
-    const rows = await this.conn.select<{ name: string }>("SELECT name FROM migrations", []);
+    const rows = (await this.conn.select("SELECT name FROM migrations", [])) as { name: string }[];
     return rows.map((r) => String(r.name));
   }
 
   private async maxBatch(): Promise<number> {
-    const rows = await this.conn.select<{ b: number | null }>(
+    const rows = (await this.conn.select(
       "SELECT MAX(batch) AS b FROM migrations",
       [],
-    );
+    )) as { b: number | null }[];
     return Number(rows[0]?.b ?? 0);
   }
 
@@ -223,10 +223,10 @@ export class Migrator {
     await this.ensure();
     const batch = await this.maxBatch();
     if (!batch) return [];
-    const rows = await this.conn.select<{ name: string }>(
+    const rows = (await this.conn.select(
       this.ph("SELECT name FROM migrations WHERE batch = ?"),
       [batch],
-    );
+    )) as { name: string }[];
     const schema = new SchemaBuilder(this.conn, this.dialect);
     const rolled: string[] = [];
     for (const name of rows.map((r) => String(r.name)).reverse()) {

@@ -25,13 +25,13 @@ export async function connect() {
     };
   };
 
-  const connection = {
+  const connection: Connection = {
     select: (sql, bindings) => d1.prepare(sql).bind(...bindings).all().then((r) => r.results),
     write: async (sql, bindings) => {
       const r = await d1.prepare(sql).bind(...bindings).run();
       return { rowsAffected: r.meta.changes, insertId: r.meta.last_row_id };
     },
-  } as Connection;
+  };
   setConnection(connection, "sqlite");
   setConnection(connection, "postgres");
 }
@@ -90,10 +90,10 @@ export async function reference() {
 }
 
 // Interface / type seams
-const mock = {
+const mock: Connection = {
   select: async () => [{ id: 1 }],
   write: async (): Promise<WriteResult> => ({ rowsAffected: 1, insertId: 1 }),
-} as Connection;
+};
 const dialect: Dialect = "postgres";
 const op: Operator = "like";
 const row: Row = { id: 1 };

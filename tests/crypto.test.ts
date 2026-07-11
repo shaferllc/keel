@@ -15,6 +15,14 @@ test("hash: make, verify, and needsRehash", async () => {
   assert.equal(hash.needsRehash("pbkdf2_sha256$1000$a$b", 100_000), true);
 });
 
+test("hash.verify returns false (never throws) on malformed hashes", async () => {
+  // Right prefix, but broken iteration count / salt — previously threw.
+  assert.equal(await hash.verify("pbkdf2_sha256$abc$c2FsdA==$aGFzaA==", "x"), false);
+  assert.equal(await hash.verify("pbkdf2_sha256$0$c2FsdA==$aGFzaA==", "x"), false);
+  assert.equal(await hash.verify("pbkdf2_sha256$1000$!!notbase64!!$aGFzaA==", "x"), false);
+  assert.equal(await hash.verify("", "x"), false);
+});
+
 test("encryption: round-trips values and rejects tampering", async () => {
   const app = new Application();
   await app.boot([], { discoverConfig: false, config: { app: { key: "test-secret-key" } } });

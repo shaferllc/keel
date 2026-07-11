@@ -18,6 +18,20 @@ type CookieOptions = Parameters<typeof setCookie>[3];
 const FLASH = "__flash";
 const OLD = "__old";
 
+/** UTF-8-safe base64 — plain btoa throws on non-Latin1 (emoji, many scripts). */
+function b64encode(json: string): string {
+  const bytes = new TextEncoder().encode(json);
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+function b64decode(raw: string): string {
+  const s = atob(raw);
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
 export class Session {
   constructor(private data: SessionData) {}
 
@@ -100,7 +114,7 @@ export function sessionMiddleware(options: SessionOptions = {}): MiddlewareHandl
     const raw = getCookie(c, name);
     if (raw) {
       try {
-        data = JSON.parse(atob(raw)) as SessionData;
+        data = JSON.parse(b64decode(raw)) as SessionData;
       } catch {
         /* tampered/expired — start fresh */
       }
@@ -115,7 +129,7 @@ export function sessionMiddleware(options: SessionOptions = {}): MiddlewareHandl
 
     const toStore: SessionData = { ...data };
     delete toStore[OLD];
-    setCookie(c, name, btoa(JSON.stringify(toStore)), {
+    setCookie(c, name, b64encode(JSON.stringify(toStore)), {
       httpOnly: true,
       path: "/",
       sameSite: "Lax",

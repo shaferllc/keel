@@ -1,7 +1,7 @@
 /** Code-generation templates for `keel make:*`. */
 
 export function controllerStub(name: string): string {
-  return `import type { Ctx } from "@keel/core";
+  return `import type { Ctx } from "@shaferllc/keel/core";
 
 export class ${name} {
   index(c: Ctx) {
@@ -16,7 +16,7 @@ export function resourceControllerStub(name: string): string {
   const body = actions
     .map((a) => `  ${a}(c: Ctx) {\n    return c.json({ action: "${a}" });\n  }`)
     .join("\n\n");
-  return `import type { Ctx } from "@keel/core";
+  return `import type { Ctx } from "@shaferllc/keel/core";
 
 export class ${name} {
 ${body}
@@ -25,7 +25,7 @@ ${body}
 }
 
 export function providerStub(name: string): string {
-  return `import { ServiceProvider } from "@keel/core";
+  return `import { ServiceProvider } from "@shaferllc/keel/core";
 
 export class ${name} extends ServiceProvider {
   register(): void {
@@ -53,7 +53,7 @@ export const ${fn}: MiddlewareHandler = async (c, next) => {
 
 /** `name` is the model class (e.g. "User") the factory builds. */
 export function factoryStub(model: string): string {
-  return `import { factory } from "@keel/core";
+  return `import { factory } from "@shaferllc/keel/core";
 import { ${model} } from "../../app/Models/${model}.js";
 
 export const ${model.toLowerCase()}Factory = factory(${model}, (f) => ({
@@ -65,7 +65,7 @@ export const ${model.toLowerCase()}Factory = factory(${model}, (f) => ({
 }
 
 export function seederStub(name: string): string {
-  return `import { Seeder } from "@keel/core";
+  return `import { Seeder } from "@shaferllc/keel/core";
 
 export class ${name} extends Seeder {
   async run(): Promise<void> {
@@ -77,7 +77,7 @@ export class ${name} extends Seeder {
 }
 
 export function jobStub(name: string): string {
-  return `import { Job } from "@keel/core";
+  return `import { Job } from "@shaferllc/keel/core";
 
 export class ${name} extends Job {
   constructor(/* pass the data this job needs */) {
@@ -92,7 +92,7 @@ export class ${name} extends Job {
 }
 
 export function notificationStub(name: string): string {
-  return `import { Notification, type Notifiable, type MailContent } from "@keel/core";
+  return `import { Notification, type Notifiable, type MailContent } from "@shaferllc/keel/core";
 
 export class ${name} extends Notification {
   via(_notifiable: Notifiable): string[] {
@@ -111,7 +111,7 @@ export class ${name} extends Notification {
 
 /** `name` is the class (e.g. "UserTransformer"); `model` is the value it maps. */
 export function transformerStub(name: string, model: string): string {
-  return `import { Transformer, type Attributes } from "@keel/core";
+  return `import { Transformer, type Attributes } from "@shaferllc/keel/core";
 // import { ${model} } from "../Models/${model}.js";
 
 export class ${name} extends Transformer</* ${model} */ any> {

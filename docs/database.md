@@ -11,28 +11,25 @@ Register a connection once, in a service provider. The `Connection` interface is
 two methods — adapt them to your driver:
 
 ```ts
-import { setConnection, type Connection, type Row } from "@shaferllc/keel/core";
+import { setConnection, type Connection } from "@shaferllc/keel/core";
 
-const connection = {
+const connection: Connection = {
   select: (sql, bindings) => d1.prepare(sql).bind(...bindings).all().then((r) => r.results),
   write: async (sql, bindings) => {
     const r = await d1.prepare(sql).bind(...bindings).run();
     return { rowsAffected: r.meta.changes, insertId: r.meta.last_row_id };
   },
-} as Connection;
+};
 
 setConnection(connection, "sqlite"); // "sqlite" | "mysql" | "postgres"
 ```
 
 The dialect only affects placeholder style (`?` vs Postgres `$1`). `select`
-returns the rows; `write` returns a `WriteResult` (`rowsAffected`, optional
-`insertId`). Everything the builder does bottoms out in these two methods, which
-is why the same app runs on Node and the edge — only the connection changes.
-
-> The `as Connection` assertion is needed because `select` is declared generic
-> (`select<T = Row>(…): Promise<T[]>`) — a concrete implementation returns `Row[]`,
-> which the compiler can't match to an arbitrary `T` without the cast. Your rows
-> are the right shape at runtime; the cast only satisfies the generic.
+returns the rows (`Row[]`); `write` returns a `WriteResult` (`rowsAffected`,
+optional `insertId`). Everything the builder does bottoms out in these two
+methods, which is why the same app runs on Node and the edge — only the
+connection changes. The type parameter on `db<T>()` types the *results*; the
+`Connection` itself just deals in `Row`s.
 
 ## Querying
 

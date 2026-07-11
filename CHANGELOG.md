@@ -4,6 +4,25 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.1] — 2026-07-10
+
+### Fixed
+
+- **`make:*` stubs import the resolvable specifier.** Generated files now import
+  from `@shaferllc/keel/core` (the published entry point) instead of the internal
+  `@keel/core` alias, so scaffolded code compiles in a real project.
+- **`Connection.select` is no longer generic** — it returns `Promise<Row[]>`, so a
+  driver implementation no longer needs an `as Connection` cast. `db<T>()` still
+  types results (the builder casts internally).
+- **`hash.verify` never throws.** A malformed hash (right prefix but a non-numeric
+  iteration count or invalid base64) now returns `false` instead of throwing.
+- **Sessions handle non-Latin1 values.** Cookie serialization is UTF-8-safe, so
+  storing emoji or non-Latin text no longer crashes the response (`btoa` throw).
+- **`router.url()` fills repeated params.** A `:param` appearing more than once in
+  a path is now fully substituted, and won't match inside a longer param name.
+
+[0.37.1]: https://github.com/shaferllc/keel/releases/tag/v0.37.1
+
 ## [0.37.0] — 2026-07-10
 
 ### Added

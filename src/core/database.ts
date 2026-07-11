@@ -20,7 +20,7 @@ export interface WriteResult {
 /** The bridge to your database driver. */
 export interface Connection {
   /** Run a SELECT (or any row-returning query) and return the rows. */
-  select<T = Row>(sql: string, bindings: unknown[]): Promise<T[]>;
+  select(sql: string, bindings: unknown[]): Promise<Row[]>;
   /** Run an INSERT/UPDATE/DELETE and return write metadata. */
   write(sql: string, bindings: unknown[]): Promise<WriteResult>;
 }
@@ -130,7 +130,7 @@ export class QueryBuilder<T extends Row = Row> {
     if (this.orders.length) sql += ` ORDER BY ${this.orders.join(", ")}`;
     if (this._limit != null) sql += ` LIMIT ${this._limit}`;
     if (this._offset != null) sql += ` OFFSET ${this._offset}`;
-    return conn().select<T>(placeholders(sql), where.bindings);
+    return (await conn().select(placeholders(sql), where.bindings)) as T[];
   }
 
   async first(): Promise<T | null> {
@@ -141,10 +141,10 @@ export class QueryBuilder<T extends Row = Row> {
 
   async count(): Promise<number> {
     const where = this.whereClause();
-    const rows = await conn().select<{ count: number }>(
+    const rows = (await conn().select(
       placeholders(`SELECT COUNT(*) AS count FROM ${this.table}${where.sql}`),
       where.bindings,
-    );
+    )) as { count: number }[];
     return Number(rows[0]?.count ?? 0);
   }
 

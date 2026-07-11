@@ -93,13 +93,9 @@ suffix if present, PascalCases the base, then re-appends the canonical suffix.
 So `Post`, `post`, and `PostController` all yield `PostController` — you can pass
 whichever form reads naturally.
 
-> **Generated stubs import from `@keel/core`.** Every template imports its base
-> classes and types from `@keel/core` — an internal path alias (mapped in the
-> framework's own `tsconfig.json` to `src/core/index.ts`). The **published**
-> package exposes its core under `@shaferllc/keel/core`, so a generated file
-> won't resolve that import in a consuming project until you either add the
-> `@keel/core` path alias to your `tsconfig.json` or rewrite the import to
-> `@shaferllc/keel/core`. (See [Bugs found](#a-note-on-the-generated-imports).)
+Generated stubs import their base classes and types from `@shaferllc/keel/core`
+— the published package's core entry point — so they resolve out of the box in a
+project that has `@shaferllc/keel` installed.
 
 ### `make:controller`
 
@@ -114,7 +110,7 @@ The name is normalized: `Post`, `post`, and `PostController` all produce
 `PostController`. The default stub is a single `index` action:
 
 ```ts
-import type { Ctx } from "@keel/core";
+import type { Ctx } from "@shaferllc/keel/core";
 
 export class PostController {
   index(c: Ctx) {
@@ -133,7 +129,7 @@ npm run keel make:controller Post --resource
 ```
 
 ```ts
-import type { Ctx } from "@keel/core";
+import type { Ctx } from "@shaferllc/keel/core";
 
 export class PostController {
   index(c: Ctx) {
@@ -160,7 +156,7 @@ npm run keel make:provider Billing
 ```
 
 ```ts
-import { ServiceProvider } from "@keel/core";
+import { ServiceProvider } from "@shaferllc/keel/core";
 
 export class BillingServiceProvider extends ServiceProvider {
   register(): void {
@@ -216,7 +212,7 @@ npm run keel make:factory User
 factory built with the `factory()` helper:
 
 ```ts
-import { factory } from "@keel/core";
+import { factory } from "@shaferllc/keel/core";
 import { User } from "../../app/Models/User.js";
 
 export const userFactory = factory(User, (f) => ({
@@ -239,7 +235,7 @@ npm run keel make:seeder Database
 ```
 
 ```ts
-import { Seeder } from "@keel/core";
+import { Seeder } from "@shaferllc/keel/core";
 
 export class DatabaseSeeder extends Seeder {
   async run(): Promise<void> {
@@ -261,7 +257,7 @@ npm run keel make:job SendWelcome
 ```
 
 ```ts
-import { Job } from "@keel/core";
+import { Job } from "@shaferllc/keel/core";
 
 export class SendWelcomeJob extends Job {
   constructor(/* pass the data this job needs */) {
@@ -288,7 +284,7 @@ npm run keel make:notification InvoicePaid
 ```
 
 ```ts
-import { Notification, type Notifiable, type MailContent } from "@keel/core";
+import { Notification, type Notifiable, type MailContent } from "@shaferllc/keel/core";
 
 export class InvoicePaidNotification extends Notification {
   via(_notifiable: Notifiable): string[] {
@@ -344,18 +340,3 @@ program
 
 Because commands boot the application, they get the same container, config, and
 providers your HTTP requests do.
-
-## Bugs found
-
-### A note on the generated imports
-
-The `make:*` stubs (`src/core/cli/stubs.ts`) import from `@keel/core`, which is
-an **internal** path alias — `tsconfig.json` maps `@keel/core` to
-`src/core/index.ts`, and that mapping only exists inside the framework repo. The
-published package exports its core as `@shaferllc/keel/core` (see the `exports`
-map in `package.json`). Consequently, files generated inside a project that
-depends on the published `@shaferllc/keel` won't resolve the `@keel/core` import
-out of the box; you'll need to either mirror the `@keel/core` path alias in your
-own `tsconfig.json` or change the generated imports to `@shaferllc/keel/core`.
-The `make:middleware` stub is unaffected — it imports `MiddlewareHandler`
-straight from `hono`.
