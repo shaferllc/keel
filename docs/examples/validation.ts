@@ -4,12 +4,36 @@
 import {
   json,
   validate,
+  validateRequest,
+  validated,
   request,
   response,
   ValidationException,
+  Router,
   type Schema,
 } from "@shaferllc/keel/core";
 import { z } from "zod";
+
+declare const Users: new (...a: unknown[]) => object;
+declare const Posts: new (...a: unknown[]) => object;
+
+export function declarative(router: Router) {
+  const NewUser = z.object({ email: z.string().email(), name: z.string().min(1) });
+  router.post("/users", [Users, "store"]).middleware([validateRequest({ body: NewUser })]);
+  router.get("/posts/:id", [Posts, "show"]).middleware([
+    validateRequest({
+      params: z.object({ id: z.coerce.number() }),
+      query: z.object({ page: z.coerce.number().min(1).default(1) }),
+    }),
+  ]);
+}
+
+export function readValidated() {
+  const user = validated<{ email: string; name: string }>("body");
+  const id = validated<{ id: number }>("params");
+  const page = validated<{ page: number }>("query");
+  return { user, id, page };
+}
 
 declare const email: string;
 declare const age: number;

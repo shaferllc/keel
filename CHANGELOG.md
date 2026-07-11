@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0] — 2026-07-11
+
+### Added
+
+- **Declarative request validation.** `validateRequest({ body, query, params })`
+  is middleware that validates the request *before* the handler runs — rejecting
+  a bad request with a `422` `ValidationException` (errors from every part
+  aggregated, keyed `body.field` / `query.field` / `params.field`) so the handler
+  only ever sees valid input. `validated(part)` returns the parsed, typed value.
+  The declarative counterpart to Fastify's route schemas, built on the same
+  schema-agnostic `validate()` engine (bring your own Zod-style schema). See
+  [docs/validation.md](./docs/validation.md#declarative-validation-before-the-handler).
+
+[0.44.0]: https://github.com/shaferllc/keel/releases/tag/v0.44.0
+
 ## [0.43.0] — 2026-07-10
 
 ### Added

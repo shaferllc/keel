@@ -139,8 +139,8 @@ export {
   createError,
   STATUS_TEXT,
 } from "./exceptions.js";
-export { validate } from "./validation.js";
-export type { Schema } from "./validation.js";
+export { validate, validateRequest, validated } from "./validation.js";
+export type { Schema, RequestSchemas } from "./validation.js";
 export { Session, session, sessionMiddleware } from "./session.js";
 export type { SessionOptions } from "./session.js";
 export { Auth, auth, authGuard, setUserProvider } from "./auth.js";

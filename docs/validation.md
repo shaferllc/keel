@@ -77,6 +77,44 @@ The rule is simple: if the second argument is anything other than `undefined`,
 the check is `data !== undefined`, passing `null` counts as "explicit data" — the
 schema sees `null`, not the body.
 
+## Declarative validation (before the handler)
+
+`validate()` above is *imperative* — you call it inside the handler. For the
+common case, `validateRequest()` is a middleware that validates the request
+**before** the handler runs, rejecting a bad request with a `422` so your handler
+only ever sees valid input:
+
+```ts
+import { validateRequest, validated } from "@shaferllc/keel/core";
+
+const NewUser = z.object({ email: z.string().email(), name: z.string().min(1) });
+
+router
+  .post("/users", [Users, "store"])
+  .middleware([validateRequest({ body: NewUser })]);
+
+// in Users@store — guaranteed valid, fully typed:
+const user = validated<z.infer<typeof NewUser>>("body");
+```
+
+Validate `body`, `query`, and `params` together — errors from every part are
+aggregated into one `422`, keyed `body.field` / `query.field` / `params.field`:
+
+```ts
+router.get("/posts/:id", [Posts, "show"]).middleware([
+  validateRequest({
+    params: z.object({ id: z.coerce.number() }),
+    query: z.object({ page: z.coerce.number().min(1).default(1) }),
+  }),
+]);
+// validated<{ id: number }>("params");  validated<{ page: number }>("query");
+```
+
+`validated(part)` returns the parsed, typed value for that part (defaults to
+`"body"`). Coercion (`z.coerce.number()`) is the schema's job — it applies before
+your handler sees the value. This is the declarative counterpart to Fastify's
+route schemas, on top of the same `validate()` engine.
+
 ## Body parsing is JSON-only
 
 The no-argument form reads the body with `body()`, which calls `request.json()`.
@@ -155,6 +193,36 @@ treated as explicit input (the schema sees `null`). On failure it throws
 `ValidationException` whose `errors` is a `Record<string, string[]>` keyed by
 dotted field path (root-level issues key `"_"`); it never returns a partial
 result. `T` is inferred from the schema, so the resolved value is fully typed.
+
+### `validateRequest(schemas)`
+
+`validateRequest(schemas: RequestSchemas): MiddlewareHandler`
+
+Middleware that validates `body` / `query` / `params` before the handler,
+throwing a `422` `ValidationException` (errors from all parts aggregated, keyed
+`part.field`). On success the parsed values are stashed for `validated()`.
+
+```ts
+router.post("/users", [Users, "store"]).middleware([validateRequest({ body: NewUser })]);
+```
+
+**Notes:** validates every declared part and aggregates their errors, rather than
+failing on the first. `body` reads the JSON body; `query`/`params` read the URL.
+Coercion is the schema's responsibility.
+
+### `validated(part?)`
+
+`validated<T>(part?: "body" | "query" | "params"): T`
+
+The parsed, typed value for a request part (default `"body"`), set by
+`validateRequest`.
+
+```ts
+const user = validated<z.infer<typeof NewUser>>("body");
+```
+
+**Notes:** throws if that part wasn't validated (no `validateRequest` for it), or
+if called outside a request.
 
 ### Interfaces & types
 
