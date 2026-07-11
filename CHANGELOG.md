@@ -4,6 +4,39 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.54.0] — 2026-07-11
+
+### Added
+
+- **Service broker: Moleculer-parity events & context.** A second parity pass over
+  the broker, drawn from Moleculer's
+  [events](https://moleculer.services/docs/0.15/events) and
+  [context](https://moleculer.services/docs/0.15/context) pages:
+  - **`broadcastLocal`** — broadcast to every listener on this node (mirrors
+    `broadcast` until a real transporter would relay across nodes).
+  - **Event groups & patterns** — the Events docs now spell out group-based
+    balancing (`emit(..., { groups })`), and subscription keys gain the `?`
+    single-char wildcard alongside `*` / `**`.
+  - **Internal events** — the broker now emits `$broker.started`,
+    `$broker.stopped`, and `$services.changed` (`{ service }` payload) that any
+    service can subscribe to.
+  - **Event context** — event handlers receive `ctx.eventName`, `ctx.eventType`
+    (`"emit"` / `"broadcast"`), and `ctx.eventGroups`.
+  - **Request-tree context** — every context now carries `ctx.parentID`,
+    `ctx.level` (depth from 1), `ctx.caller` (invoking service), and `ctx.action`;
+    `ctx.toJSON()` returns a log-safe snapshot with no functions or live refs.
+  - **Broker middlewares** (Moleculer's
+    [middlewares](https://moleculer.services/docs/0.15/middlewares)) — pass
+    `middlewares: [...]` to wrap every action call and tap broker lifecycle. A
+    middleware's `localAction(next, action)` wraps the handler (they compose,
+    first = outermost); `started(broker)` / `stopped(broker)` run during
+    `broker.start()` / `stop()`. (Service **lifecycle** hooks and per-service
+    **`this.logger`** were already in place — the other two pages checked.)
+
+  All additive and backward compatible.
+
+[0.54.0]: https://github.com/shaferllc/keel/releases/tag/v0.54.0
+
 ## [0.53.0] — 2026-07-11
 
 ### Added

@@ -188,10 +188,23 @@ export type {
   Context,
   ActionHandler,
   EventHandler,
+  ActionDef,
+  ActionSchema,
+  ActionHooks,
+  EventSchema,
+  ServiceHooks,
+  Visibility,
+  EventType,
+  BeforeHook,
+  AfterHook,
+  ErrorHook,
   Transporter,
   BrokerOptions,
+  BrokerMiddleware,
   CallOptions,
   EmitOptions,
+  MCallDefs,
+  MCallOptions,
 } from "./broker.js";
 export { Vite, viteTags, viteAsset, viteReactRefresh } from "./vite.js";
 export type {
