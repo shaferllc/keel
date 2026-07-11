@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.0] — 2026-07-10
+
+### Added
+
+- **Queues & jobs.** Move slow work off the request path: `dispatch(new
+  SendWelcome(id))` places a `Job` (or a plain function) on a queue, and a
+  pluggable `QueueDriver` decides when it runs. Built-in drivers: `SyncDriver`
+  (runs immediately — the default), `MemoryDriver` (defers; `work()` drains it
+  FIFO, inspect `.jobs`). `dispatch` takes `{ delay, queue }` options; a custom
+  `push`-only driver is the seam for a real broker (e.g. Cloudflare Queues).
+  New generator `keel make:job`. Core imports no broker, edge-safe. See
+  [docs/queues.md](./docs/queues.md).
+
+[0.35.0]: https://github.com/shaferllc/keel/releases/tag/v0.35.0
+
 ## [0.34.0] — 2026-07-10
 
 ### Added

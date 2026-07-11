@@ -91,6 +91,17 @@ npm run keel make:seeder Database
 
 See [Factories & Seeders](./factories.md) for using them.
 
+### `make:job`
+
+Generate a queued job in `app/Jobs/`.
+
+```bash
+npm run keel make:job SendWelcome
+# -> app/Jobs/SendWelcomeJob.ts
+```
+
+See [Queues & Jobs](./queues.md) for dispatching them.
+
 ## Generator safety
 
 Generators refuse to overwrite an existing file and exit non-zero:

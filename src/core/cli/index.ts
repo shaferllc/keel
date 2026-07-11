@@ -8,6 +8,7 @@
  *   keel make:middleware Foo    generate app/Http/Middleware/foo.ts
  *   keel make:factory User      generate database/factories/UserFactory.ts
  *   keel make:seeder Database   generate database/seeders/DatabaseSeeder.ts
+ *   keel make:job SendWelcome   generate app/Jobs/SendWelcomeJob.ts
  *   keel routes                 list registered routes
  */
 
@@ -26,6 +27,7 @@ import {
   middlewareStub,
   factoryStub,
   seederStub,
+  jobStub,
 } from "./stubs.js";
 
 const basePath = process.cwd();
@@ -139,6 +141,14 @@ export async function run(argv: string[]): Promise<void> {
     .action(async (name: string) => {
       const cls = className(name, "Seeder");
       await generate(`database/seeders/${cls}.ts`, seederStub(cls), "Seeder");
+    });
+
+  program
+    .command("make:job <name>")
+    .description("Generate a queued job")
+    .action(async (name: string) => {
+      const cls = className(name, "Job");
+      await generate(`app/Jobs/${cls}.ts`, jobStub(cls), "Job");
     });
 
   await program.parseAsync(argv);

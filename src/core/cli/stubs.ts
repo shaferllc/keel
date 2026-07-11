@@ -75,3 +75,18 @@ export class ${name} extends Seeder {
 }
 `;
 }
+
+export function jobStub(name: string): string {
+  return `import { Job } from "@keel/core";
+
+export class ${name} extends Job {
+  constructor(/* pass the data this job needs */) {
+    super();
+  }
+
+  async handle(): Promise<void> {
+    // Do the background work here.
+  }
+}
+`;
+}

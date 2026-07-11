@@ -50,6 +50,17 @@ export {
   getMailer,
 } from "./mail.js";
 export type { Message, Transport, MailerOptions, FetchTransportOptions } from "./mail.js";
+export {
+  Job,
+  Queue,
+  SyncDriver,
+  MemoryDriver,
+  dispatch,
+  work,
+  setQueue,
+  getQueue,
+} from "./queue.js";
+export type { Dispatchable, JobOptions, QueueDriver, Drainable, QueuedJob } from "./queue.js";
 export { SchemaBuilder, Migrator, TableBuilder, Column } from "./migrations.js";
 export type { Migration } from "./migrations.js";
 export {
