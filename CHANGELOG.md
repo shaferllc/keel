@@ -4,6 +4,26 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.0] — 2026-07-10
+
+### Added
+
+- **Service Broker.** A Moleculer-style backbone for service-oriented code.
+  Register services (a name plus `actions` and `events`) with a `Broker`, then
+  reach them by string name: `broker().call("users.get", { id })` runs an action;
+  `broker().emit("user.created", user)` fans an event out to every listener
+  (balanced), or `broadcast` to all. Actions receive a `Context` and call other
+  actions via `ctx.call`, threading `meta` (auth, trace ids) down through nested
+  calls. Services support `version` prefixes (`v2.users.*`), `settings`, bound
+  `methods`, glob event subscriptions (`user.*` / `user.**`), lifecycle hooks
+  (`created` / `started` / `stopped`), and per-call `timeout`. Clustering lives
+  behind a pluggable `Transporter` seam — the default `LocalTransporter` is a
+  single-node no-op, so the core imports no network client and stays edge-safe.
+  `broker()` / `setBroker()` manage the default instance, mirroring
+  `redis()` / `setRedis()`. See [docs/broker.md](./docs/broker.md).
+
+[0.41.0]: https://github.com/shaferllc/keel/releases/tag/v0.41.0
+
 ## [0.40.1] — 2026-07-10
 
 ### Added

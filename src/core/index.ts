@@ -141,6 +141,25 @@ export { Auth, auth, authGuard, setUserProvider } from "./auth.js";
 export type { UserProvider } from "./auth.js";
 export { Transformer } from "./transformer.js";
 export type { Attributes, DocumentOptions } from "./transformer.js";
+export {
+  Broker,
+  Service,
+  LocalTransporter,
+  ServiceNotFoundError,
+  RequestTimeoutError,
+  broker,
+  setBroker,
+} from "./broker.js";
+export type {
+  ServiceSchema,
+  Context,
+  ActionHandler,
+  EventHandler,
+  Transporter,
+  BrokerOptions,
+  CallOptions,
+  EmitOptions,
+} from "./broker.js";
 export { Vite, viteTags, viteAsset, viteReactRefresh } from "./vite.js";
 export type {
   ViteOptions,
