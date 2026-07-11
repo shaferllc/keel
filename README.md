@@ -176,6 +176,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Models](./docs/models.md) | Active-record: find/create/save, casts, relations |
 | [Migrations](./docs/migrations.md) | Schema builder + migrator, dialect-aware |
 | [Factories & Seeders](./docs/factories.md) | Built-in Faker, model factories, seeders |
+| [Mail](./docs/mail.md) | Fluent mailer, pluggable transports, edge-safe |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
 | [Logger](./docs/logger.md) | Leveled structured logging, child loggers |
@@ -230,7 +231,8 @@ config, and the console. On deck:
 - [x] Model relationships (hasMany / belongsTo / belongsToMany) — **v0.31.0**
 - [x] Factories & seeders (built-in Faker) — **v0.32.0**
 - [x] Model attribute casts + mass-assignment guarding — **v0.33.0**
-- [ ] Queues (BullMQ), events, and mail
+- [x] Mail (fluent mailer, pluggable transports) — **v0.34.0**
+- [ ] Queues / background jobs
 - [ ] Publish `src/core` as the `@keel/core` package
 
 See [CHANGELOG.md](./CHANGELOG.md) for release history.

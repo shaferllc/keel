@@ -39,6 +39,17 @@ export type { CastType, Casts } from "./casts.js";
 export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
 export { Faker, Factory as ModelFactory, factory, Seeder, seed } from "./factory.js";
 export type { Definition } from "./factory.js";
+export {
+  Mailer,
+  PendingMail,
+  ArrayTransport,
+  LogTransport,
+  fetchTransport,
+  mail,
+  setMailer,
+  getMailer,
+} from "./mail.js";
+export type { Message, Transport, MailerOptions, FetchTransportOptions } from "./mail.js";
 export { SchemaBuilder, Migrator, TableBuilder, Column } from "./migrations.js";
 export type { Migration } from "./migrations.js";
 export {

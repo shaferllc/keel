@@ -4,6 +4,21 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.0] — 2026-07-10
+
+### Added
+
+- **Mail.** A fluent, edge-safe mailer: `mail().to().subject().html().send()`,
+  with a pluggable `Transport` (like the database `Connection`). Register a
+  default with `setMailer(transport, { from })`. Built-in transports:
+  `ArrayTransport` (collects to `.sent`, the default and ideal for tests),
+  `LogTransport` (logs instead of delivering), and `fetchTransport({ url,
+  headers, body })` for provider HTTP APIs (Resend/Postmark/Mailgun) over
+  `fetch` — the core imports no SDK. `send()` validates recipient/subject/body/
+  from. See [docs/mail.md](./docs/mail.md).
+
+[0.34.0]: https://github.com/shaferllc/keel/releases/tag/v0.34.0
+
 ## [0.33.0] — 2026-07-10
 
 ### Added
