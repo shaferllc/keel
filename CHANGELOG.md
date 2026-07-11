@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.0] — 2026-07-11
+
+### Added
+
+- **Task scheduling.** Declare recurring work with a fluent cadence — `schedule(new
+  PruneSessions()).daily()`, `schedule(() => sync()).everyFiveMinutes()`,
+  `schedule(job).cron("0 9 * * 1")` — then run the scheduler once a minute from a
+  single trigger. Cadences: `everyMinute` … `everyThirtyMinutes`, `hourly` /
+  `hourlyAt`, `daily` / `dailyAt("13:30")`, `weekly` / `monthly`, or any 5-field
+  `cron()`. `scheduler().runDue(now)` runs everything due (to the minute); `due()`
+  lists without running. Built-in cron matcher (`*`, lists, ranges, steps, and
+  standard dom/dow semantics) — wire it to Cloudflare Cron Triggers'
+  `scheduled()` handler or a Node interval. A task is a `Job` or a function. See
+  [docs/scheduling.md](./docs/scheduling.md).
+
+[0.48.0]: https://github.com/shaferllc/keel/releases/tag/v0.48.0
+
 ## [0.47.0] — 2026-07-11
 
 ### Added

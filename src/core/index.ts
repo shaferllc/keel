@@ -68,6 +68,7 @@ export {
   getQueue,
 } from "./queue.js";
 export type { Dispatchable, JobOptions, QueueDriver, Drainable, QueuedJob } from "./queue.js";
+export { Scheduler, ScheduledTask, scheduler, setScheduler, schedule, cronMatches } from "./scheduler.js";
 export { Redis, MemoryRedis, redis, setRedis, redisStore } from "./redis.js";
 export type { RedisConnection, SetOptions } from "./redis.js";
 export {

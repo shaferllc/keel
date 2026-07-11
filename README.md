@@ -181,6 +181,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Factories & Seeders](./docs/factories.md) | Built-in Faker, model factories, seeders |
 | [Mail](./docs/mail.md) | Fluent mailer, pluggable transports, edge-safe |
 | [Queues & Jobs](./docs/queues.md) | Dispatch jobs, pluggable drivers, workers |
+| [Task Scheduling](./docs/scheduling.md) | Cron-style recurring tasks, one trigger |
 | [Notifications](./docs/notifications.md) | Multi-channel (mail/db), queueable |
 | [Transformers](./docs/transformers.md) | Shape models into API JSON; conditional fields, relations |
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
