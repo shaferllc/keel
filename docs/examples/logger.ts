@@ -4,6 +4,9 @@
 import {
   logger,
   Logger,
+  requestLogger,
+  requestLog,
+  HttpKernel,
   type LoggerOptions,
   type LogLevel,
 } from "@shaferllc/keel/core";
@@ -60,11 +63,30 @@ export function reference() {
   reqLog.info("handling");
 }
 
+export function redaction() {
+  const log = new Logger({ redact: ["password", "req.headers.authorization"] });
+  log.info("login", {
+    user: "ada",
+    password: "s3cret",
+    req: { headers: { authorization: "Bearer x" } },
+  });
+}
+
+export function perRequest(kernel: HttpKernel) {
+  kernel.use(requestLogger());
+  kernel.use(requestLogger({ idHeader: "x-request-id", logRequests: false }));
+}
+
+export function inRequest() {
+  requestLog().info("charging card", { orderId: 1 });
+}
+
 // Interface / type seams
 const options: LoggerOptions = {
   level: "debug",
   pretty: true,
   bindings: { app: "api" },
+  redact: ["password"],
 };
 const level: LogLevel = "warn";
 export { options, level };

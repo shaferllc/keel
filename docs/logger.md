@@ -81,20 +81,51 @@ log.debug("boot", { pid: 1 });
 
 With no options it defaults to `level: "info"`, `pretty: false`, and no bindings.
 
-## A request-logging middleware
+## Per-request logging
+
+`requestLogger()` is a built-in middleware that binds a **child logger with a
+generated `reqId` to each request**, so every log line within a request
+correlates — Fastify's `request.log`. Install it in your HTTP kernel, then reach
+the request's logger anywhere with `requestLog()`:
 
 ```ts
-export const requestLog: MiddlewareHandler = async (c, next) => {
-  const start = performance.now();
-  await next();
-  logger().info("request", {
-    method: request.method,
-    path: request.path,
-    status: request.status,
-    ms: +(performance.now() - start).toFixed(1),
-  });
-};
+import { requestLogger, requestLog } from "@shaferllc/keel/core";
+
+// app/Http/Kernel.ts
+kernel.use(requestLogger());
+
+// anywhere in the request — the line carries this request's reqId:
+requestLog().info("charging card", { orderId });
 ```
+
+By default it also logs the request start and completion:
+
+```json
+{"level":"info","time":"…","msg":"request","reqId":"…","method":"GET","path":"/orders"}
+{"level":"info","time":"…","msg":"request completed","reqId":"…","status":200,"ms":12.4}
+```
+
+Options: `genReqId(c)` to control id generation, `idHeader` to reuse an incoming
+id (e.g. `"x-request-id"` for distributed tracing), and `logRequests: false` to
+skip the automatic start/completion lines. Outside a request (or without the
+middleware), `requestLog()` falls back to the base `logger()`.
+
+## Redaction
+
+Keep secrets out of your logs with `redact` — top-level keys or dot paths. Matched
+values are replaced with `"[redacted]"`; the original object is never mutated:
+
+```ts
+const log = new Logger({
+  redact: ["password", "req.headers.authorization"],
+});
+
+log.info("login", { user: "ada", password: "s3cret", req: { headers: { authorization: "Bearer x" } } });
+// {"level":"info",…,"user":"ada","password":"[redacted]","req":{"headers":{"authorization":"[redacted]"}}}
+```
+
+Redaction is inherited by child loggers, so a redacting base logger keeps
+per-request loggers safe too.
 
 ---
 
@@ -201,6 +232,31 @@ reqLog.info("handling");   // line includes requestId
 **Notes:** inherits the parent's `level` and `pretty`; merges bindings over the
 parent's (child wins on key collisions). Chainable — call `child()` on a child.
 The parent is not modified.
+
+### `requestLogger(options?)`
+
+`requestLogger(options?: RequestLoggerOptions): MiddlewareHandler`
+
+Middleware that binds a `reqId` child logger to each request and (by default)
+logs the request start and completion.
+
+```ts
+kernel.use(requestLogger({ idHeader: "x-request-id" }));
+```
+
+**Notes:** options — `genReqId(c)` (default `crypto.randomUUID()`), `idHeader`
+(reuse an incoming id), `logRequests` (default `true`).
+
+### `requestLog()`
+
+`requestLog(): Logger`
+
+The current request's child logger (carrying its `reqId`), or the base `logger()`
+outside a request / without the middleware installed.
+
+```ts
+requestLog().info("charging card"); // line carries reqId
+```
 
 ### Interfaces & types
 

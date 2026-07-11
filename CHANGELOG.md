@@ -4,6 +4,24 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] — 2026-07-10
+
+### Added
+
+- **Per-request logging.** `requestLogger()` middleware binds a child logger with
+  a generated `reqId` to each request, so every log line within a request
+  correlates (Fastify's `request.log`). It logs request start/completion
+  (method, path, status, ms) by default; options for `genReqId`, reusing an
+  incoming `idHeader` (distributed tracing), and disabling the auto lines.
+  `requestLog()` reaches the current request's logger anywhere (falls back to the
+  base logger outside a request).
+- **Log redaction.** `new Logger({ redact: ["password", "req.headers.authorization"] })`
+  replaces matched values (top-level keys or dot paths) with `"[redacted]"`
+  without mutating the logged object; inherited by child loggers. See
+  [docs/logger.md](./docs/logger.md#per-request-logging).
+
+[0.43.0]: https://github.com/shaferllc/keel/releases/tag/v0.43.0
+
 ## [0.42.0] — 2026-07-10
 
 ### Added

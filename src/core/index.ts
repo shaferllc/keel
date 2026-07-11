@@ -25,6 +25,8 @@ export {
 } from "./helpers.js";
 export { Logger } from "./logger.js";
 export type { LogLevel, LoggerOptions } from "./logger.js";
+export { requestLogger, requestLog } from "./request-logger.js";
+export type { RequestLoggerOptions } from "./request-logger.js";
 export { Events } from "./events.js";
 export type { Listener } from "./events.js";
 export { Cache, MemoryStore } from "./cache.js";

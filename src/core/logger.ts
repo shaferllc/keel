@@ -18,6 +18,29 @@ export interface LoggerOptions {
   pretty?: boolean;
   /** Fields merged into every log line. */
   bindings?: Record<string, unknown>;
+  /**
+   * Field paths to redact from log output — top-level keys (`"password"`) or dot
+   * paths (`"req.headers.authorization"`). Matched values become `"[redacted]"`.
+   */
+  redact?: string[];
+}
+
+const REDACTED = "[redacted]";
+
+/** Return a copy of `obj` with `path` (dot-separated) redacted — clones only along the path. */
+function redactPath(obj: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  const [head, ...rest] = keys;
+  if (head === undefined || !(head in obj)) return obj;
+  const clone = { ...obj };
+  if (rest.length === 0) {
+    clone[head] = REDACTED;
+  } else {
+    const child = clone[head];
+    if (child && typeof child === "object") {
+      clone[head] = redactPath(child as Record<string, unknown>, rest);
+    }
+  }
+  return clone;
 }
 
 export class Logger {
@@ -30,14 +53,16 @@ export class Logger {
   private write(level: LogLevel, message: string, context?: Record<string, unknown>): void {
     if (LEVELS[level] < this.threshold) return;
     const time = new Date().toISOString();
+    let fields: Record<string, unknown> = { ...this.options.bindings, ...context };
+    for (const path of this.options.redact ?? []) {
+      fields = redactPath(fields, path.split("."));
+    }
     if (this.options.pretty) {
-      const extra = context ? " " + JSON.stringify(context) : "";
+      const extra = Object.keys(fields).length ? " " + JSON.stringify(fields) : "";
       const fn = level === "warn" ? console.warn : level === "error" ? console.error : console.log;
       fn(`[${time}] ${level.toUpperCase().padEnd(5)} ${message}${extra}`);
     } else {
-      console.log(
-        JSON.stringify({ level, time, msg: message, ...this.options.bindings, ...context }),
-      );
+      console.log(JSON.stringify({ level, time, msg: message, ...fields }));
     }
   }
 
