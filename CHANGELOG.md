@@ -4,6 +4,49 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.67.0] — 2026-07-11
+
+### Added
+
+- **Cache resilience & invalidation.** Closed the highest-value gaps against the
+  [AdonisJS cache guide](https://docs.adonisjs.com/guides/digging-deeper/cache)
+  (which is [bentocache](https://bentocache.dev)), staying inside keel's
+  single-store, edge-native model:
+  - **Stampede protection.** `remember()` / `rememberForever()` now collapse
+    concurrent misses for the same key into a **single** factory run, sharing the
+    result — a hot key expiring no longer dog-piles the upstream. Per-isolate (no
+    cross-node lock), which is where the dog-pile actually melts a server.
+  - **Grace / stale-on-error.** `remember(key, ttl, factory, { grace })` retains
+    an expired value `grace` seconds longer and serves it if the refreshing
+    factory **throws** — a flaky upstream degrades to slightly-stale data instead
+    of an error. A plain `get()` still reports the expired key as a miss, so stale
+    values never leak through the read path.
+  - **Tags & `deleteByTag`.** Tag entries via a `{ tags }` option on
+    `put`/`add`/`remember`/`rememberForever`, then invalidate a whole group with
+    `deleteByTag(["posts"])`. Uses version-stamp invalidation (a per-tag counter
+    entries record and `deleteByTag` bumps), so it's O(number of tags) with no key
+    index and works on any `CacheStore`. Tag-dropped entries are a hard miss (not
+    grace-eligible).
+  - **Namespaces.** `cache().namespace("users")` scopes keys under a `users:`
+    prefix (so namespaces can reuse logical keys) and its `flush()` clears **only**
+    that namespace via the same version-stamp mechanism. Namespaces nest and carry
+    the full API.
+  - **`add(key, value, ttl?)`** — write only if absent, returns whether it wrote.
+  - **`missing(key)`** — the inverse of `has`.
+  - **`forgetMany(keys)`** — delete several keys at once.
+  - New `RememberOptions` and `PutOptions` types.
+
+  Values are now stored in an internal envelope (value + logical expiry + tag
+  stamps) so the cache can distinguish fresh from grace-retained or
+  tag-invalidated; this is transparent through the `Cache` API and JSON-safe for
+  the Redis store. Existing `get`/`put`/`has`/`pull`/`remember` behavior is
+  unchanged, and the pluggable `CacheStore` contract is untouched. Intentionally
+  **not** matched from bentocache: multi-tier L1/L2 + bus (multi-node sync),
+  soft/hard timeouts, and the DynamoDB/database/file drivers — larger features
+  that cut against keel's single-store simplicity.
+
+[0.67.0]: https://github.com/shaferllc/keel/releases/tag/v0.67.0
+
 ## [0.66.0] — 2026-07-11
 
 ### Added

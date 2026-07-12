@@ -7,6 +7,8 @@ import {
   MemoryStore,
   singleton,
   type CacheStore,
+  type RememberOptions,
+  type PutOptions,
 } from "@shaferllc/keel/core";
 import { db } from "@shaferllc/keel/core";
 
@@ -22,17 +24,68 @@ declare const fallback: string;
 
 declare function computeExpensiveStats(): Promise<{ total: number }>;
 declare function loadConfig(): { url: string };
+declare function fetchRates(): Promise<Record<string, number>>;
+declare function runJobOnce(): Promise<void>;
+declare function warmProfile(id: number): Promise<void>;
+declare const requests: unknown[];
+declare function runExpensiveReport(): Promise<{ rows: number }>;
 
 export async function basics() {
   await cache().put("user:1", user);
   await cache().put("otp", code, 300);
+  await cache().add("otp", code, 300);
   await cache().get("user:1");
   await cache().get("missing", fallback);
   await cache().has("otp");
+  await cache().missing("otp");
   await cache().forget("otp");
+  await cache().forgetMany(["otp", "user:1"]);
   await cache().pull("otp");
   await cache().flush();
 }
+
+export async function stampedeAndGrace() {
+  await Promise.all(
+    requests.map(() => cache().remember("report", 300, runExpensiveReport)),
+  );
+
+  const rates = await cache().remember("fx.rates", 60, fetchRates, { grace: 3600 });
+  return rates;
+}
+
+export async function newMethods() {
+  if (await cache().add("job:lock", 1, 30)) {
+    await runJobOnce();
+  }
+  if (await cache().missing("profile:1")) await warmProfile(1);
+  await cache().forgetMany(["user:1", "user:1:posts", "user:1:stats"]);
+}
+
+export async function tags() {
+  await cache().put("post:1", user, 600, { tags: ["posts"] });
+  await cache().remember("feed:home", 300, computeExpensiveStats, { tags: ["posts"] });
+  await cache().put("post:2", user, 600, { tags: ["posts", "featured"] });
+  await cache().deleteByTag(["posts"]);
+}
+
+export async function namespaces() {
+  const users = cache().namespace("users");
+  const posts = cache().namespace("posts");
+  await users.put("1", user); // "users:1"
+  await posts.put("1", user); // "posts:1"
+  await users.flush(); // scoped
+  await posts.get("1");
+
+  // Nested, with the full API.
+  const team = cache().namespace("org").namespace("team");
+  await team.remember("count", 60, () => 1, { grace: 30, tags: ["team"] });
+  await team.flush();
+}
+
+// Type seams for the options bags.
+const graceOpts: RememberOptions = { grace: 3600, tags: ["posts"] };
+const putOpts: PutOptions = { tags: ["posts"] };
+export { graceOpts, putOpts };
 
 export async function remember() {
   const stats = await cache().remember("dashboard.stats", 60, async () => {
