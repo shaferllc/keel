@@ -79,12 +79,31 @@ export function clearModelHooks(cls?: object): void {
 }
 
 /**
+ * Every hook for an event that applies to `cls`, including ones registered on its
+ * ancestors — ancestors first, so a base class's hook runs before its subclass's.
+ *
+ * Inheritance is what makes a base class useful. `class Post extends TenantModel`
+ * has to fire TenantModel's `creating` hook (the one that stamps the tenant id), or
+ * the row is written with no owner and the base class is decorative.
+ */
+function hooksFor(cls: object, event: ModelEvent): ModelHook[] {
+  const chain: object[] = [];
+  for (let c: object | null = cls; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    chain.unshift(c);
+  }
+
+  const hooks: ModelHook[] = [];
+  for (const link of chain) hooks.push(...(registry.get(link)?.get(event) ?? []));
+  return hooks;
+}
+
+/**
  * Fire an event's hooks in registration order. Returns `false` only when a
  * cancelable event had a hook return `false` — the caller then skips the write.
  */
 export async function fireModelEvent(cls: object, event: ModelEvent, model: Model): Promise<boolean> {
-  const hooks = registry.get(cls)?.get(event);
-  if (!hooks?.length) return true;
+  const hooks = hooksFor(cls, event);
+  if (!hooks.length) return true;
   const cancelable = CANCELABLE.has(event);
   for (const hook of hooks) {
     const result = await hook(model);
