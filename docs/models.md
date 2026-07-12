@@ -173,6 +173,85 @@ return json(user);       // works directly — json() serializes it
 user.fill({ name: "X" }); // merge mass-assignable attributes without saving
 ```
 
+Control what `toJSON()` exposes with three statics. `hidden` strips columns;
+`visible` is an allowlist that wins over everything; `appends` adds computed
+attributes — a getter or a zero-arg method on the model:
+
+```ts
+class User extends Model {
+  static table = "users";
+  static hidden = ["password"];       // never serialized
+  static appends = ["fullName"];      // added to the output
+  get fullName() { return `${this.first} ${this.last}`; }
+}
+```
+
+## Lifecycle events
+
+A model fires events as it is retrieved, saved, and deleted. Hook onto them to
+slug a title, bust a cache, or cascade — without touching every call site. The
+`*ing` events are **cancelable**: a hook returning `false` aborts the write.
+
+```ts
+User.creating((user) => { user.uuid = crypto.randomUUID(); });
+User.saved((user) => cache().forget(`user:${user.id}`));
+User.deleting((user) => (user.isRoot ? false : undefined)); // veto
+
+// Or group them in an observer:
+User.observe({
+  creating: (u) => { u.uuid = crypto.randomUUID(); },
+  deleted:  (u) => audit(`deleted ${u.id}`),
+});
+```
+
+Events: `retrieved`, `creating`/`created`, `updating`/`updated`,
+`saving`/`saved`, `deleting`/`deleted`, `restoring`/`restored`. They're keyed by
+the exact class (subclasses don't inherit a parent's hooks).
+
+## Query scopes
+
+A **global scope** constrains every query a model builds — the base for
+multi-tenancy, published-only reads, and soft deletes:
+
+```ts
+Post.addGlobalScope("published", (q) => q.where("published", true));
+await Post.all();        // only published
+await Post.query().where("author_id", 1).get();  // still only published
+```
+
+A **local scope** is just a static method returning a query — no framework
+feature needed:
+
+```ts
+class Post extends Model {
+  static popular() { return this.query().where("views", ">", 1000); }
+}
+await Post.popular().orderBy("views", "desc").get();
+```
+
+## Soft deletes
+
+Opt in with `static softDeletes = true` and a `deleted_at` column. `delete()`
+then sets the timestamp instead of removing the row, and a global scope hides
+soft-deleted rows from every query.
+
+```ts
+class User extends Model {
+  static table = "users";
+  static softDeletes = true;
+  static casts = { deleted_at: "date" };
+}
+
+await user.delete();          // sets deleted_at; row stays in the table
+user.trashed();               // true
+await User.find(user.id);     // null — hidden by the scope
+
+await User.withTrashed().get();   // include soft-deleted
+await User.onlyTrashed().get();   // only soft-deleted
+await user.restore();             // clear deleted_at
+await user.forceDelete();         // remove the row for good
+```
+
 ## Relationships
 
 Define a relationship as a method that returns one of `hasMany` / `hasOne` /
@@ -221,6 +300,29 @@ users[0].toJSON();             // includes `posts` and `roles`
 
 Loaded relations are stored off the model, so they never leak into `save()`,
 and `toJSON()` serializes them (nested models included).
+
+### Querying relationships (`with`, `withCount`, `whereHas`)
+
+`Model.query()` returns a model-aware builder with the relationship operations a
+raw query can't express. `with()` eager-loads (dotted paths nest), `withCount()`
+adds a `<relation>_count`, and `has`/`whereHas`/`doesntHave` filter by whether a
+related row exists:
+
+```ts
+const users = await User.query()
+  .where("active", true)
+  .with("posts.comments")                       // nested eager load
+  .withCount("posts")                            // users[i].posts_count
+  .whereHas("posts", (q) => q.where("published", true))
+  .get();
+
+await User.has("posts").get();        // users with at least one post
+await User.doesntHave("posts").get(); // users with none
+```
+
+`with`/`withCount`/`whereHas`/`has`/`doesntHave` are also static shortcuts
+(`User.with(...)`, `User.whereHas(...)`). Existence filters use the same
+driver-agnostic two-query strategy as the relations themselves — no JOIN.
 
 ### Many-to-many
 

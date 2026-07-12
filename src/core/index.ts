@@ -153,6 +153,9 @@ export type {
   Paginated,
 } from "./database.js";
 export { Model } from "./model.js";
+export type { GlobalScope } from "./model.js";
+export { ModelQuery } from "./model-query.js";
+export type { ModelEvent, ModelHook, ModelObserver } from "./model-events.js";
 export type { CastType, Casts } from "./casts.js";
 export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
 export { Faker, Factory as ModelFactory, factory, Seeder, seed } from "./factory.js";

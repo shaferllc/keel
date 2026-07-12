@@ -1453,6 +1453,11 @@
       "module": "social"
     },
     {
+      "name": "GlobalScope",
+      "kind": "type",
+      "module": "model"
+    },
+    {
       "name": "google",
       "kind": "value",
       "module": "social"
@@ -1898,9 +1903,29 @@
       "module": "binding"
     },
     {
+      "name": "ModelEvent",
+      "kind": "type",
+      "module": "model-events"
+    },
+    {
       "name": "ModelFactory",
       "kind": "value",
       "module": "factory"
+    },
+    {
+      "name": "ModelHook",
+      "kind": "type",
+      "module": "model-events"
+    },
+    {
+      "name": "ModelObserver",
+      "kind": "type",
+      "module": "model-events"
+    },
+    {
+      "name": "ModelQuery",
+      "kind": "value",
+      "module": "model-query"
     },
     {
       "name": "namedLogger",

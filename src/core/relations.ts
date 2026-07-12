@@ -34,6 +34,13 @@ function unique(values: unknown[]): unknown[] {
   return [...new Set(values)];
 }
 
+/** Count how many times each value appears — the basis of `withCount`. */
+function tally(values: unknown[]): Map<unknown, number> {
+  const counts = new Map<unknown, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return counts;
+}
+
 /** Base class: a relationship is awaitable (resolves to its loaded result). */
 export abstract class Relation<TRelated extends Model, TResult> implements PromiseLike<TResult> {
   constructor(
@@ -102,6 +109,26 @@ export class HasMany<T extends Model> extends Relation<T, T[]> {
       m.setRelation(name, grouped.get((m as Row)[this.localKey]) ?? []);
     }
   }
+
+  parentColumn(): string {
+    return this.localKey;
+  }
+
+  async matchingParentKeys(constrain?: (q: QueryBuilder) => void): Promise<unknown[]> {
+    const q = db(this.related.table, this.related.connection);
+    constrain?.(q);
+    return unique((await q.pluck(this.foreignKey)).filter((v) => v != null));
+  }
+
+  async countsByParent(parentKeys: unknown[]): Promise<Map<unknown, number>> {
+    return tally(
+      parentKeys.length
+        ? await db(this.related.table, this.related.connection)
+            .whereIn(this.foreignKey, parentKeys)
+            .pluck(this.foreignKey)
+        : [],
+    );
+  }
 }
 
 /* --------------------------------- has-one --------------------------------- */
@@ -143,6 +170,26 @@ export class HasOne<T extends Model> extends Relation<T, T | null> {
       m.setRelation(name, byKey.get((m as Row)[this.localKey]) ?? null);
     }
   }
+
+  parentColumn(): string {
+    return this.localKey;
+  }
+
+  async matchingParentKeys(constrain?: (q: QueryBuilder) => void): Promise<unknown[]> {
+    const q = db(this.related.table, this.related.connection);
+    constrain?.(q);
+    return unique((await q.pluck(this.foreignKey)).filter((v) => v != null));
+  }
+
+  async countsByParent(parentKeys: unknown[]): Promise<Map<unknown, number>> {
+    return tally(
+      parentKeys.length
+        ? await db(this.related.table, this.related.connection)
+            .whereIn(this.foreignKey, parentKeys)
+            .pluck(this.foreignKey)
+        : [],
+    );
+  }
 }
 
 /* -------------------------------- belongs-to ------------------------------- */
@@ -182,6 +229,29 @@ export class BelongsTo<T extends Model> extends Relation<T, T | null> {
     for (const m of models) {
       m.setRelation(name, byKey.get((m as Row)[this.foreignKey]) ?? null);
     }
+  }
+
+  parentColumn(): string {
+    return this.foreignKey;
+  }
+
+  async matchingParentKeys(constrain?: (q: QueryBuilder) => void): Promise<unknown[]> {
+    const q = db(this.related.table, this.related.connection);
+    constrain?.(q);
+    return unique((await q.pluck(this.ownerKey)).filter((v) => v != null));
+  }
+
+  async countsByParent(parentKeys: unknown[]): Promise<Map<unknown, number>> {
+    const existing = new Set(
+      parentKeys.length
+        ? await db(this.related.table, this.related.connection)
+            .whereIn(this.ownerKey, parentKeys)
+            .pluck(this.ownerKey)
+        : [],
+    );
+    const counts = new Map<unknown, number>();
+    for (const key of parentKeys) counts.set(key, existing.has(key) ? 1 : 0);
+    return counts;
   }
 }
 
@@ -269,5 +339,30 @@ export class BelongsToMany<T extends Model> extends Relation<T, T[]> {
   async sync(ids: unknown[]): Promise<void> {
     await this.detach();
     for (const id of ids) await this.attach(id);
+  }
+
+  parentColumn(): string {
+    return this.parentKey;
+  }
+
+  async matchingParentKeys(constrain?: (q: QueryBuilder) => void): Promise<unknown[]> {
+    const rq = db(this.related.table, this.related.connection);
+    constrain?.(rq);
+    const relatedIds = unique((await rq.pluck(this.relatedKey)).filter((v) => v != null));
+    if (!relatedIds.length) return [];
+    const pivots = await db(this.pivotTable, this.related.connection)
+      .whereIn(this.relatedPivotKey, relatedIds)
+      .pluck(this.foreignPivotKey);
+    return unique(pivots.filter((v) => v != null));
+  }
+
+  async countsByParent(parentKeys: unknown[]): Promise<Map<unknown, number>> {
+    return tally(
+      parentKeys.length
+        ? await db(this.pivotTable, this.related.connection)
+            .whereIn(this.foreignPivotKey, parentKeys)
+            .pluck(this.foreignPivotKey)
+        : [],
+    );
   }
 }
