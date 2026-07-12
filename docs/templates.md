@@ -1,9 +1,8 @@
 # Templates
 
-A string templating engine in the spirit of AdonisJS **Edge** — `{{ }}`
-interpolation and `@`-prefixed tags for logic, includes, layouts, and
-components. Reach for it when you want plain-text templates instead of (or
-alongside) [JSX views](./views.md).
+A string templating engine — `{{ }}` interpolation and `@`-prefixed tags for
+logic, includes, layouts, and components. Reach for it when you want plain-text
+templates instead of (or alongside) [JSX views](./views.md).
 
 Unlike engines that compile a template to a function with `eval` /
 `new Function`, Keel **interprets** templates against a small, safe expression

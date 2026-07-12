@@ -1,7 +1,6 @@
 /**
- * A string templating engine in the spirit of AdonisJS Edge — `{{ }}`
- * interpolation and `@`-prefixed tags for logic, includes, layouts, and
- * components.
+ * A string templating engine — `{{ }}` interpolation and `@`-prefixed tags for
+ * logic, includes, layouts, and components.
  *
  *   const t = new TemplateEngine();
  *   t.register("hello", "Hello, {{ name }}!");

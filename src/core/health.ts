@@ -14,8 +14,8 @@
  *   this.use(healthCheck());                    // serves both endpoints
  *
  * Keel ships the checks that mean something wherever it runs — a database, Redis,
- * the cache. Deliberately absent are AdonisJS's disk-space and heap/RSS checks:
- * they measure a Node process, and on Workers there isn't one.
+ * the cache. Deliberately absent are disk-space and heap/RSS checks: they measure
+ * a Node process, and on Workers there isn't one.
  */
 
 import type { MiddlewareHandler } from "hono";

@@ -1,8 +1,8 @@
 /**
- * Social authentication — OAuth 2.0 "sign in with GitHub/Google/…". Like Adonis
- * Ally, this owns the OAuth dance only: it hands you a normalized `SocialUser`,
- * and *you* find-or-create your own user and log them in (with a session,
- * `jwt`, or an access `token`). It stores nothing.
+ * Social authentication — OAuth 2.0 "sign in with GitHub/Google/…". This owns the
+ * OAuth dance only: it hands you a normalized `SocialUser`, and *you*
+ * find-or-create your own user and log them in (with a session, `jwt`, or an
+ * access `token`). It stores nothing.
  *
  *   const github = social.github({ clientId, clientSecret, redirectUri });
  *

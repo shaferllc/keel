@@ -63,10 +63,10 @@ with **200** while `isHealthy` is true and **503** the moment a check fails.
 | `RedisCheck` | Reads a key — a failed read means a broken connection |
 | `CacheCheck` | Writes a key, reads it back, deletes it |
 
-Notably **absent**: AdonisJS's disk-space, heap, and RSS checks. Those measure a
-Node process, and on Workers there isn't one — a memory threshold you can't
-observe is worse than no check at all. If you're on Node and want them, `check()`
-below takes ten lines.
+Notably **absent**: disk-space, heap, and RSS checks. Those measure a Node
+process, and on Workers there isn't one — a memory threshold you can't observe is
+worse than no check at all. If you're on Node and want them, `check()` below takes
+ten lines.
 
 ## Your own checks
 

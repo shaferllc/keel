@@ -6,8 +6,7 @@
  *
  *   const stats = await cache().remember("stats", 60, () => computeStats());
  *
- * Features borrowed from bentocache (AdonisJS' cache), kept inside keel's
- * single-store, edge-safe model:
+ * The resilience features, kept inside keel's single-store, edge-safe model:
  *
  *   - Stampede protection — concurrent `remember()` calls for the same cold key
  *     run the factory ONCE and share the result, instead of dog-piling.

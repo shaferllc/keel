@@ -2,8 +2,8 @@
  * Router facade. Collects route definitions declaratively; the HTTP kernel
  * compiles them onto the underlying Hono instance at boot.
  *
- * Fluent, AdonisJS-inspired API: named routes, per-route and group middleware,
- * prefixes, param constraints, resource routes, and URL generation.
+ * A fluent API: named routes, per-route and group middleware, prefixes, param
+ * constraints, resource routes, and URL generation.
  */
 
 import type { Context as HonoContext, MiddlewareHandler } from "hono";
@@ -114,7 +114,7 @@ export class Route {
     this.def.middleware.push(...(Array.isArray(mw) ? mw : [mw]));
     return this;
   }
-  /** Alias for middleware(), matching AdonisJS. */
+  /** Alias for middleware(). */
   use(mw: MiddlewareRef | MiddlewareRef[]): this {
     return this.middleware(mw);
   }
@@ -153,7 +153,7 @@ export class RouteGroup {
     for (const r of this.routes) r.middleware.unshift(...list); // group runs first
     return this;
   }
-  /** Alias for middleware(), matching AdonisJS. */
+  /** Alias for middleware(). */
   use(mw: MiddlewareRef | MiddlewareRef[]): this {
     return this.middleware(mw);
   }
@@ -252,7 +252,7 @@ class RouteMatcher {
   redirect(to: string, status = 302): Route {
     return this.router.get(this.path, () => makeRedirect(to, status));
   }
-  /** Alias for redirect(), matching AdonisJS. */
+  /** Alias for redirect(). */
   redirectToPath(to: string, status = 302): Route {
     return this.redirect(to, status);
   }

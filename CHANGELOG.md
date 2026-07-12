@@ -35,9 +35,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   back; `extend()` throws rather than silently no-op'ing once the lock is lost.
 
 - **Internationalization** — ICU message formatting plus the `Intl` formatters
-  that go with it, closing the
-  [AdonisJS i18n guide](https://docs.adonisjs.com/guides/digging-deeper/i18n)
-  with **no dependency**: Node and Workers both ship full ICU, so plurals,
+  that go with it, with **no dependency**: Node and Workers both ship full ICU, so plurals,
   currencies, dates, and relative times are the platform's job, and Keel only adds
   the message parser on top.
   - `t(key, data)` / `i18n(locale)`, with an ICU subset covering interpolation,
@@ -57,8 +55,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - A missing key renders as the key itself (the page still works and the gap is
     visible) and fires `i18n.missing`.
 
-- **Mail: queueing, attachments, class-based mails, and a fake.** Closes the
-  [AdonisJS mail guide](https://docs.adonisjs.com/guides/digging-deeper/mail).
+- **Mail: queueing, attachments, class-based mails, and a fake.**
   - **`sendLater()`** — put the message on the queue instead of holding the request
     open for an SMTP round trip. Validated at the call site, not on the worker, so
     a malformed message throws where the stack trace means something.
@@ -72,8 +69,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     validates, so it can't paper over a message the real mailer would reject.
   - `mail.sending` / `mail.sent` / `mail.queued` events, and a default `replyTo`.
 
-- **Queues: retries, backoff, priority, and a dead-letter list.** Closes the
-  [AdonisJS queues guide](https://docs.adonisjs.com/guides/digging-deeper/queues).
+- **Queues: retries, backoff, priority, and a dead-letter list.**
   - **Retries with backoff** — `static maxRetries` and `static backoff` per job
     class (`exponentialBackoff` / `linearBackoff` / `fixedBackoff` / `noBackoff`),
     overridable per dispatch. `maxRetries` defaults to 0 — the safe default for
@@ -85,8 +81,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **`fakeQueue()` / `restoreQueue()`** with `assertPushed` / `assertNotPushed` /
     `assertPushedCount` / `assertNothingPushed` / `pushedJobs`.
 
-- **Logger: `trace` and `fatal`, sinks, and better redaction.** Closes the
-  [AdonisJS logger guide](https://docs.adonisjs.com/guides/digging-deeper/logger).
+- **Logger: `trace` and `fatal`, sinks, and better redaction.**
   - Levels are now `trace` < `debug` < `info` < `warn` < `error` < `fatal`, plus
     `log(level, …)`, `isLevelEnabled()` / `ifLevelEnabled()` (so an expensive
     context object isn't built for a line nobody will emit), and `enabled: false`.
@@ -119,10 +114,9 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Storage: signed URLs, direct uploads, and metadata.** Closed the gaps against
-  the [AdonisJS Drive guide](https://docs.adonisjs.com/guides/digging-deeper/drive),
-  keeping keel's "core imports no SDK" rule — the `Disk` seam grew *optional*
-  capabilities, so existing disks keep working untouched:
+- **Storage: signed URLs, direct uploads, and metadata.** Kept keel's "core imports
+  no SDK" rule — the `Disk` seam grew *optional* capabilities, so existing disks
+  keep working untouched:
   - **Content types.** `put()` now infers the MIME type from the path's extension
     (`.png` → `image/png`), so files stop landing in your bucket as
     `application/octet-stream` — the difference between a browser *rendering* a
@@ -150,8 +144,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     URL yourself, and an S3/R2 presigning disk recipe in the
     [storage guide](https://keeljs.com/docs/storage).
 
-- **Events: a typed registry, error isolation, and fakes.** Closed the gaps
-  against the [AdonisJS emitter guide](https://docs.adonisjs.com/guides/digging-deeper/emitter):
+- **Events: a typed registry, error isolation, and fakes.**
   - **The `EventsList` registry.** Declare an event's payload once via module
     augmentation and *both* sides are checked — the value you `emit` and the one
     your listener receives can no longer drift apart. Opt-in and incremental: an
@@ -177,8 +170,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `DatabaseCheck` / `RedisCheck` / `CacheCheck`. A check that throws becomes a
   failed result rather than taking down the report.
 
-  Deliberately **not** ported from AdonisJS: the disk-space, heap, and RSS checks.
-  They measure a Node process, and on Workers there isn't one.
+  Deliberately **absent**: disk-space, heap, and RSS checks. They measure a Node
+  process, and on Workers there isn't one.
 
 ### Changed
 
@@ -195,10 +188,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Cache resilience & invalidation.** Closed the highest-value gaps against the
-  [AdonisJS cache guide](https://docs.adonisjs.com/guides/digging-deeper/cache)
-  (which is [bentocache](https://bentocache.dev)), staying inside keel's
-  single-store, edge-native model:
+- **Cache resilience & invalidation.** Stayed inside keel's single-store,
+  edge-native model:
   - **Stampede protection.** `remember()` / `rememberForever()` now collapse
     concurrent misses for the same key into a **single** factory run, sharing the
     result — a hot key expiring no longer dog-piles the upstream. Per-isolate (no
@@ -241,7 +232,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`hash.fake()` / `hash.restore()`.** Swap real PBKDF2 for a trivial, insecure
   scheme in tests so a suite that creates many users doesn't pay the (deliberate)
   hashing cost — `make` returns `fake$<password>` and `verify` just compares.
-  Matches AdonisJS's `hash.fake()`. Never for use outside tests.
+  Never for use outside tests.
 
 [0.66.0]: https://github.com/shaferllc/keel/releases/tag/v0.66.0
 
@@ -249,9 +240,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Security middleware suite.** Filled the gaps against the
-  [AdonisJS security guides](https://docs.adonisjs.com/guides/security/hashing)
-  (hashing/encryption already existed) — all edge-native:
+- **Security middleware suite.** Hashing and encryption already existed; this adds
+  the rest — all edge-native:
   - **`cors()`** — Cross-Origin Resource Sharing with automatic preflight
     handling. `origin` as boolean / `"*"` / allowlist / predicate, plus
     `methods`, `headers`, `exposeHeaders`, `credentials` (auto-downgrades `"*"`
@@ -265,12 +255,9 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `XSRF-TOKEN` cookie for SPAs, and route exemptions. New
     [Securing SSR apps](https://keeljs.com/docs/security) guide.
 
-- **Container & provider lifecycle parity.** Filled the gaps against the AdonisJS
-  [container](https://docs.adonisjs.com/guides/concepts/dependency-injection),
-  [service provider](https://docs.adonisjs.com/guides/concepts/service-providers),
-  and [application lifecycle](https://docs.adonisjs.com/guides/concepts/application-lifecycle)
-  guides (container services already existed as the global helpers in
-  [`helpers.ts`](https://keeljs.com/docs/container)):
+- **Container & provider lifecycle.** Container services already existed as the
+  global helpers in [`helpers.ts`](https://keeljs.com/docs/container); this fills
+  in the rest:
   - **Provider `ready()` and `shutdown()` hooks.** Providers grew two optional
     lifecycle methods beyond `register()`/`boot()`: `ready()` runs once the whole
     app is up (after every provider's `boot()` and the app's `onReady` hooks), and
@@ -330,10 +317,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **A full authentication system.** Rounded out auth against the
-  [AdonisJS auth guides](https://docs.adonisjs.com/guides/auth/introduction) —
-  session and JWT already existed; this adds the rest, all edge-native (Web Crypto
-  + `fetch`, no native deps):
+- **A full authentication system.** Session and JWT already existed; this adds the
+  rest, all edge-native (Web Crypto + `fetch`, no native deps):
   - **Opaque access tokens** (`tokens.ts`) — revocable, ability-scoped, DB-backed
     bearer tokens, the stateful counterpart to `jwt`. `createToken(userId, {
     abilities, expiresIn, name })` mints a `keel_<selector>.<verifier>` token
@@ -954,7 +939,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the payload under a key (`data` by default) with top-level `meta`. Edge-safe;
   depends on nothing but the value you hand it. New generator
   `keel make:transformer`. See [docs/transformers.md](./docs/transformers.md).
-- **Templates.** A string templating engine in the spirit of AdonisJS Edge:
+- **Templates.** A string templating engine:
   `{{ }}` / `{{{ }}}` interpolation, `{{-- comments --}}`, and `@`-tags —
   `@if` / `@elseif` / `@else`, `@each` (with `$loop`), `@include` / `@includeIf`,
   `@set`, layouts (`@layout` / `@section` / `@yield`), components with slots
@@ -1309,7 +1294,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `on().redirectToRoute(name, params, { qs })`.
 - **Current route.** `request.route` (`{ name, pattern, methods }`) and
   `request.routeIs(name)`.
-- **`.use()`** middleware alias on routes and groups (matches AdonisJS).
+- **`.use()`** middleware alias on routes and groups.
 
 ### Tests
 
@@ -1321,7 +1306,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **First-class routing.** The router gained a fluent, AdonisJS-inspired API:
+- **First-class routing.** The router gained a fluent API:
   - **Named routes** + `router.url(name, params)` for URL generation.
   - **Route groups** — `router.group(cb).prefix().middleware().as()`.
   - **Resource routes** — `router.resource(name, Controller)` with

@@ -54,7 +54,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Social authentication](https://github.com/shaferllc/keel/blob/main/docs/social-auth.md): "Sign in with GitHub / Google / Discord" — OAuth 2.0, without an SDK.
 - [Static Files](https://github.com/shaferllc/keel/blob/main/docs/static-files.md): serveStatic() serves files from a directory (default public/) before your routes run.
 - [Storage](https://github.com/shaferllc/keel/blob/main/docs/storage.md): File storage over a pluggable disk — like the database and mail layers, the core imports no filesystem or SDK, so it runs on Node and the edge.
-- [Templates](https://github.com/shaferllc/keel/blob/main/docs/templates.md): A string templating engine in the spirit of AdonisJS Edge — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.
+- [Templates](https://github.com/shaferllc/keel/blob/main/docs/templates.md): A string templating engine — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.
 - [Testing](https://github.com/shaferllc/keel/blob/main/docs/testing.md): Test your app by injecting requests — no server, no port, no network — and asserting on the response.
 - [Transformers](https://github.com/shaferllc/keel/blob/main/docs/transformers.md): A model knows the database; a transformer knows the API.
 - [URL Builder](https://github.com/shaferllc/keel/blob/main/docs/url-builder.md): Generate URLs from named routes so paths live in one place.

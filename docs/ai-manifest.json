@@ -323,7 +323,7 @@
     {
       "slug": "templates",
       "title": "Templates",
-      "summary": "A string templating engine in the spirit of AdonisJS Edge — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.",
+      "summary": "A string templating engine — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.",
       "path": "docs/templates.md",
       "example": "docs/examples/templates.ts"
     },
