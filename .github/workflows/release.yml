@@ -66,3 +66,25 @@ jobs:
 
       - name: Publish
         run: npm publish --access public
+
+      # keeljs.com renders the guides out of the published package, so a release
+      # it doesn't hear about is a docs site that quietly lags the framework —
+      # which is exactly how the site sat on 0.78.2 while npm had 0.79.0.
+      #
+      # Needs a PAT with `contents: write` on shaferllc/keel-site, as
+      # SITE_DISPATCH_TOKEN: the automatic GITHUB_TOKEN cannot trigger a workflow
+      # in another repository. Without it, publishing still succeeds and the site
+      # stays a manual `npm run deploy`.
+      - name: Tell the site to deploy
+        env:
+          GH_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::No SITE_DISPATCH_TOKEN — deploy keeljs.com by hand."
+            exit 0
+          fi
+          version="$(node -p 'require("./package.json").version')"
+          gh api /repos/shaferllc/keel-site/dispatches \
+            -f event_type=keel-released \
+            -F "client_payload[version]=${version}"
+          echo "dispatched keel-released ${version}"
