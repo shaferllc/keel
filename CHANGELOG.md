@@ -4,6 +4,26 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.78.2] — 2026-07-11
+
+### Added
+
+- **Releases publish themselves.** Pushing a `v*` tag now builds, tests, and
+  publishes to npm from CI, via **trusted publishing** (OIDC) — no token to leak or
+  rotate, and npm attaches a **provenance attestation**: proof the tarball was built
+  from that commit by that workflow, rather than uploaded from a laptop.
+
+  Publishing by hand is why npm drifted so far from git — git reached v0.77.0 while
+  npm's `latest` still said 0.74.0, and the published versions were sporadic (0.12,
+  0.35, 0.58, 0.66, 0.68, 0.74). The tag is the release now.
+
+  It refuses to publish if the tag disagrees with `package.json`, or if the
+  typecheck, tests, or build fail — a tag can point at any commit, including one CI
+  never saw.
+
+  (v0.78.1 was tagged before this workflow existed, so it never reached npm; its
+  `./package.json` export fix ships here.)
+
 ## [0.78.1] — 2026-07-11
 
 ### Fixed
