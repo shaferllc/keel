@@ -1,0 +1,50 @@
+import { env } from "@shaferllc/keel/core";
+
+/**
+ * Accounts configuration — password reset, email verification, two-factor.
+ * Published with `keel vendor:publish --tag accounts-config`.
+ */
+export default {
+  // The users table. Accounts adds four columns to it and touches nothing else.
+  userTable: "users",
+
+  // The JSON endpoints (POST /auth/login, /auth/password/forgot, …).
+  // Turn them off to call the flow functions from your own controllers instead.
+  routes: { enabled: true, prefix: "auth" },
+
+  passwordReset: {
+    expiresIn: "60m",
+    // Where the emailed link points. `:token` is replaced.
+    url: "/reset-password?token=:token",
+  },
+
+  verification: {
+    expiresIn: "24h",
+    url: "/verify-email?token=:token",
+  },
+
+  twoFactor: {
+    // The name shown in the user's authenticator app.
+    issuer: env("APP_NAME", "Keel"),
+
+    // Periods of clock drift tolerated either side of now. 1 = ±30s, which is
+    // what a phone with a slightly wrong clock needs. Raising it widens the
+    // window an attacker gets to guess in.
+    window: 1,
+
+    // How long the gap between "password accepted" and "code entered" stays open.
+    // This is the window in which a stolen password alone is enough — keep it short.
+    challengeExpiresIn: "5m",
+
+    recoveryCodes: 8,
+  },
+
+  // Throttling on the credential endpoints. A six-digit code inside a 30-second
+  // window is guessable without this, and forgot-password is an email cannon
+  // pointed at whoever the caller names.
+  rateLimit: { max: 5, window: 60 },
+
+  mail: {
+    from: env("MAIL_FROM", undefined),
+  },
+};

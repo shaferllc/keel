@@ -9,6 +9,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 
 ## Docs
 
+- [Accounts](https://github.com/shaferllc/keel/blob/main/docs/accounts.md): Password reset, email verification, and two-factor authentication — the flows every app with a login needs, built on primitives already in core (hash, encryption, mail, rate-limit).
 - [Building Keel apps with AI](https://github.com/shaferllc/keel/blob/main/docs/ai.md): Keel is built to be written with an AI agent.
 - [API Resources](https://github.com/shaferllc/keel/blob/main/docs/api-resources.md): apiResource(router, Model, options) generates a full CRUD REST API from a Keel model — explicit, server-side, and composed from pieces you already have.
 - [Architecture](https://github.com/shaferllc/keel/blob/main/docs/architecture.md): Keel is small on purpose. This page maps the pieces and traces a request from socket to response. Nothing here is magic — every layer is a short, readable file in src/core/, and this guide is mostly a reading order for it.
@@ -73,6 +74,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 
 Every topic has a runnable, type-checked example:
 
+- [Accounts example](https://github.com/shaferllc/keel/blob/main/docs/examples/accounts.ts)
 - [API Resources example](https://github.com/shaferllc/keel/blob/main/docs/examples/api-resources.ts)
 - [Authentication example](https://github.com/shaferllc/keel/blob/main/docs/examples/authentication.ts)
 - [Authorization example](https://github.com/shaferllc/keel/blob/main/docs/examples/authorization.ts)

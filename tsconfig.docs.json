@@ -10,6 +10,7 @@
     "noEmit": true,
     "paths": {
       "@shaferllc/keel/core": ["dist/core/index.d.ts"],
+      "@shaferllc/keel/accounts": ["dist/accounts/index.d.ts"],
       "@shaferllc/keel/api": ["dist/api/index.d.ts"],
       "@shaferllc/keel/openapi": ["dist/openapi/index.d.ts"]
     }

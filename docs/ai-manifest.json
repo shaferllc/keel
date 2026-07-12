@@ -6,6 +6,13 @@
   "generated": "run `npm run build:ai` to regenerate",
   "docs": [
     {
+      "slug": "accounts",
+      "title": "Accounts",
+      "summary": "Password reset, email verification, and two-factor authentication — the flows every app with a login needs, built on primitives already in core (hash, encryption, mail, rate-limit).",
+      "path": "docs/accounts.md",
+      "example": "docs/examples/accounts.ts"
+    },
+    {
       "slug": "ai",
       "title": "Building Keel apps with AI",
       "summary": "Keel is built to be written with an AI agent.",
