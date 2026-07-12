@@ -90,32 +90,32 @@ from a working skeleton.
 git clone https://github.com/shaferllc/keel.git
 cd keel
 npm install
-npm run dev            # example app on http://localhost:3000
+npm test               # 740 tests
+npm run typecheck      # src + tests
 npm run build          # compile the package to dist/
+npm run verify:release # build from what's committed — what a consumer's install runs
 ```
 
-```bash
-curl localhost:3000/            # HomeController@index (JSON)
-curl localhost:3000/ping        # inline closure route
-curl localhost:3000/hello/Tom   # route parameter
-```
+This repo is **the framework, and only the framework** — there is no app in it. To
+run one, clone the [starter app](https://github.com/shaferllc/keel-app) and point it
+at your checkout (`"@shaferllc/keel": "file:../keel"`).
 
 ## The console
 
 ```bash
-npm run keel routes                 # list every registered route
-npm run keel serve --port 8080      # start the server on a chosen port
-npm run keel make:controller Post   # -> app/Controllers/PostController.ts
-npm run keel make:provider Billing  # -> app/Providers/BillingServiceProvider.ts
-npm run keel make:middleware Auth   # -> app/Http/Middleware/authMiddleware.ts
-npm run keel make:page users/[id]   # -> resources/pages/users/[id].tsx
-npm run keel make:command greet     # -> app/Commands/greet.ts
-npm run keel repl                   # a shell with the app booted
-npm run keel mcp                    # start the MCP server (docs + API for AI agents)
+keel routes                         # list every registered route
+keel serve --port 8080              # start the server on a chosen port
+keel make:controller Post           # -> app/Controllers/PostController.ts
+keel make:provider Billing          # -> app/Providers/BillingServiceProvider.ts
+keel make:middleware Auth           # -> app/Http/Middleware/authMiddleware.ts
+keel make:page users/[id]           # -> resources/pages/users/[id].tsx
+keel make:command greet             # -> app/Commands/greet.ts
+keel repl                           # a shell with the app booted
+keel mcp                            # start the MCP server (docs + API for AI agents)
 ```
 
-Under the hood the console binary is `bin/keel.ts`; the npm scripts wrap it with
-`tsx`.
+These run in **your app**, from its own `bin/keel.ts` — which is a few lines that
+hand the console your application factory (see the [console guide](./docs/console.md)).
 
 ## Built for AI ⚓🤖
 
@@ -146,7 +146,7 @@ export changes with `npm run build:ai` (also runs automatically on `npm run buil
 ## Project layout
 
 ```
-src/core/            The framework (destined to become @keel/core on npm)
+src/core/            The framework
 ├─ container.ts      Service container — bind / singleton / instance / make
 ├─ application.ts    Kernel: env + config loading + provider lifecycle
 ├─ config.ts         Dot-notation config repository + env() helper
@@ -154,26 +154,24 @@ src/core/            The framework (destined to become @keel/core on npm)
 ├─ http/
 │  ├─ router.ts      Route facade (closures or [Controller, method] tuples)
 │  └─ kernel.ts      Global middleware + compiles routes onto Hono
-├─ cli/              The `keel` console and make: stubs
-└─ index.ts          Public surface — userland imports "@keel/core"
+├─ cli/              The console: commands, generators, the kernel that runs them
+└─ index.ts          Public surface — apps import "@shaferllc/keel/core"
 
-app/                 Your application code
-├─ Controllers/      Resolved from the container (dependency injection)
-├─ Providers/        Register + wire services
-└─ Http/
-   ├─ Kernel.ts      Register global middleware here
-   └─ Middleware/
+src/db/              Database adapters (D1, Postgres, libSQL)
+src/api/             CRUD REST resources from a model
+src/openapi/         Generates an OpenAPI spec from the routes
+src/watch/           The debug dashboard
+src/mcp/             The MCP server (docs + API for AI agents)
+src/vite/            The Vite plugin
 
-bootstrap/           createApplication(): boots providers, loads routes
-├─ app.ts
-└─ providers.ts      The list of providers to load
-
-config/              config/app.ts -> config('app.*')
-routes/web.ts        Route definitions
+tests/               740 tests
+docs/                Every guide, plus type-checked examples of each
+scripts/             build-ai (llms.txt, the MCP manifest), verify-release
 ```
 
-The `app/` vs `src/core/` split mirrors the classic application-vs-library
-separation: your code in `app/`, the framework in `src/core/`.
+**There is no `app/` here.** Your application code — controllers, providers,
+routes, config — lives in *your* repo, not the framework's. The
+[starter app](https://github.com/shaferllc/keel-app) has the layout.
 
 ## The request lifecycle
 

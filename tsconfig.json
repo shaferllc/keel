@@ -23,6 +23,6 @@
     },
     "noEmit": true
   },
-  "include": ["src", "app", "bootstrap", "config", "routes", "bin"],
+  "include": ["src", "bin"],
   "exclude": ["node_modules", "dist", "src/watch/ui"]
 }

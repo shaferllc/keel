@@ -4,6 +4,24 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.78.0] — 2026-07-11
+
+### Removed
+
+- **The demo app is gone from the framework repo.** `app/`, `bootstrap/`, `config/`,
+  `routes/`, `resources/`, `database/`, `bin/keel.ts` and `vite.config.ts` were an
+  example application living inside the library. None of it shipped (the `files`
+  field is `dist`, `docs`, and the MCP bin), and after 0.76.0 inverted the CLI's
+  dependency, **nothing in the framework referenced it any more**.
+
+  This repo is now the framework, and only the framework. Application code —
+  controllers, providers, routes, config — belongs in *your* repo; the
+  [starter app](https://github.com/shaferllc/keel-app) has the layout.
+
+  The `keel` / `serve` / `dev` / `dev:client` / `build:client` npm scripts went with
+  it: they existed to run the demo. `npm test`, `npm run typecheck`, `npm run build`
+  and `npm run verify:release` are what you run here.
+
 ## [0.77.0] — 2026-07-11
 
 ### Changed
