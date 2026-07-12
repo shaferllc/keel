@@ -336,6 +336,30 @@ write the stub, confirming with:
 
 Delete the existing file first if you truly mean to regenerate it.
 
+## Your console entry point
+
+The console ships in the package, and takes your application factory:
+
+```ts
+#!/usr/bin/env tsx
+// bin/keel.ts
+import { run } from "@shaferllc/keel/cli";
+import { createApplication } from "../bootstrap/app.js";
+
+run(process.argv, { createApplication }).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+```
+
+It's handed `createApplication` rather than importing it, because a framework that
+imports an *application* has its dependency pointing the wrong way — and that one
+import is what kept the console out of the published build until now.
+
+Commands that need the app (`serve`, `routes`, `migrate`) boot it once and share it.
+Scaffolding commands (`make:*`) don't, so a boot failure isn't fatal — it's surfaced
+only when a command that actually needs the app runs.
+
 ## Writing your own commands
 
 `keel make:command greet` scaffolds `app/Commands/greet.ts`. Everything in

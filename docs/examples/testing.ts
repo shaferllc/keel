@@ -196,10 +196,11 @@ export async function databaseAssertions() {
   await assertDatabaseEmpty("sessions");
 }
 
-declare function run(argv: string[]): Promise<void>;
+declare function run(argv: string[], options: { createApplication: () => Promise<Application> }): Promise<void>;
+declare function createApplication(): Promise<Application>;
 
 export async function consoleTests(): Promise<CommandResult> {
-  const result = await runCommand(() => run(["node", "keel", "routes"]));
+  const result = await runCommand(() => run(["node", "keel", "routes"], { createApplication }));
 
   result
     .assertSucceeded()

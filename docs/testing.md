@@ -290,9 +290,10 @@ Run a command in-process — no subprocess, so it's fast and you can assert on i
 
 ```ts
 import { runCommand } from "@shaferllc/keel/core";
-import { run } from "../bin/keel"; // your app's console entry point
+import { run } from "@shaferllc/keel/cli";
+import { createApplication } from "../bootstrap/app.js";
 
-const result = await runCommand(() => run(["node", "keel", "routes"]));
+const result = await runCommand(() => run(["node", "keel", "routes"], { createApplication }));
 
 result
   .assertSucceeded() // exit code 0
@@ -300,10 +301,10 @@ result
   .assertOutputMatches(/POST\s+\/users/);
 ```
 
-You pass the command **in**, because the console entry point belongs to your app —
-it's the thing that knows how to build your application — not to the core. Anything
-that prints and sets an exit code works, so it's equally good for testing a
-function you wrote yourself.
+You pass the command **in**, because a command needs an *application*, and only your
+app knows how to build one. That's also why `run()` takes a `createApplication`
+factory rather than importing one. Anything that prints and sets an exit code works,
+so this is equally good for testing a function you wrote yourself.
 
 `console.log`/`warn` are captured as stdout and `console.error` as stderr; a
 command that *throws* is recorded as a failure rather than blowing up the test.

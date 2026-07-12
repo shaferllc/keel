@@ -7,5 +7,5 @@
     "rootDir": "src"
   },
   "include": ["src/core", "src/vite", "src/db", "src/mcp", "src/watch", "src/openapi", "src/api"],
-  "exclude": ["src/core/cli/index.ts", "src/watch/ui"]
+  "exclude": ["src/watch/ui"]
 }

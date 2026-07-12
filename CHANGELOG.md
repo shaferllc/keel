@@ -4,6 +4,33 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.0] — 2026-07-11
+
+### Added
+
+- **The console ships in the package.** `@shaferllc/keel/cli` — so an app gets
+  `serve`, `routes`, `repl`, `migrate:*`, and every `make:*` generator from the
+  dependency, rather than having to vendor them.
+
+### Changed
+
+- **`run(argv, { createApplication })` — the console is handed an application
+  factory instead of importing one.** `src/core/cli/index.ts` imported
+  `bootstrap/app.ts`: the *framework* depended on an *application*, which is the
+  dependency pointing the wrong way. It also had consequences —
+  - the file reached outside `rootDir: src`, so `tsconfig.build.json` had to
+    **exclude it from the build**;
+  - which meant the console was **not in the published package at all** (only the
+    `keel-mcp` bin was);
+  - and it's why `runCommand()` in the testing toolkit takes a callback rather than
+    an argv array — importing the CLI from `testing.ts` broke the build.
+
+  Your `bin/keel.ts` now passes its own factory. The CLI compiles, ships, and is
+  importable.
+
+  **Breaking** for anyone calling `run()` directly: it takes a second argument.
+  A one-line change in `bin/keel.ts`.
+
 ## [Unreleased]
 
 ### Added

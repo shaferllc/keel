@@ -743,9 +743,10 @@ export class CommandResult {
  * You pass the command in, because the console entry point belongs to your app
  * (it's the thing that knows how to build your application), not to the core:
  *
- *   import { run } from "@shaferllc/keel/core/cli";   // or your own bin
+ *   import { run } from "@shaferllc/keel/cli";
+ *   import { createApplication } from "../bootstrap/app.js";
  *
- *   const result = await runCommand(() => run(["node", "keel", "routes"]));
+ *   const result = await runCommand(() => run(["node", "keel", "routes"], { createApplication }));
  *   result.assertSucceeded().assertOutputContains("GET  /users");
  *
  * `console.log`/`warn` are captured as stdout, `console.error` as stderr, and

@@ -21,7 +21,6 @@ import { pathToFileURL } from "node:url";
 import { serve } from "@hono/node-server";
 import { Command } from "commander";
 
-import { createApplication } from "../../../bootstrap/app.js";
 import { ConsoleKernel, type AnyCommand } from "../console.js";
 import type { Application } from "../application.js";
 import { HttpKernel } from "../http/kernel.js";
@@ -129,7 +128,18 @@ async function publishPath(from: string, toRel: string, force: boolean): Promise
   console.log(`✓ Published ${toRel}`);
 }
 
-export async function run(argv: string[]): Promise<void> {
+/** What the console needs from your app: a way to build it. */
+export interface ConsoleOptions {
+  /**
+   * Build and boot the application. The console is handed this rather than
+   * importing it, because a framework that imports an *application* has its
+   * dependency pointing the wrong way — and that one import is what kept this
+   * file out of the published build for so long.
+   */
+  createApplication: () => Promise<Application>;
+}
+
+export async function run(argv: string[], options: ConsoleOptions): Promise<void> {
   const program = new Command();
   program.name("keel").description("Keel framework console").version("0.1.0");
 
@@ -140,7 +150,7 @@ export async function run(argv: string[]): Promise<void> {
   let app: Application | null = null;
   let bootError: unknown;
   try {
-    app = await createApplication();
+    app = await options.createApplication();
   } catch (err) {
     bootError = err;
   }
