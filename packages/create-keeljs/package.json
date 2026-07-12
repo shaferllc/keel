@@ -3,10 +3,27 @@
   "version": "0.1.0",
   "description": "Create a Keel application.",
   "type": "module",
-  "bin": { "create-keeljs": "./index.mjs" },
-  "files": ["index.mjs"],
+  "bin": {
+    "create-keeljs": "./index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
   "license": "MIT",
   "dependencies": {
-    "@shaferllc/keel": "*"
-  }
+    "@shaferllc/keel": "^0.83.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaferllc/keel.git",
+    "directory": "packages/create-keeljs"
+  },
+  "keywords": [
+    "keel",
+    "keeljs",
+    "starter",
+    "template",
+    "cloudflare",
+    "d1"
+  ]
 }
