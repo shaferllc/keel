@@ -108,6 +108,7 @@ npm run keel serve --port 8080      # start the server on a chosen port
 npm run keel make:controller Post   # -> app/Controllers/PostController.ts
 npm run keel make:provider Billing  # -> app/Providers/BillingServiceProvider.ts
 npm run keel make:middleware Auth   # -> app/Http/Middleware/authMiddleware.ts
+npm run keel make:page users/[id]   # -> resources/pages/users/[id].tsx
 npm run keel mcp                    # start the MCP server (docs + API for AI agents)
 ```
 
@@ -223,6 +224,9 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Health Checks](./docs/health.md) | `/health/live` + `/health/ready`, pluggable checks |
 | [Telemetry](./docs/telemetry.md) | Tracing, W3C context, OTLP export — no SDK |
 | [Internationalization](./docs/i18n.md) | ICU messages, `Intl` formatters, locale detection |
+| [Pages](./docs/pages.md) | Page-based routing — a file is a route |
+| [Packages](./docs/packages.md) | Redistributable slices of an app: routes, migrations, commands |
+| [Watch](./docs/watch.md) | Debug dashboard — requests, queries, jobs, logs at `/watch` |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Templates](./docs/templates.md) | `{{ }}` + `@`-tag templating engine, edge-safe |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |

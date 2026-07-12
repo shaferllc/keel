@@ -10,6 +10,8 @@
  *   await db("users").insert({ email });
  */
 
+import { instrument, currentRequestId } from "./instrumentation.js";
+
 export type Row = Record<string, unknown>;
 
 export interface WriteResult {
@@ -39,10 +41,50 @@ export type Operator = "=" | "!=" | "<" | "<=" | ">" | ">=" | "like";
 
 /* ----------------------------- connections ---------------------------- */
 
-/** A registered connection — the driver bridge plus its SQL dialect. */
+/** A registered connection — the driver bridge, its name, and its SQL dialect. */
 interface Source {
+  name: string;
   conn: Connection;
   dialect: Dialect;
+}
+
+/**
+ * Run a row-returning query on a source and report it to the instrumentation
+ * stream (`db.query`) once it settles. Emitting here — the one place every
+ * builder and raw handle funnels through — means a package can watch every query
+ * without the query layer knowing anything about it.
+ */
+async function selectOn(source: Source, sql: string, bindings: unknown[]): Promise<Row[]> {
+  const start = Date.now();
+  const rows = await source.conn.select(placeholders(sql, source.dialect), bindings);
+  reportQuery("select", sql, bindings, source, start);
+  return rows;
+}
+
+/** Run a write on a source and report it to the instrumentation stream. */
+async function writeOn(source: Source, sql: string, bindings: unknown[]): Promise<WriteResult> {
+  const start = Date.now();
+  const result = await source.conn.write(placeholders(sql, source.dialect), bindings);
+  reportQuery("write", sql, bindings, source, start);
+  return result;
+}
+
+function reportQuery(
+  kind: "select" | "write",
+  sql: string,
+  bindings: unknown[],
+  source: Source,
+  start: number,
+): void {
+  const requestId = currentRequestId();
+  instrument("db.query", {
+    sql,
+    bindings,
+    durationMs: Date.now() - start,
+    connection: source.name,
+    kind,
+    ...(requestId ? { requestId } : {}),
+  });
 }
 
 /**
@@ -57,7 +99,7 @@ let defaultConnection = "default";
 
 /** Register the default connection (and dialect) used by `db()`. */
 export function setConnection(conn: Connection, driverDialect: Dialect = "sqlite"): void {
-  registry.set("default", { conn, dialect: driverDialect });
+  registry.set("default", { name: "default", conn, dialect: driverDialect });
   defaultConnection = "default";
 }
 
@@ -69,7 +111,7 @@ export function setConnection(conn: Connection, driverDialect: Dialect = "sqlite
  *   await db("events", "reporting").where("kind", "signup").count();
  */
 export function addConnection(name: string, conn: Connection, driverDialect: Dialect = "sqlite"): void {
-  registry.set(name, { conn, dialect: driverDialect });
+  registry.set(name, { name, conn, dialect: driverDialect });
 }
 
 /** Choose which registered connection `db()` and models use when none is named. */
@@ -128,13 +170,11 @@ export class QueryBuilder<T extends Row = Row> {
 
   /** Run a row-returning query on this builder's connection, dialect-adjusted. */
   private runSelect(sql: string, bindings: unknown[]): Promise<Row[]> {
-    const source = this.getSource();
-    return source.conn.select(placeholders(sql, source.dialect), bindings);
+    return selectOn(this.getSource(), sql, bindings);
   }
   /** Run a write on this builder's connection, dialect-adjusted. */
   private runWrite(sql: string, bindings: unknown[]): Promise<WriteResult> {
-    const source = this.getSource();
-    return source.conn.write(placeholders(sql, source.dialect), bindings);
+    return writeOn(this.getSource(), sql, bindings);
   }
 
   select(...columns: string[]): this {
@@ -359,8 +399,18 @@ export function connection(name?: string): ConnectionHandle {
   const source = resolve(name);
   return {
     table: <T extends Row = Row>(t: string) => new QueryBuilder<T>(t, () => source),
-    select: (sql, bindings = []) => source.conn.select(placeholders(sql, source.dialect), bindings),
-    write: (sql, bindings = []) => source.conn.write(placeholders(sql, source.dialect), bindings),
+    select: (sql, bindings = []) => selectOn(source, sql, bindings),
+    write: (sql, bindings = []) => writeOn(source, sql, bindings),
     dialect: source.dialect,
   };
+}
+
+/**
+ * The raw driver bridge and dialect for a connection (or the default) — what the
+ * `Migrator` needs. Unlike `connection()`, this hands back the unadjusted
+ * `Connection` so the migrator can apply its own placeholder conversion.
+ */
+export function getConnection(name?: string): { connection: Connection; dialect: Dialect; name: string } {
+  const source = resolve(name);
+  return { connection: source.conn, dialect: source.dialect, name: source.name };
 }

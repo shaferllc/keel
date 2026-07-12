@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.70.0",
+  "version": "0.71.0",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -48,6 +48,10 @@
     "./mcp": {
       "types": "./dist/mcp/server.d.ts",
       "import": "./dist/mcp/server.js"
+    },
+    "./watch": {
+      "types": "./dist/watch/index.d.ts",
+      "import": "./dist/watch/index.js"
     }
   },
   "bin": {
@@ -74,7 +78,9 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-exclude='tests/**' tests/*.test.ts",
     "build:ai": "tsx scripts/build-ai.ts",
-    "build": "npm run build:ai && rm -rf dist && tsc -p tsconfig.build.json",
+    "build:watch-ui": "vite build --config src/watch/ui/vite.config.ts",
+    "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/",
+    "build": "npm run build:ai && npm run build:watch-ui && rm -rf dist && tsc -p tsconfig.build.json && npm run build:watch-copy",
     "dev:client": "vite",
     "build:client": "vite build",
     "prepare": "npm run build"
@@ -95,8 +101,10 @@
   },
   "devDependencies": {
     "@hono/node-server": "^1.13.7",
+    "@libsql/client": "^0.17.4",
     "@types/node": "^26.1.1",
     "commander": "^12.1.0",
+    "preact": "^10.29.7",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.4.3"

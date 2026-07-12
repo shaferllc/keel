@@ -1,0 +1,47 @@
+import { env } from "@shaferllc/keel/core";
+
+/**
+ * Keel Watch — debug dashboard configuration.
+ * Published with `keel vendor:publish --tag watch-config`.
+ */
+export default {
+  // Master switch. Keep it off in production unless the gate is locked down.
+  enabled: env("WATCH_ENABLED", true),
+
+  // Where the dashboard mounts: http://localhost:3000/watch
+  path: "watch",
+
+  // "database" persists entries (run `keel migrate`); "memory" is a per-process ring.
+  storage: env("WATCH_STORAGE", "database"),
+  connection: undefined, // default connection
+  table: "watch_entries",
+
+  // Default API page size, and the memory ring is 10× this.
+  limit: 100,
+
+  // Record this fraction of eligible entries (0–1). Lower it on a busy app.
+  sampling: 1,
+
+  // Queries at or above this many ms are tagged "slow".
+  slowQueryMs: 100,
+
+  // Request paths to never record (the dashboard's own are always skipped).
+  ignorePaths: [],
+
+  // `keel watch:prune` deletes entries older than this.
+  retentionHours: 24,
+
+  // Per-type switches. The noisy ones (cache, event) are off by default.
+  watchers: {
+    request: true,
+    query: true,
+    exception: true,
+    log: true,
+    mail: true,
+    job: true,
+    notification: true,
+    cache: false,
+    event: false,
+    schedule: true,
+  },
+};

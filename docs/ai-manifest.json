@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.70.0",
+  "version": "0.71.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -237,6 +237,20 @@
       "example": "docs/examples/notification.ts"
     },
     {
+      "slug": "packages",
+      "title": "Packages",
+      "summary": "A package is a redistributable slice of a Keel app — routes, a UI, config, migrations, console commands — that installs with a single app.register(...).",
+      "path": "docs/packages.md",
+      "example": null
+    },
+    {
+      "slug": "pages",
+      "title": "Pages",
+      "summary": "Page-based routing — a file is a route.",
+      "path": "docs/pages.md",
+      "example": "docs/examples/pages.ts"
+    },
+    {
       "slug": "providers",
       "title": "Service Providers",
       "summary": "Service providers are the central place to configure your application.",
@@ -375,6 +389,13 @@
       "summary": "Wire a modern frontend build — bundling, hashed filenames, hot module reload — to Keel's server-rendered HTML, the way modern full-stack frameworks do.",
       "path": "docs/vite.md",
       "example": "docs/examples/vite.ts"
+    },
+    {
+      "slug": "watch",
+      "title": "Watch",
+      "summary": "Keel Watch is a debug dashboard — a Telescope for Keel.",
+      "path": "docs/watch.md",
+      "example": null
     }
   ],
   "api": [
@@ -649,6 +670,11 @@
       "module": "health"
     },
     {
+      "name": "CacheEvent",
+      "kind": "type",
+      "module": "instrumentation"
+    },
+    {
       "name": "CacheStore",
       "kind": "type",
       "module": "cache"
@@ -732,6 +758,11 @@
       "name": "Column",
       "kind": "value",
       "module": "migrations"
+    },
+    {
+      "name": "CommandRegistry",
+      "kind": "value",
+      "module": "package"
     },
     {
       "name": "CommandResult",
@@ -879,6 +910,11 @@
       "module": "http/router"
     },
     {
+      "name": "currentRequestId",
+      "kind": "value",
+      "module": "instrumentation"
+    },
+    {
       "name": "currentSpan",
       "kind": "value",
       "module": "telemetry"
@@ -917,6 +953,11 @@
       "name": "define",
       "kind": "value",
       "module": "authorization"
+    },
+    {
+      "name": "definePages",
+      "kind": "value",
+      "module": "pages"
     },
     {
       "name": "Definition",
@@ -1054,6 +1095,11 @@
       "module": "broker"
     },
     {
+      "name": "ExceptionEvent",
+      "kind": "type",
+      "module": "instrumentation"
+    },
+    {
       "name": "exponentialBackoff",
       "kind": "value",
       "module": "queue"
@@ -1177,6 +1223,11 @@
       "name": "getBroadcaster",
       "kind": "value",
       "module": "broadcasting"
+    },
+    {
+      "name": "getConnection",
+      "kind": "value",
+      "module": "database"
     },
     {
       "name": "getI18n",
@@ -1344,6 +1395,16 @@
       "module": "helpers"
     },
     {
+      "name": "instrument",
+      "kind": "value",
+      "module": "instrumentation"
+    },
+    {
+      "name": "InstrumentEvent",
+      "kind": "type",
+      "module": "instrumentation"
+    },
+    {
       "name": "IssuedToken",
       "kind": "type",
       "module": "tokens"
@@ -1362,6 +1423,11 @@
       "name": "JobContext",
       "kind": "type",
       "module": "queue"
+    },
+    {
+      "name": "JobEvent",
+      "kind": "type",
+      "module": "instrumentation"
     },
     {
       "name": "JobOptions",
@@ -1609,6 +1675,11 @@
       "module": "migrations"
     },
     {
+      "name": "MigrationRegistry",
+      "kind": "value",
+      "module": "package"
+    },
+    {
       "name": "Migrator",
       "kind": "value",
       "module": "migrations"
@@ -1634,6 +1705,11 @@
       "module": "i18n"
     },
     {
+      "name": "newRequestId",
+      "kind": "value",
+      "module": "instrumentation"
+    },
+    {
       "name": "noBackoff",
       "kind": "value",
       "module": "queue"
@@ -1657,6 +1733,11 @@
       "name": "Notification",
       "kind": "value",
       "module": "notification"
+    },
+    {
+      "name": "NotificationEvent",
+      "kind": "type",
+      "module": "instrumentation"
     },
     {
       "name": "Notifier",
@@ -1764,6 +1845,56 @@
       "module": "telemetry"
     },
     {
+      "name": "PackageAssetOptions",
+      "kind": "type",
+      "module": "package"
+    },
+    {
+      "name": "PackageCommand",
+      "kind": "type",
+      "module": "package"
+    },
+    {
+      "name": "PackageMiddleware",
+      "kind": "type",
+      "module": "package"
+    },
+    {
+      "name": "PackageProvider",
+      "kind": "value",
+      "module": "package"
+    },
+    {
+      "name": "PackageRouteOptions",
+      "kind": "type",
+      "module": "package"
+    },
+    {
+      "name": "PageMiddleware",
+      "kind": "type",
+      "module": "pages"
+    },
+    {
+      "name": "PageModule",
+      "kind": "type",
+      "module": "pages"
+    },
+    {
+      "name": "PageProps",
+      "kind": "type",
+      "module": "pages"
+    },
+    {
+      "name": "pages",
+      "kind": "value",
+      "module": "pages"
+    },
+    {
+      "name": "PagesOptions",
+      "kind": "type",
+      "module": "pages"
+    },
+    {
       "name": "Paginated",
       "kind": "type",
       "module": "database"
@@ -1809,6 +1940,16 @@
       "module": "social"
     },
     {
+      "name": "PublishEntry",
+      "kind": "type",
+      "module": "package"
+    },
+    {
+      "name": "PublishRegistry",
+      "kind": "value",
+      "module": "package"
+    },
+    {
       "name": "PutOptions",
       "kind": "type",
       "module": "cache"
@@ -1822,6 +1963,11 @@
       "name": "QueryBuilder",
       "kind": "value",
       "module": "database"
+    },
+    {
+      "name": "QueryEvent",
+      "kind": "type",
+      "module": "instrumentation"
     },
     {
       "name": "Queue",
@@ -1899,6 +2045,11 @@
       "module": "redis"
     },
     {
+      "name": "RegisteredPage",
+      "kind": "type",
+      "module": "pages"
+    },
+    {
       "name": "Relation",
       "kind": "value",
       "module": "relations"
@@ -1927,6 +2078,11 @@
       "name": "request",
       "kind": "value",
       "module": "request"
+    },
+    {
+      "name": "RequestEvent",
+      "kind": "type",
+      "module": "instrumentation"
     },
     {
       "name": "requestLog",
@@ -2049,6 +2205,16 @@
       "module": "http/router"
     },
     {
+      "name": "routeName",
+      "kind": "value",
+      "module": "pages"
+    },
+    {
+      "name": "routePattern",
+      "kind": "value",
+      "module": "pages"
+    },
+    {
       "name": "Router",
       "kind": "value",
       "module": "http/router"
@@ -2069,6 +2235,11 @@
       "module": "testing"
     },
     {
+      "name": "runRequest",
+      "kind": "value",
+      "module": "instrumentation"
+    },
+    {
       "name": "schedule",
       "kind": "value",
       "module": "scheduler"
@@ -2077,6 +2248,11 @@
       "name": "ScheduledTask",
       "kind": "value",
       "module": "scheduler"
+    },
+    {
+      "name": "ScheduleEvent",
+      "kind": "type",
+      "module": "instrumentation"
     },
     {
       "name": "scheduler",
@@ -2462,6 +2638,11 @@
       "name": "TableBuilder",
       "kind": "value",
       "module": "migrations"
+    },
+    {
+      "name": "tapLogs",
+      "kind": "value",
+      "module": "logger"
     },
     {
       "name": "telemetry",

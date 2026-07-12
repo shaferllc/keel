@@ -109,6 +109,46 @@ export class ${name} extends Notification {
 `;
 }
 
+/**
+ * A package skeleton: a `PackageProvider` wired for the common jobs — merging
+ * config, contributing a migration, mounting routes + assets, and declaring a
+ * publishable config stub. `name` is the short package name (e.g. "billing").
+ */
+export function packageProviderStub(name: string): string {
+  const cls = name.charAt(0).toUpperCase() + name.slice(1);
+  return `import { PackageProvider, type Router } from "@shaferllc/keel/core";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The ${cls} package. Registered like any provider:
+ *   app.register(${cls}ServiceProvider)
+ */
+export class ${cls}ServiceProvider extends PackageProvider {
+  readonly name = "${name}";
+
+  register(): void {
+    this.mergeConfig("${name}", {
+      enabled: true,
+      path: "${name}",
+    });
+    // this.migrations([${name}Migration]);
+    this.publishes({ [join(here, "config.stub")]: "config/${name}.ts" }, "${name}-config");
+  }
+
+  boot(): void {
+    if (this.app.config().get("${name}.enabled") === false) return;
+    // Serve a bundled UI (after \`vite build\`): this.assets("${name}/assets", join(here, "ui"), { immutable: true });
+    this.routes((r: Router) => {
+      r.get("/", (c) => c.json({ package: "${name}", ok: true }));
+    }, { prefix: this.app.config().get("${name}.path", "${name}"), as: "${name}" });
+  }
+}
+`;
+}
+
 /** `name` is the class (e.g. "UserTransformer"); `model` is the value it maps. */
 export function transformerStub(name: string, model: string): string {
   return `import { Transformer, type Attributes } from "@shaferllc/keel/core";
@@ -124,6 +164,46 @@ export class ${name} extends Transformer</* ${model} */ any> {
       // posts: this.whenLoaded(item, "posts", new PostTransformer()),
     };
   }
+}
+`;
+}
+
+/**
+ * A page — `resources/pages/<path>.tsx`. The file's location *is* its URL, so the
+ * stub is deliberately bare: a component, and a loader only when the path takes a
+ * parameter to load anything by.
+ */
+export function pageStub(file: string): string {
+  const params = [...file.matchAll(/\[(?:\.\.\.)?([^\]]+)\]/g)].map((m) => m[1]!);
+  const propsType = params.length
+    ? `{ ${params.map((p) => `${p}: string`).join("; ")} }`
+    : "Record<string, never>";
+
+  const loader = params.length
+    ? `
+export const loader = async (c: Ctx) => {
+  // Load whatever this page needs; it arrives as \`data\`.
+  return { ${params.map((p) => `${p}: c.req.param("${p}")`).join(", ")} };
+};
+`
+    : "";
+
+  const dataType = params.length ? propsType : "undefined";
+  // Only import Ctx when there's a loader to use it — an unused import would
+  // fail the very typecheck the generated file is supposed to pass.
+  const imports = params.length ? "Ctx, PageProps" : "PageProps";
+
+  return `import type { ${imports} } from "@shaferllc/keel/core";
+${loader}
+export default function Page({ params, data }: PageProps<${propsType}, ${dataType}>) {
+  void params;
+  void data;
+
+  return (
+    <main>
+      <h1>${file}</h1>
+    </main>
+  );
 }
 `;
 }

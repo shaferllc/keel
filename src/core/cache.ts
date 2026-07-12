@@ -23,6 +23,8 @@
  * `CacheStore`.
  */
 
+import { instrument, currentRequestId } from "./instrumentation.js";
+
 export interface CacheStore {
   get(key: string): Promise<unknown> | unknown;
   set(key: string, value: unknown, ttlMs?: number): Promise<void> | void;
@@ -163,6 +165,13 @@ export class Cache {
 
   async get<T = unknown>(key: string, fallback?: T): Promise<T> {
     const entry = await this.entry(key);
+    const hit = !!entry && !(entry.e && entry.e < Date.now());
+    const requestId = currentRequestId();
+    instrument(hit ? "cache.hit" : "cache.miss", {
+      key,
+      store: this.store.constructor.name,
+      ...(requestId ? { requestId } : {}),
+    });
     if (!entry) return fallback as T;
     if (entry.e && entry.e < Date.now()) return fallback as T; // expired (grace-retained)
     return entry.v as T;

@@ -10,3 +10,6 @@ public/assets/
 # Local environment — copy .env.example to .env
 .env
 !.env.example
+
+# Example-app demo database
+database/*.sqlite

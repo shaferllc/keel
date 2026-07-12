@@ -89,6 +89,7 @@ right imports and target path. Then wire it up.
 | Job | `keel make:job SendWelcome` | `dispatch(new SendWelcomeJob())` |
 | Notification | `keel make:notification Paid` | `notify(user, new PaidNotification())` |
 | Transformer | `keel make:transformer User` | return it from a controller |
+| Package | `keel make:package billing` | a `PackageProvider` — see [`docs/packages.md`](./docs/packages.md) |
 
 **Scaffolding does not write files** via MCP — it returns code + path; you write
 it. The console (`keel make:*`) does write, and refuses to overwrite.
@@ -112,6 +113,7 @@ router.get("/posts", [PostController, "index"]).name("posts.index");
 npm run dev            # example app on http://localhost:3000 (tsx watch)
 npm run serve          # keel serve
 npm run keel -- routes # list registered routes
+npm run keel -- migrate # run pending app + package migrations (also migrate:status, migrate:rollback)
 npm run keel -- make:controller Foo
 npm run mcp            # start the MCP server over stdio (dev)
 npm test               # node --test over tests/*.test.ts

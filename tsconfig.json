@@ -16,9 +16,11 @@
     "baseUrl": ".",
     "paths": {
       "@keel/core": ["src/core/index.ts"],
+      "@keel/watch": ["src/watch/index.ts"],
       "@keel/*": ["src/core/*"]
     },
     "noEmit": true
   },
-  "include": ["src", "app", "bootstrap", "config", "routes", "bin"]
+  "include": ["src", "app", "bootstrap", "config", "routes", "bin"],
+  "exclude": ["node_modules", "dist", "src/watch/ui"]
 }

@@ -13611,6 +13611,355 @@ const slack: Channel = {
 
 ---
 
+<!-- source: docs/packages.md -->
+
+# Packages
+
+A **package** is a redistributable slice of a Keel app — routes, a UI, config,
+migrations, console commands — that installs with a single `app.register(...)`.
+Keel's `ServiceProvider` is already the unit of composition; `PackageProvider`
+adds the conventions a *shippable* package needs so it can carry its own schema
+and assets instead of asking the app to wire them by hand.
+
+[Keel Watch](./watch.md) — the debug dashboard — is a first-party package and the
+reference implementation of everything below.
+
+## The shape of a package
+
+```ts
+import { PackageProvider, type Router } from "@shaferllc/keel/core";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+export class BillingServiceProvider extends PackageProvider {
+  readonly name = "billing"; // used for publish grouping and diagnostics
+
+  register(): void {
+    this.mergeConfig("billing", { enabled: true, path: "billing" });
+    this.migrations([createInvoicesTable]);
+    this.publishes({ [join(here, "config.stub")]: "config/billing.ts" }, "billing-config");
+    this.commands([syncInvoicesCommand]);
+  }
+
+  boot(): void {
+    this.assets("billing/assets", join(here, "ui/dist"), { maxAge: 3600 });
+    this.routes((r: Router) => registerBillingRoutes(r), { prefix: "billing", as: "billing" });
+  }
+}
+```
+
+Scaffold that skeleton with `keel make:package billing`.
+
+## The helpers
+
+Each is a thin wrapper over an existing Keel primitive — the value is the
+convention, not new machinery.
+
+| Helper | What it does |
+|--------|--------------|
+| `mergeConfig(key, defaults)` | Set config defaults under `key`. The app's `config/<key>.ts` deep-merges **over** them, so the app always wins. |
+| `routes(register, { prefix, middleware, as })` | Register a route group (the callback gets the `Router`), already prefixed/guarded/name-prefixed. |
+| `assets(urlPrefix, dir, { maxAge, immutable })` | Serve a directory of built files (a bundled UI) under a URL prefix. Node-only. |
+| `migrations(list)` | Contribute migrations, run by `keel migrate` alongside the app's own. |
+| `commands(list)` | Add `keel` console commands (e.g. `billing:sync`). |
+| `publishes(map, tag?)` | Declare files a consuming app can copy in with `keel vendor:publish`. |
+
+## Lifecycle: mind the kernel
+
+`register()` and `boot()` run **before** the app's HTTP kernel is bound (see
+`bootstrap/app.ts`). So a package must not reach for `HttpKernel`. That's why
+`routes()` and `assets()` go through the `Router` (bound in the Application
+constructor) — routes are compiled onto the kernel later, at build time. Use
+`register()` for config/bindings and `boot()` for wiring; both are safe for the
+helpers above.
+
+## Migrations
+
+Package migrations join the app's under one command:
+
+```bash
+keel migrate           # run pending (app + package) migrations
+keel migrate:status    # show which have run
+keel migrate:rollback  # roll back the last batch
+```
+
+App migrations are discovered from `database/migrations/*.ts` (each file
+default-exports a `Migration` or `Migration[]`); package migrations come from
+`this.migrations(...)`. Both run against the default connection.
+
+## Publishing files
+
+`publishes()` declares source→destination copies; `keel vendor:publish` performs
+them (skipping files that already exist unless `--force`):
+
+```bash
+keel vendor:publish                     # everything
+keel vendor:publish --tag billing-config # just one tagged group
+```
+
+This is how a package ships an overridable config stub, or copies a starter view
+into the consuming app.
+
+## Observing the framework
+
+A package often wants to *see* what the app is doing — every query, request, or
+job — without patching anything. The framework emits a typed **instrumentation
+event stream** for exactly this; subscribe with `listen()`:
+
+```ts
+import { listen, type QueryEvent } from "@shaferllc/keel/core";
+
+listen<QueryEvent>("db.query", (e) => metrics.timing("db", e.durationMs));
+```
+
+| Event | Fired when |
+|-------|-----------|
+| `db.query` | a query runs (sql, bindings, durationMs, connection, kind) |
+| `request.handled` | a request finishes (method, path, status, durationMs, headers) |
+| `exception` | an error reaches the HTTP kernel |
+| `job.processing` / `job.processed` / `job.failed` | a queued job's lifecycle |
+| `cache.hit` / `cache.miss` | a cache lookup |
+| `notification.sent` | a notification is delivered |
+| `schedule.task.run` | a scheduled task runs |
+| `mail.sending` / `mail.sent` | mail lifecycle |
+
+Every request opens a scope with a **request id** that flows through async work,
+so anything emitted inside a request can attribute itself to it via
+`currentRequestId()` — that's what lets [Watch](./watch.md) tie a request to the
+queries and logs it produced. Emitting is fire-and-forget: a broken listener can
+never break the work it observes.
+```
+
+
+
+---
+
+<!-- source: docs/pages.md -->
+
+# Pages
+
+Page-based routing — **a file is a route**.
+
+```
+resources/pages/index.tsx           →  /
+resources/pages/about.tsx           →  /about
+resources/pages/users/index.tsx     →  /users
+resources/pages/users/[id].tsx      →  /users/:id
+resources/pages/docs/[...slug].tsx  →  /docs/*   (catch-all)
+```
+
+```tsx
+// resources/pages/users/[id].tsx
+import { db, type Ctx, type PageProps } from "@shaferllc/keel/core";
+
+export const loader = (c: Ctx) => db("users").where("id", c.req.param("id")).first();
+
+export default function UserPage({ params, data }: PageProps<{ id: string }, User>) {
+  return (
+    <Layout>
+      <h1>{data.name}</h1>
+      <p>User #{params.id}</p>
+    </Layout>
+  );
+}
+```
+
+That's the whole page. No route file to keep in sync, no controller, no wiring.
+
+## It doesn't replace the router — it drives it
+
+Every page becomes an **ordinary named route**. `url()` finds it, route middleware
+applies to it, and `keel routes` lists it. You can mix pages and hand-written
+routes freely, and reach for a controller the moment a page outgrows a file.
+
+That matters, because file-based routing is a lovely default and a bad prison.
+Here it's a *convenience over* the router, not a replacement for it.
+
+## Registering them
+
+In a service provider's `boot()`:
+
+```ts
+import { pages } from "@shaferllc/keel/core";
+
+export class PageServiceProvider extends ServiceProvider {
+  async boot(): Promise<void> {
+    await pages(); // scans resources/pages
+  }
+}
+```
+
+`pages()` reads the filesystem, so it's **Node-only**. On the edge, hand
+`definePages()` a build-time manifest instead — Vite's `import.meta.glob` produces
+exactly the map it wants:
+
+```ts
+definePages(import.meta.glob("./pages/**/*.tsx", { eager: true }));
+```
+
+Same behavior, no filesystem.
+
+## The file conventions
+
+| File | URL |
+|------|-----|
+| `index.tsx` | `/` |
+| `about.tsx` | `/about` |
+| `users/index.tsx` | `/users` |
+| `users/[id].tsx` | `/users/:id` |
+| `users/[id]/edit.tsx` | `/users/:id/edit` |
+| `teams/[team]/users/[id].tsx` | `/teams/:team/users/:id` |
+| `docs/[...slug].tsx` | `/docs/*` — a catch-all; `params.slug` is the whole rest |
+| `_layout.tsx` | **not a route** — a leading `_` keeps a file private |
+
+A trailing `index` names its directory rather than a child of it. A leading
+underscore is how layouts, partials, and helpers live *beside* your pages without
+becoming URLs.
+
+## Specificity is decided for you
+
+This is the part file-based routing usually gets wrong:
+
+```
+users/[id].tsx      →  /users/:id
+users/new.tsx       →  /users/new
+```
+
+Register `:id` first and `/users/new` is **unreachable forever** — `:id` happily
+matches `"new"`. Whether your app works would come down to the order the
+filesystem happened to hand back.
+
+So pages are **sorted before they're registered**: literal segments beat
+parameters, parameters beat catch-alls, and a catch-all is always the last resort.
+`/users/new` wins, and the file layout stops being a trap.
+
+## Loading data
+
+`loader` runs before the page renders; whatever it returns arrives as `data`.
+
+```tsx
+export const loader = async (c: Ctx) => {
+  const post = await db("posts").where("slug", c.req.param("slug")).first();
+  if (!post) throw new NotFoundException();
+  return post;
+};
+
+export default function PostPage({ data }: PageProps<{ slug: string }, Post>) {
+  return <article>{data.body}</article>;
+}
+```
+
+It takes the request context, so it can read params, query, headers, or the
+session. A page with no `loader` simply gets `data: undefined`.
+
+## Middleware
+
+Per page:
+
+```tsx
+export const middleware = [authGuard()];
+```
+
+Or for every page at once:
+
+```ts
+await pages({ middleware: [authGuard()] });
+```
+
+Both run before the `loader`, so a page that's refused never loads its data.
+
+## Names and URLs
+
+Each page gets a route name derived from its path — `users/[id].tsx` becomes
+`users.id` — so URL generation works without you naming anything:
+
+```ts
+router.url("users.id", { id: 5 }); // "/users/5"
+```
+
+Override it when the derived name is ugly:
+
+```tsx
+export const name = "users.show";
+```
+
+## Escape hatches
+
+Move a page's URL without moving the file:
+
+```tsx
+export const path = "/pricing"; // even though the file is at marketing/plans.tsx
+```
+
+Mount every page under a prefix:
+
+```ts
+await pages({ prefix: "/app" }); // index.tsx is now /app
+await pages({ dir: "app/pages" }); // ...or keep them somewhere else
+```
+
+---
+
+## API reference
+
+### `pages(options?)`
+
+`pages(options?: PagesOptions): Promise<RegisteredPage[]>`
+
+Scan a directory and register every page in it. **Node only** — it reads the
+filesystem (`node:fs` is imported dynamically, so the core still loads on the
+edge).
+
+### `definePages(modules, options?)`
+
+`definePages(modules: Record<string, PageModule>, options?: PagesOptions): RegisteredPage[]`
+
+Register pages from a `file path → module` map. The edge-safe half — pair it with
+`import.meta.glob`.
+
+### `PagesOptions`
+
+| Option | Meaning |
+|--------|---------|
+| `dir` | Where the pages live. Default `"resources/pages"` |
+| `prefix` | Prefix every page's URL |
+| `middleware` | Middleware applied to every page |
+| `router` | The router to register on. Defaults to the application's |
+
+### `PageModule`
+
+What a page file exports.
+
+| Export | Meaning |
+|--------|---------|
+| `default` | **Required.** The component. May be async |
+| `loader` | `(ctx) => data` — runs before the page renders |
+| `middleware` | Middleware for this page alone |
+| `name` | The route name. Defaults to one derived from the path |
+| `path` | Override the URL entirely |
+
+### `PageProps<P, D>`
+
+What the component receives: `params` (typed by `P`), `data` (whatever `loader`
+returned, typed by `D`), and `ctx`.
+
+### `RegisteredPage`
+
+`{ file, pattern, name }` — what `pages()` / `definePages()` return, so you can
+see exactly what got mounted.
+
+### `routePattern(file)` / `routeName(file)`
+
+The two pure functions behind the conventions, exported so you can test or reuse
+them. `routePattern("users/[id].tsx")` → `"/users/:id"`;
+`routeName("users/[id].tsx")` → `"users.id"`.
+
+
+
+---
+
 <!-- source: docs/queues.md -->
 
 # Queues & Jobs
@@ -18741,4 +19090,129 @@ interface ManifestChunk {
 
 Vite's `manifest.json`, as produced by the build. You rarely touch it directly —
 `generateEntryPointsTags` and `assetPath` read it for you.
+
+
+
+---
+
+<!-- source: docs/watch.md -->
+
+# Watch
+
+Keel Watch is a debug dashboard — a Telescope for Keel. It records the requests,
+queries, exceptions, logs, jobs, mail, notifications, cache lookups, events, and
+scheduled tasks flowing through your app, and shows them in a single-page UI at
+`/watch`, with every request linked to the queries and logs it produced.
+
+It ships as a Keel [package](./packages.md) and is its reference implementation:
+one `register()` turns it on, and its watchers observe the framework's
+instrumentation event stream — they patch nothing, so installing Watch changes no
+behaviour, only visibility.
+
+## Install
+
+```ts
+// bootstrap/providers.ts
+import { WatchServiceProvider } from "@shaferllc/keel/watch";
+
+export const providers = [AppServiceProvider, WatchServiceProvider];
+```
+
+Publish the config and create the table:
+
+```bash
+keel vendor:publish --tag watch-config   # writes config/watch.ts
+keel migrate                             # creates watch_entries
+```
+
+Then open `http://localhost:3000/watch`.
+
+> Watch exposes requests, payloads, and stack traces. It is gated shut in
+> production by default (see [Access](#access)) — keep it that way, or lock it
+> down with your own check.
+
+## What it records
+
+A tab per type, each behind an on/off switch:
+
+| Watcher | Records |
+|---------|---------|
+| Requests | method, path, status, duration, headers (auth/cookies redacted) |
+| Queries | SQL, bindings, duration, connection; slow queries are tagged |
+| Exceptions | class, message, stack, the request that threw |
+| Logs | every log line, at any level |
+| Mail | sent messages (subject, recipients, body) |
+| Jobs | queued jobs as they complete or fail |
+| Notifications | deliveries and their channels |
+| Cache | hits and misses *(off by default — noisy)* |
+| Events | app events *(off by default — noisy)* |
+| Schedule | scheduled tasks as they run |
+
+Clicking any entry shows its full detail and **everything else in its batch** —
+the request it belonged to and every query, log, and exception that request
+produced.
+
+## Configuration
+
+`config/watch.ts` (publish it, then edit):
+
+```ts
+export default {
+  enabled: env("WATCH_ENABLED", true),
+  path: "watch",                 // the dashboard mounts at /watch
+  storage: "database",           // "database" persists; "memory" is a per-process ring
+  connection: undefined,         // which DB connection (default when omitted)
+  table: "watch_entries",
+  limit: 100,                    // API page size; the memory ring is 10× this
+  sampling: 1,                   // record this fraction of entries (0–1)
+  slowQueryMs: 100,              // queries at/above this are tagged "slow"
+  ignorePaths: [],               // request paths to skip
+  retentionHours: 24,            // keel watch:prune deletes entries older than this
+  watchers: { cache: false, event: false /* … the rest default on */ },
+};
+```
+
+### Storage
+
+- **`database`** (default) — a `watch_entries` table via any registered
+  connection. Survives restarts, shared across processes; needs `keel migrate`.
+- **`memory`** — a per-process ring buffer. Zero setup, great for a single dev
+  process or the edge; entries vanish on restart and aren't shared.
+
+## Access
+
+By default the dashboard is open only when `app.debug` is on or the app isn't in
+production. Anywhere else, lock it to your own check:
+
+```ts
+import { Watch } from "@shaferllc/keel/watch";
+import { auth } from "@shaferllc/keel/core";
+
+Watch.auth(() => auth().check() && Boolean(auth().user()?.isAdmin));
+```
+
+The gate guards the JSON API too, so entries can't be read by anyone the
+dashboard wouldn't show them to.
+
+## Pruning
+
+With database storage, keep the table small:
+
+```bash
+keel watch:prune            # delete entries older than retentionHours
+keel watch:prune --hours=6
+```
+
+Schedule it (see [Scheduling](./scheduling.md)) to run it automatically.
+
+## How it works
+
+Watch never wraps or monkey-patches the framework. The core emits a typed
+[instrumentation event stream](./packages.md#observing-the-framework) —
+`db.query`, `request.handled`, `exception`, `job.*`, and so on — and each watcher
+is just a listener that turns an event into a stored entry, stamped with the
+current request id so related entries group into one batch. Recording is
+fire-and-forget: it never blocks or breaks the request it's watching, and the
+store's own queries are filtered out so it never records itself.
+```
 

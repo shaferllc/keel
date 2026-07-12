@@ -42,6 +42,8 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Migrations](https://github.com/shaferllc/keel/blob/main/docs/migrations.md): Version your database schema. A migration is a { name, up, down } object; a fluent schema builder describes tables, and the migrator runs them against your connection, tracking what's applied. The SQL is dialect-aware (sqlite / mysql / postgres) and the core imports no driver.
 - [Models](https://github.com/shaferllc/keel/blob/main/docs/models.md): Model is a tiny active-record layer over the query builder.
 - [Notifications](https://github.com/shaferllc/keel/blob/main/docs/notifications.md): Send a message to a recipient over one or more channels — mail, database, or your own — inline or through the queue.
+- [Packages](https://github.com/shaferllc/keel/blob/main/docs/packages.md): A package is a redistributable slice of a Keel app — routes, a UI, config, migrations, console commands — that installs with a single app.register(...).
+- [Pages](https://github.com/shaferllc/keel/blob/main/docs/pages.md): Page-based routing — a file is a route.
 - [Service Providers](https://github.com/shaferllc/keel/blob/main/docs/providers.md): Service providers are the central place to configure your application.
 - [Queues & Jobs](https://github.com/shaferllc/keel/blob/main/docs/queues.md): Move slow work — sending mail, calling an API, processing an upload — off the request path.
 - [Rate Limiting](https://github.com/shaferllc/keel/blob/main/docs/rate-limiting.md): rateLimiter() is a middleware that caps how many requests a client can make in a window.
@@ -62,6 +64,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Validation](https://github.com/shaferllc/keel/blob/main/docs/validation.md): validate() parses request input against a schema and returns typed data.
 - [Views](https://github.com/shaferllc/keel/blob/main/docs/views.md): Keel renders HTML with Hono JSX — type-safe components that run identically on Node and on Cloudflare Workers (no filesystem templating, so it ports anywhere).
 - [Vite](https://github.com/shaferllc/keel/blob/main/docs/vite.md): Wire a modern frontend build — bundling, hashed filenames, hot module reload — to Keel's server-rendered HTML, the way modern full-stack frameworks do.
+- [Watch](https://github.com/shaferllc/keel/blob/main/docs/watch.md): Keel Watch is a debug dashboard — a Telescope for Keel.
 
 ## Examples
 
@@ -94,6 +97,7 @@ Every topic has a runnable, type-checked example:
 - [Migrations example](https://github.com/shaferllc/keel/blob/main/docs/examples/migrations.ts)
 - [Models example](https://github.com/shaferllc/keel/blob/main/docs/examples/models.ts)
 - [Notifications example](https://github.com/shaferllc/keel/blob/main/docs/examples/notification.ts)
+- [Pages example](https://github.com/shaferllc/keel/blob/main/docs/examples/pages.ts)
 - [Service Providers example](https://github.com/shaferllc/keel/blob/main/docs/examples/providers.ts)
 - [Queues & Jobs example](https://github.com/shaferllc/keel/blob/main/docs/examples/queues.ts)
 - [Rate Limiting example](https://github.com/shaferllc/keel/blob/main/docs/examples/rate-limiting.ts)

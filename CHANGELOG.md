@@ -4,6 +4,48 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.71.0] — 2026-07-11
+
+### Added
+
+- **Pages — page-based routing, where a file *is* a route.** `resources/pages/users/[id].tsx`
+  serves `/users/:id`; no route file to keep in sync, no controller, no wiring. New
+  [pages guide](https://keeljs.com/docs/pages), and `keel make:page users/[id]`.
+  - Conventions: `index.tsx` names its directory, `[id]` is a parameter,
+    `[...slug]` is a catch-all, and a leading `_` keeps a file private — so a
+    layout or a partial can live beside your pages without becoming a URL.
+  - **`loader`** runs before the page renders and its return value arrives as
+    `data`; **`middleware`** guards a page (and runs *before* the loader, so a
+    refused page never loads its data); **`name`** and **`path`** override the
+    derived route name and URL.
+  - **Specificity is decided for you.** This is the part file-based routing
+    usually gets wrong: register `/users/:id` before `/users/new` and the literal
+    page is unreachable forever, because `:id` matches `"new"`. Pages are sorted
+    before they're registered — literals beat parameters, parameters beat
+    catch-alls — so the file layout stops being a trap.
+  - **It drives the router rather than replacing it.** Every page becomes an
+    ordinary named route, so `url()` finds it, route middleware applies, and
+    `keel routes` lists it. Mix pages and hand-written routes freely, and reach for
+    a controller the moment a page outgrows a file.
+  - Edge-safe: `pages()` scans the filesystem on Node, while `definePages()` takes
+    a build-time manifest — `import.meta.glob("./pages/**/*.tsx", { eager: true })`
+    — so the same pages run on Workers.
+
+- **Packages — a redistributable slice of an app.** Routes, a UI, config,
+  migrations, and console commands that install with a single `app.register(...)`.
+  `ServiceProvider` was already the unit of composition; `PackageProvider` adds the
+  conventions a *shippable* package needs, so it can carry its own schema and
+  assets instead of asking the host app to wire them by hand. `MigrationRegistry`,
+  `CommandRegistry`, `PublishRegistry`. New [packages guide](https://keeljs.com/docs/packages).
+
+- **Watch — a debug dashboard.** Records the requests, queries, exceptions, logs,
+  jobs, mail, notifications, cache lookups, events, and scheduled tasks flowing
+  through the app, and shows them at `/watch`, with each request linked to the
+  queries and logs it produced. Built on a new instrumentation seam (`instrument()`,
+  `runRequest()`, `currentRequestId()`) and on `tapLogs()`, which observes every log
+  record without changing where logs normally go. Ships as a Keel package, and is
+  that system's reference implementation. New [watch guide](https://keeljs.com/docs/watch).
+
 ## [0.70.0] — 2026-07-11
 
 ### Added

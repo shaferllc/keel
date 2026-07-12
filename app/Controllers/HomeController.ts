@@ -1,5 +1,5 @@
 import type { Ctx } from "@keel/core";
-import { config, view, json, param, make, validate, NotFoundException } from "@keel/core";
+import { config, view, json, param, make, validate, NotFoundException, db, logger } from "@keel/core";
 import { z } from "zod";
 import { WelcomePage } from "../../resources/views/welcome.js";
 
@@ -37,6 +37,14 @@ export class HomeController {
   async store() {
     const data = await validate(NewUser); // { email: string; age: number }
     return json({ created: data.email, age: data.age }, 201);
+  }
+
+  /** Inserts a note and lists them — runs real queries the Watch dashboard shows. */
+  async notes() {
+    logger().info("recording a note");
+    await db("notes").insert({ body: `note @ ${new Date().toISOString()}`, created_at: Date.now() });
+    const notes = await db("notes").orderBy("id", "desc").limit(10).get();
+    return json({ notes });
   }
 
   /** Throws a semantic 404. */

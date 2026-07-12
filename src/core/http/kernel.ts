@@ -16,6 +16,7 @@ import {
   STATUS_TEXT,
 } from "../exceptions.js";
 import { Router, type HandlerFn, type RouteDefinition } from "./router.js";
+import { instrument, runRequest, newRequestId, currentRequestId } from "../instrumentation.js";
 
 type ErrorHandler = (err: unknown, c: Context) => Response | Promise<Response>;
 
@@ -118,6 +119,26 @@ export class HttpKernel {
       await next();
     });
 
+    // Open a request scope: a request id everything downstream (queries, logs,
+    // jobs) can attribute itself to, plus timing. Emitting `request.handled` and
+    // `exception` from here — inside the scope — is what lets a watcher tie a
+    // request to everything that happened within it. A no-op stream when nobody
+    // is listening, so this stays cheap for apps that don't instrument.
+    hono.use("*", async (c, next) => {
+      const id = newRequestId();
+      const start = Date.now();
+      try {
+        await runRequest(id, () => next());
+      } catch (err) {
+        // Errors thrown *outside* Hono's per-request handling (rare) land here;
+        // the common case (a handler throwing) is caught by Hono and reaches
+        // `handle()` instead, which is where `exception` is emitted.
+        this.reportRequest(c, id, start, err instanceof HttpException ? err.status : 500);
+        throw err;
+      }
+      this.reportRequest(c, id, start, c.res.status);
+    });
+
     for (const mw of this.middleware) {
       hono.use("*", mw);
     }
@@ -158,7 +179,37 @@ export class HttpKernel {
     return hono;
   }
 
+  /** Emit `request.handled` with method, path, status, timing, and headers. */
+  private reportRequest(c: Context, id: string, start: number, status: number): void {
+    const url = new URL(c.req.url);
+    const headers: Record<string, string> = {};
+    c.req.raw.headers.forEach((v, k) => (headers[k] = v));
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+    instrument("request.handled", {
+      id,
+      method: c.req.method,
+      path: url.pathname,
+      status,
+      durationMs: Date.now() - start,
+      headers,
+      ...(ip ? { ip } : {}),
+    });
+  }
+
   private async handle(err: unknown, c: Context): Promise<Response> {
+    // The single choke point every error (thrown handler or unmatched route)
+    // passes through — and it runs inside the request scope, so `currentRequestId`
+    // ties the exception to its request.
+    const requestId = currentRequestId();
+    instrument("exception", {
+      error: err,
+      method: c.req.method,
+      path: new URL(c.req.url).pathname,
+      status: err instanceof HttpException ? err.status : 500,
+      ...(requestId ? { requestId } : {}),
+    });
+
+
     // Reportable exceptions: give them a chance to log/report themselves.
     const maybe = err as { report?: () => unknown; handle?: (c: Context) => unknown };
     if (typeof maybe?.report === "function") {

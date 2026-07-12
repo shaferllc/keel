@@ -16,6 +16,7 @@
  */
 
 import { Job, type Dispatchable } from "./queue.js";
+import { instrument } from "./instrumentation.js";
 
 function runTask(job: Dispatchable): Promise<void> {
   return Promise.resolve(job instanceof Job ? job.handle() : job());
@@ -151,7 +152,12 @@ export class Scheduler {
     let count = 0;
     for (const task of this.tasks) {
       if (task.isDue(now)) {
+        const start = Date.now();
         await runTask(task.job);
+        instrument("schedule.task.run", {
+          task: task.job instanceof Job ? task.job.constructor.name : "fn",
+          durationMs: Date.now() - start,
+        });
         count++;
       }
     }

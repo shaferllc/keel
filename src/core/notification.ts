@@ -21,6 +21,7 @@
 import { db } from "./database.js";
 import { getMailer } from "./mail.js";
 import { dispatch } from "./queue.js";
+import { instrument, currentRequestId } from "./instrumentation.js";
 
 /** A recipient. Anything with routing info — often a `User` model. */
 export interface Notifiable {
@@ -140,7 +141,16 @@ export class Notifier {
   ): Promise<void> {
     const recipients = Array.isArray(notifiables) ? notifiables : [notifiables];
     const run = async () => {
-      for (const recipient of recipients) await this.deliver(recipient, notification);
+      for (const recipient of recipients) {
+        await this.deliver(recipient, notification);
+        const requestId = currentRequestId();
+        instrument("notification.sent", {
+          notification: notification.constructor.name,
+          channels: notification.via(recipient),
+          notifiable: recipient,
+          ...(requestId ? { requestId } : {}),
+        });
+      }
     };
     if (notification.shouldQueue) await dispatch(run);
     else await run();

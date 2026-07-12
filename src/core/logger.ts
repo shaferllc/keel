@@ -151,6 +151,24 @@ export class MemorySink {
   }
 }
 
+/**
+ * Sinks that observe *every* log record from *every* logger — an audit trail, a
+ * debug dashboard. Kept separate from a logger's own `sink` so tapping is
+ * non-invasive: it never changes where a log normally goes.
+ */
+const globalTaps = new Set<Sink>();
+
+/**
+ * Observe every log record emitted anywhere in the app. Returns an unsubscribe.
+ * A tap that throws is ignored — watching logs must never break logging.
+ *
+ *   const off = tapLogs((record) => store.record(record));
+ */
+export function tapLogs(sink: Sink): () => void {
+  globalTaps.add(sink);
+  return () => globalTaps.delete(sink);
+}
+
 export class Logger {
   private threshold: number;
   private redact?: Required<RedactOptions>;
@@ -190,7 +208,17 @@ export class Logger {
       }
     }
 
-    this.sink({ level, time: new Date().toISOString(), msg: message, fields });
+    const record: LogRecord = { level, time: new Date().toISOString(), msg: message, fields };
+    this.sink(record);
+    if (globalTaps.size) {
+      for (const tap of globalTaps) {
+        try {
+          tap(record);
+        } catch {
+          // a tap must never break logging
+        }
+      }
+    }
   }
 
   trace(message: string, context?: Record<string, unknown>): void {

@@ -26,6 +26,7 @@
  */
 
 import { logger, hasApplication } from "./helpers.js";
+import { instrument, currentRequestId } from "./instrumentation.js";
 
 /* ---------------------------------- jobs ---------------------------------- */
 
@@ -156,10 +157,30 @@ function policy(job: Dispatchable, options: JobOptions): { maxRetries: number; b
   };
 }
 
-function invoke(job: Dispatchable, context: JobContext): Promise<void> {
-  if (typeof job === "function") return Promise.resolve(job());
-  job.context = context;
-  return Promise.resolve(job.handle());
+/** The display name of a dispatchable — its class name, or "fn" for a closure. */
+function jobName(job: Dispatchable): string {
+  return job instanceof Job ? job.constructor.name : "fn";
+}
+
+async function invoke(job: Dispatchable, context: JobContext): Promise<void> {
+  const name = jobName(job);
+  const requestId = currentRequestId();
+  const start = Date.now();
+  instrument("job.processing", {
+    job: name,
+    ...(job instanceof Job ? { payload: { ...job } } : {}),
+    ...(requestId ? { requestId } : {}),
+  });
+  if (typeof job === "function") await job();
+  else {
+    job.context = context;
+    await job.handle();
+  }
+  instrument("job.processed", {
+    job: name,
+    durationMs: Date.now() - start,
+    ...(requestId ? { requestId } : {}),
+  });
 }
 
 /**
@@ -181,12 +202,14 @@ function log(message: string, context: Record<string, unknown>): void {
  */
 async function reportFailure(job: Dispatchable, error: unknown, context: JobContext): Promise<void> {
   log("queue: job failed", {
-    job: job instanceof Job ? job.constructor.name : "fn",
+    job: jobName(job),
     jobId: context.jobId,
     attempts: context.attempt,
     queue: context.queue,
     error,
   });
+
+  instrument("job.failed", { job: jobName(job), error });
 
   if (!(job instanceof Job)) return;
   try {

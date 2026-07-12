@@ -27,7 +27,7 @@ export {
   terminate,
 } from "./helpers.js";
 export { Logger } from "./logger.js";
-export { consoleSink, MemorySink, setLogger, namedLogger } from "./logger.js";
+export { consoleSink, MemorySink, setLogger, namedLogger, tapLogs } from "./logger.js";
 export type { LogLevel, LoggerOptions, LogRecord, Sink, RedactOptions } from "./logger.js";
 export { requestLogger, requestLog } from "./request-logger.js";
 export type { RequestLoggerOptions } from "./request-logger.js";
@@ -129,6 +129,7 @@ export type { CsrfOptions } from "./csrf.js";
 export {
   db,
   connection,
+  getConnection,
   setConnection,
   addConnection,
   setDefaultConnection,
@@ -257,6 +258,35 @@ export {
 export type { Filter, RenderContext } from "./template.js";
 export { ServiceProvider } from "./provider.js";
 export type { ProviderClass } from "./provider.js";
+export {
+  PackageProvider,
+  MigrationRegistry,
+  CommandRegistry,
+  PublishRegistry,
+} from "./package.js";
+export type {
+  PackageCommand,
+  PublishEntry,
+  PackageRouteOptions,
+  PackageAssetOptions,
+  PackageMiddleware,
+} from "./package.js";
+export {
+  instrument,
+  runRequest,
+  currentRequestId,
+  newRequestId,
+} from "./instrumentation.js";
+export type {
+  QueryEvent,
+  RequestEvent,
+  ExceptionEvent,
+  JobEvent,
+  CacheEvent,
+  NotificationEvent,
+  ScheduleEvent,
+  InstrumentEvent,
+} from "./instrumentation.js";
 export { Router, Route, RouteGroup, RouteResource, matchers } from "./http/router.js";
 export type {
   Ctx,
@@ -271,6 +301,8 @@ export type {
 export { Inertia, inertia, inertiaPageAttr } from "./inertia.js";
 export type { InertiaPage, InertiaOptions } from "./inertia.js";
 export { HttpKernel } from "./http/kernel.js";
+export { pages, definePages, routePattern, routeName } from "./pages.js";
+export type { PageProps, PageModule, PagesOptions, RegisteredPage, PageMiddleware } from "./pages.js";
 export {
   TestClient,
   TestResponse,

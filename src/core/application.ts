@@ -16,6 +16,7 @@ import { Events } from "./events.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./logger.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
+import { MigrationRegistry, CommandRegistry, PublishRegistry } from "./package.js";
 import { setApplication } from "./helpers.js";
 import type { Listener, EventName, EmitArgs, Resolve } from "./events.js";
 
@@ -52,6 +53,13 @@ export class Application extends Container {
     this.singleton(View, () => new View());
     this.singleton(Events, () => new Events());
     this.singleton(Cache, () => new Cache());
+
+    // Package-system registries: what providers contribute for the console
+    // (`keel migrate`, `keel vendor:publish`) and the CLI to pick up after boot.
+    this.singleton(MigrationRegistry, () => new MigrationRegistry());
+    this.singleton(CommandRegistry, () => new CommandRegistry());
+    this.singleton(PublishRegistry, () => new PublishRegistry());
+
     this.singleton(
       Logger,
       (app) =>
