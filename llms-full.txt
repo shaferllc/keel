@@ -13595,6 +13595,31 @@ await Post.all();        // only published
 await Post.query().where("author_id", 1).get();  // still only published
 ```
 
+Scopes **inherit**. A scope declared on a base class constrains every model that
+extends it — which is what makes a single tenant-scoped base class possible:
+
+```ts
+class TenantModel extends Model {}
+TenantModel.addGlobalScope("tenant", (q) => q.where("teamId", currentTeamId()));
+
+class Post extends TenantModel {}   // scoped, without repeating yourself
+```
+
+Scopes from several levels all apply, and a subclass overrides an ancestor's scope
+by reusing its name — the nearest declaration wins.
+
+### Escaping a scope
+
+```ts
+await Post.withoutGlobalScope("tenant").get();   // one named scope
+await Post.withoutGlobalScopes().get();          // all of them
+```
+
+Escaping is deliberately explicit, and worth keeping that way. A query that steps
+outside a tenancy scope is exactly the thing you want to be able to *find* — so it
+should be typed out and greppable, never something you arrive at by forgetting a
+`where`.
+
 A **local scope** is just a static method returning a query — no framework
 feature needed:
 
