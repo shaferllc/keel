@@ -1,8 +1,8 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.82.0",
+  "version": "0.83.0",
   "type": "module",
-  "description": "The house framework for Node.js \u2014 a service container, providers, routing, JSX views, and a code-generating console.",
+  "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
   "author": "Tom Shafer",
   "homepage": "https://github.com/shaferllc/keel#readme",
