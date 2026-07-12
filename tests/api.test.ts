@@ -153,7 +153,7 @@ test("apiResource: attaches OpenAPI metadata without importing the openapi packa
   apiResource(router, Item, { ...open, tags: ["things"] });
   const create = router.all().find((r) => r.name === "items.create")!;
   const meta = create.config.openapi as { summary: string; tags: string[]; request?: { body: unknown } };
-  assert.equal(meta.summary, "Create a item");
+  assert.equal(meta.summary, "Create Item"); // label defaults to the model class name
   assert.deepEqual(meta.tags, ["things"]);
   assert.ok(meta.request?.body, "the create body schema is carried for docs");
 });

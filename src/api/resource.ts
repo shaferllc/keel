@@ -234,7 +234,7 @@ export function apiResource(
         return c.json({ data: transformOne(options.transform, found, c) });
       })
       .name(`${name}.read`)
-      .config(openApiConfig({ summary: `Fetch a ${one}`, tags }));
+      .config(openApiConfig({ summary: `Fetch ${label}`, tags }));
   }
 
   if (actions.has("create")) {
@@ -250,10 +250,10 @@ export function apiResource(
       .name(`${name}.create`)
       .config(
         openApiConfig({
-          summary: `Create a ${one}`,
+          summary: `Create ${label}`,
           tags,
           ...(schema ? { request: { body: schema } } : {}),
-          responses: { 201: { description: `The created ${one}` } },
+          responses: { 201: { description: `The created ${label}` } },
         }),
       );
   }
@@ -270,7 +270,7 @@ export function apiResource(
         return c.json({ data: transformOne(options.transform, found, c) });
       })
       .name(`${name}.update`)
-      .config(openApiConfig({ summary: `Update a ${one}`, tags, ...(schema ? { request: { body: schema } } : {}) }));
+      .config(openApiConfig({ summary: `Update ${label}`, tags, ...(schema ? { request: { body: schema } } : {}) }));
   }
 
   if (actions.has("delete")) {
@@ -282,6 +282,6 @@ export function apiResource(
         return c.body(null, 204);
       })
       .name(`${name}.delete`)
-      .config(openApiConfig({ summary: `Delete a ${one}`, tags, responses: { 204: { description: "Deleted" } } }));
+      .config(openApiConfig({ summary: `Delete ${label}`, tags, responses: { 204: { description: "Deleted" } } }));
   }
 }

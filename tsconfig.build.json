@@ -6,6 +6,6 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": ["src/core", "src/vite", "src/db", "src/mcp", "src/watch", "src/openapi", "src/api"],
+  "include": ["src/core", "src/vite", "src/db", "src/mcp", "src/watch", "src/openapi"],
   "exclude": ["src/core/cli/index.ts", "src/watch/ui"]
 }

@@ -105,6 +105,7 @@ apiResource(router, Post, {
 | `transform` | Output shaping. |
 | `beforeWrite` | Mutate the payload before save. |
 | `tags` | OpenAPI tags for the routes. |
+| `label` | Singular name in doc summaries (default: the model's class name). |
 
 Global pagination defaults live in `config/api.ts` (register the optional
 `ApiServiceProvider`, then `keel vendor:publish --tag api-config`).
