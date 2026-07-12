@@ -254,6 +254,90 @@ router.any("/webhook", [HookController, "handle"]);      // every verb
 router.route(["GET", "POST"], "/search", handler);        // a specific set
 ```
 
+## Route model binding
+
+A `:post` in the path can arrive as a **`Post`**, not a string:
+
+```ts
+import { bindModel, boundModel } from "@shaferllc/keel/core";
+
+bindModel("post", Post); // once, in a provider
+
+router.get("/posts/:post", (c) => {
+  const post = boundModel(Post); // already fetched. Not a string, not null.
+  return c.json(post);
+});
+```
+
+The row is looked up **before your handler runs**, and a miss is a 404 there and
+then. That's the whole value: the handler never sees a `null`, so it never has to
+remember to check for one — **"forgot the 404" stops being a bug you can write.**
+
+Compare what you'd otherwise type in every handler:
+
+```ts
+router.get("/posts/:id", async (c) => {
+  const post = await Post.find(c.req.param("id"));
+  if (!post) throw new NotFoundException(); // ...every time, forever
+  return c.json(post);
+});
+```
+
+### By another column
+
+When the URL isn't the id:
+
+```ts
+bindModel("post", Post, { key: "slug" }); // /posts/hello-world
+```
+
+### `scope` — this is security, not a filter
+
+```ts
+bindModel("post", Post, {
+  scope: (query, c) => query.where("authorId", currentUserId(c)),
+});
+```
+
+A row outside the scope is a **404**, not a 403 and not a filtered list — so it
+cannot be reached by *guessing its id*. That's the difference between row-level
+security and decoration. `/posts/2` doesn't 403 (which would confirm the row
+exists); it simply isn't there.
+
+The scope gets the request, so it can depend on who's asking.
+
+### Middleware sees the model
+
+Binding runs **before** route middleware, so a policy can read the model rather
+than re-fetching it:
+
+```ts
+const mustOwn: MiddlewareHandler = async (c, next) => {
+  if (boundModel(Post).authorId !== currentUserId(c)) throw new ForbiddenException();
+  await next();
+};
+
+router.get("/posts/:post/edit", edit).middleware(mustOwn);
+```
+
+### Anything that isn't a model
+
+```ts
+bindRoute("tenant", (slug) => tenants.get(slug)); // undefined ⇒ 404
+
+router.get("/t/:tenant", () => {
+  const tenant = boundValue<Tenant>("tenant");
+});
+```
+
+### Notes
+
+- An **unbound** param is untouched — still just a string via `c.req.param()`.
+- Two params bound to the same model? Say which: `boundModel(Post, "original")`.
+  Guessing would be worse than asking.
+- `missing()` substitutes a value instead of 404ing, if you'd rather.
+- Only routes with parameters pay for any of this.
+
 ## Inspecting routes
 
 ```bash

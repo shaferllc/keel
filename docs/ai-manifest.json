@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.78.2",
+  "version": "0.79.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -644,6 +644,21 @@
       "module": "helpers"
     },
     {
+      "name": "BindingOptions",
+      "kind": "type",
+      "module": "binding"
+    },
+    {
+      "name": "bindModel",
+      "kind": "value",
+      "module": "binding"
+    },
+    {
+      "name": "bindRoute",
+      "kind": "value",
+      "module": "binding"
+    },
+    {
       "name": "body",
       "kind": "value",
       "module": "request"
@@ -657,6 +672,16 @@
       "name": "bound",
       "kind": "value",
       "module": "helpers"
+    },
+    {
+      "name": "boundModel",
+      "kind": "value",
+      "module": "binding"
+    },
+    {
+      "name": "boundValue",
+      "kind": "value",
+      "module": "binding"
     },
     {
       "name": "broadcast",
@@ -782,6 +807,11 @@
       "name": "clearAuthorization",
       "kind": "value",
       "module": "authorization"
+    },
+    {
+      "name": "clearBindings",
+      "kind": "value",
+      "module": "binding"
     },
     {
       "name": "clearChannels",
@@ -1414,6 +1444,11 @@
       "module": "social"
     },
     {
+      "name": "hasBinding",
+      "kind": "value",
+      "module": "binding"
+    },
+    {
       "name": "hash",
       "kind": "value",
       "module": "crypto"
@@ -1842,6 +1877,11 @@
       "name": "Model",
       "kind": "value",
       "module": "model"
+    },
+    {
+      "name": "ModelClass",
+      "kind": "type",
+      "module": "binding"
     },
     {
       "name": "ModelFactory",

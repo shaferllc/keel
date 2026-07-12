@@ -315,6 +315,8 @@ export type {
 export { Inertia, inertia, inertiaPageAttr } from "./inertia.js";
 export type { InertiaPage, InertiaOptions } from "./inertia.js";
 export { HttpKernel } from "./http/kernel.js";
+export { bindModel, bindRoute, boundModel, boundValue, hasBinding, clearBindings } from "./binding.js";
+export type { BindingOptions, ModelClass } from "./binding.js";
 export { defineCommand, arg, flag, ConsoleKernel, ConsoleError, parseArgv } from "./console.js";
 export type {
   CommandDefinition,

@@ -9,6 +9,7 @@ import { contextStorage } from "hono/context-storage";
 import type { Context, MiddlewareHandler } from "hono";
 import type { Application } from "../application.js";
 import { Config } from "../config.js";
+import { bindingMiddleware } from "../binding.js";
 import {
   HttpException,
   NotFoundException,
@@ -167,7 +168,16 @@ export class HttpKernel {
         path = path.replace(new RegExp(`:${param}(\\??)`), `:${param}{${rgx}}$1`);
       }
 
-      const middleware = [setRoute, ...route.middleware.map((m) => router.resolveMiddleware(m))];
+      // Route model binding: resolve `:user` into a User *before* the handler (and
+      // before route middleware, so a policy check can read the bound model). Only
+      // routes that actually have params pay for it.
+      const binding = bindingMiddleware(route.path);
+
+      const middleware = [
+        setRoute,
+        ...(binding ? [binding] : []),
+        ...route.middleware.map((m) => router.resolveMiddleware(m)),
+      ];
       hono.on(route.methods, [path], ...middleware, honoHandler);
     }
 

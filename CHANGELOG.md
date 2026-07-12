@@ -4,6 +4,40 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.79.0] — 2026-07-12
+
+### Added
+
+- **Route model binding.** A `:post` in the path arrives as a **`Post`**, not a
+  string.
+
+  ```ts
+  bindModel("post", Post);
+
+  router.get("/posts/:post", (c) => {
+    const post = boundModel(Post); // already fetched. Not a string, not null.
+    return c.json(post);
+  });
+  ```
+
+  The row is looked up **before the handler runs**, and a miss is a 404 there and
+  then — so the handler never sees a `null` and never has to remember to check for
+  one. **"Forgot the 404" stops being a bug you can write.**
+
+  - **`key`** binds by another column (`/posts/hello-world` → `{ key: "slug" }`).
+  - **`scope` is security, not a filter.** A row outside it is a **404** — not a 403
+    (which would confirm it exists), and not merely absent from a list — so it can't
+    be reached by *guessing its id*. The scope gets the request, so it can depend on
+    who's asking. Tested against a real database, asserting the handler never runs
+    for an out-of-scope row.
+  - **Binding runs before route middleware**, so a policy can read the model instead
+    of re-fetching it.
+  - **`bindRoute(param, fn)`** resolves anything that isn't a model — a tenant, a
+    feature flag; returning `undefined` is a 404.
+  - An unbound param is untouched (still a string), and only routes with parameters
+    pay for any of this. Two params bound to the same model must be disambiguated —
+    guessing would be worse than asking.
+
 ## [0.78.2] — 2026-07-11
 
 ### Added
