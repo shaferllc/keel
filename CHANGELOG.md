@@ -28,6 +28,93 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   of you may do this at a time" across processes and nodes, with a pluggable
   store seam (the core imports no driver). See the locks guide.
 
+  Every acquisition mints an owner token, and release/extend only succeed for the
+  owner. That isn't bookkeeping — without it, a lock whose TTL expires mid-work
+  gets picked up by process B, and A's late `release()` would delete **B's** lock
+  and let a third process in. `run()` takes the lock, runs, and always gives it
+  back; `extend()` throws rather than silently no-op'ing once the lock is lost.
+
+- **Internationalization** — ICU message formatting plus the `Intl` formatters
+  that go with it, closing the
+  [AdonisJS i18n guide](https://docs.adonisjs.com/guides/digging-deeper/i18n)
+  with **no dependency**: Node and Workers both ship full ICU, so plurals,
+  currencies, dates, and relative times are the platform's job, and Keel only adds
+  the message parser on top.
+  - `t(key, data)` / `i18n(locale)`, with an ICU subset covering interpolation,
+    `plural` (including exact `=0` branches and `#`), `selectordinal`, `select`,
+    `number` (incl. `::currency/USD`), `date`, and `time` — nested arbitrarily
+    deep. Plural categories come from the **locale**, not from English.
+  - `Intl`-backed `formatNumber` / `formatCurrency` / `formatDate` / `formatTime` /
+    `formatRelativeTime` / `formatList` / `formatPlural` / `formatDisplayName` —
+    worth using even in a single-locale app.
+  - `detectLocale()` middleware (custom resolver → query → cookie →
+    `Accept-Language` → default; only **supported** locales are honored, so
+    `?lang=xx` can't push the app into a locale you have no translations for) and
+    `negotiateLocale()` on its own.
+  - Nested or flat translation keys, and a fallback chain that walks `es-MX` →
+    configured fallback → `es` → default, so a regional locale can be a handful of
+    overrides.
+  - A missing key renders as the key itself (the page still works and the gap is
+    visible) and fires `i18n.missing`.
+
+- **Mail: queueing, attachments, class-based mails, and a fake.** Closes the
+  [AdonisJS mail guide](https://docs.adonisjs.com/guides/digging-deeper/mail).
+  - **`sendLater()`** — put the message on the queue instead of holding the request
+    open for an SMTP round trip. Validated at the call site, not on the worker, so
+    a malformed message throws where the stack trace means something.
+  - **Attachments** — `attach()` (content type inferred from the extension) and
+    `embed()` for inline `cid:` images.
+  - **`BaseMail`** — a reusable, testable email class; `send()` / `sendLater()`.
+  - **Named mailers** — `setMailer(t, o, "marketing")` / `mail("marketing")`.
+  - **`fakeMail()` / `restoreMail()`** with `assertSent` / `assertNotSent` /
+    `assertSentCount` / `assertQueued` / `assertNotQueued` / `assertQueuedCount` /
+    `assertNothingSent`. Sent and queued are tracked separately, and the fake still
+    validates, so it can't paper over a message the real mailer would reject.
+  - `mail.sending` / `mail.sent` / `mail.queued` events, and a default `replyTo`.
+
+- **Queues: retries, backoff, priority, and a dead-letter list.** Closes the
+  [AdonisJS queues guide](https://docs.adonisjs.com/guides/digging-deeper/queues).
+  - **Retries with backoff** — `static maxRetries` and `static backoff` per job
+    class (`exponentialBackoff` / `linearBackoff` / `fixedBackoff` / `noBackoff`),
+    overridable per dispatch. `maxRetries` defaults to 0 — the safe default for
+    work that isn't idempotent.
+  - **`failed(error)` hook** and a **dead-letter list** (`driver.failed`): an
+    exhausted job is logged, handed to its hook, and kept, rather than vanishing.
+  - **Priority** (lower runs first) and per-class `queue` / `priority` defaults.
+  - **`JobContext`** (`jobId`, `attempt`, `queue`) readable from `handle()`.
+  - **`fakeQueue()` / `restoreQueue()`** with `assertPushed` / `assertNotPushed` /
+    `assertPushedCount` / `assertNothingPushed` / `pushedJobs`.
+
+- **Logger: `trace` and `fatal`, sinks, and better redaction.** Closes the
+  [AdonisJS logger guide](https://docs.adonisjs.com/guides/digging-deeper/logger).
+  - Levels are now `trace` < `debug` < `info` < `warn` < `error` < `fatal`, plus
+    `log(level, …)`, `isLevelEnabled()` / `ifLevelEnabled()` (so an expensive
+    context object isn't built for a line nobody will emit), and `enabled: false`.
+  - **Sinks** — output goes through a `Sink` function receiving the structured
+    `LogRecord`, so logs can go to a file or an HTTP collector instead of the
+    console. `MemorySink` collects them for tests.
+  - **Redaction** gains `*` wildcard path segments (`"*.password"`), a custom
+    `censor`, and `remove` to drop the key outright. It still never mutates the
+    caller's object, and it runs *before* the sink, so a custom sink can never see
+    the unredacted values.
+  - **Named loggers** — `setLogger(logger, "audit")` / `namedLogger("audit")`.
+
+- **`hasApplication()`** — whether an application has been bootstrapped. The queue
+  and the mailer use it so they still work in a worker or a unit test that never
+  created one.
+
+### Changed
+
+- **A failed queue job no longer takes down the worker.** `work()` used to
+  propagate the error and stop draining. It now retries the job, and once the
+  retries are exhausted it logs the failure loudly, runs `failed()`, records it in
+  the driver's dead-letter list, and **carries on with the rest of the queue** —
+  one bad job can't stop the others. `SyncDriver` is the exception: it ran the job
+  *inline*, so the caller still gets the error thrown at them.
+
+- **`dispatch()` now materializes the queue defaults**, so a queued job's `options`
+  always carry `queue` and `priority`.
+
 ## [0.68.0] — 2026-07-11
 
 ### Added

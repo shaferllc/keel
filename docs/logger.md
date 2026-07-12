@@ -29,23 +29,94 @@ field; steer clear of those names in your payloads.
 
 ## Levels
 
-`debug` < `info` < `warn` < `error`. Only events at or above the configured
-level are emitted. Set the threshold via config:
+`trace` < `debug` < `info` < `warn` < `error` < `fatal`. Only events at or above
+the configured level are emitted. Set the threshold via config:
 
 ```ts
 // config/logger.ts
 export default { level: env("LOG_LEVEL", "info") };
 ```
 
-Under the hood the levels are ordinal (`debug` 10, `info` 20, `warn` 30,
-`error` 40); a line is dropped when its level sits below the threshold. The
-default threshold is `"info"`, so `debug` lines stay silent until you lower it.
+Under the hood the levels are ordinal (`trace` 10, `debug` 20, `info` 30, `warn`
+40, `error` 50, `fatal` 60); a line is dropped when its level sits below the
+threshold. The default threshold is `"info"`, so `debug` and `trace` stay silent
+until you lower it.
+
+`log(level, message, context?)` takes the level at runtime, when it isn't known
+statically.
 
 Pretty output turns on automatically when `app.debug` is true. In pretty mode
 each event is a single human-readable line —
 `[2026-07-10T…] INFO  user registered {"userId":42}` — and the writer routes by
-level: `warn` goes to `console.warn`, `error` to `console.error`, everything else
-to `console.log`. In JSON mode every level is written to `console.log`.
+level: `warn` goes to `console.warn`, `error` and `fatal` to `console.error`,
+everything else to `console.log`. In JSON mode every level is written to
+`console.log`.
+
+`enabled: false` silences a logger entirely, at every level.
+
+### Don't pay for lines you won't emit
+
+The threshold drops the *line*, but the **context object is built either way** —
+so an expensive snapshot costs you even when nobody sees it. Gate it:
+
+```ts
+if (logger().isLevelEnabled("debug")) {
+  logger().debug("state", { snapshot: expensiveSnapshot() });
+}
+
+// ...or the callback form
+logger().ifLevelEnabled("debug", (log) => log.debug("state", { snapshot: expensiveSnapshot() }));
+```
+
+## Where the lines go
+
+A **sink** is where log records land. The default writes to the console (JSON, or
+pretty), but it's just a function, so logs can go anywhere — a file, an HTTP
+collector, a buffer:
+
+```ts
+import { Logger, type Sink } from "@shaferllc/keel/core";
+
+const httpSink: Sink = (record) => {
+  void fetch("https://logs.example.com", { method: "POST", body: JSON.stringify(record) });
+};
+
+new Logger({ sink: httpSink });
+```
+
+A sink receives the structured `LogRecord` — `{ level, time, msg, fields }` — not a
+formatted string, so it can do what it likes with the shape. `fields` is already
+redacted.
+
+`MemorySink` collects records in memory, which is what you want in a test:
+
+```ts
+import { Logger, MemorySink } from "@shaferllc/keel/core";
+
+const sink = new MemorySink();
+const log = new Logger({ level: "trace", sink: sink.sink });
+
+log.info("hello", { userId: 1 });
+
+sink.messages(); // ["hello"]
+sink.at("info"); // the records at one level
+sink.records[0].fields; // { userId: 1 }
+sink.clear();
+```
+
+## Named loggers
+
+Give a subsystem its own level or destination:
+
+```ts
+import { setLogger, namedLogger, Logger } from "@shaferllc/keel/core";
+
+setLogger(new Logger({ level: "trace", sink: auditSink }), "audit");
+
+namedLogger("audit").trace("permission granted", { userId });
+```
+
+The application's own logger stays where it is — reach that with `logger()`.
 
 ## Child loggers
 
@@ -113,7 +184,8 @@ middleware), `requestLog()` falls back to the base `logger()`.
 ## Redaction
 
 Keep secrets out of your logs with `redact` — top-level keys or dot paths. Matched
-values are replaced with `"[redacted]"`; the original object is never mutated:
+values are replaced with `"[redacted]"`; **the original object is never mutated**,
+so redacting doesn't corrupt the data you're still using:
 
 ```ts
 const log = new Logger({
@@ -124,8 +196,30 @@ log.info("login", { user: "ada", password: "s3cret", req: { headers: { authoriza
 // {"level":"info",…,"user":"ada","password":"[redacted]","req":{"headers":{"authorization":"[redacted]"}}}
 ```
 
+A `*` segment matches every key at that level — which is how you catch a secret
+that appears under a key you don't know in advance:
+
+```ts
+new Logger({ redact: ["*.password", "creds.*.token"] });
+
+log.info("audit", {
+  alice: { password: "a", name: "Alice" },
+  bob: { password: "b", name: "Bob" },
+});
+// both passwords redacted; both names kept
+```
+
+Pass an object instead of an array to change the placeholder, or drop the key
+outright:
+
+```ts
+new Logger({ redact: { paths: ["password"], censor: "***" } });
+new Logger({ redact: { paths: ["password"], remove: true } }); // the key disappears
+```
+
 Redaction is inherited by child loggers, so a redacting base logger keeps
-per-request loggers safe too.
+per-request loggers safe too, and it runs **before** the sink — a custom sink can
+never see the unredacted values.
 
 ---
 
@@ -279,7 +373,7 @@ const log = new Logger({ level: "debug", pretty: true, bindings: { app: "api" } 
 
 #### `LogLevel`
 
-`type LogLevel = "debug" | "info" | "warn" | "error"`
+`type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal"`
 
 The four severity levels, in ascending order. Used for the `level` option and
 selected implicitly by each method.
@@ -288,3 +382,55 @@ selected implicitly by each method.
 const threshold: LogLevel = "warn";
 new Logger({ level: threshold });
 ```
+
+### `isLevelEnabled(level)` / `ifLevelEnabled(level, fn)`
+
+`isLevelEnabled(level: LogLevel): boolean` — whether a level would be emitted.
+Check it before building an expensive context object.
+
+`ifLevelEnabled(level: LogLevel, fn: (log: Logger) => void): void` — the callback
+form.
+
+### `log(level, message, context?)`
+
+`log(level: LogLevel, message: string, context?: Record<string, unknown>): void` —
+log at a level chosen at runtime.
+
+### `consoleSink(pretty?)`
+
+`consoleSink(pretty = false): Sink` — the default sink. JSON to stdout, or a pretty
+single line.
+
+### `MemorySink`
+
+Collects records in memory — for tests.
+
+| Member | Signature |
+|--------|-----------|
+| `sink` | `Sink` — hand this to `LoggerOptions.sink` |
+| `records` | `LogRecord[]` |
+| `at` | `(level) => LogRecord[]` |
+| `messages` | `() => string[]` |
+| `clear` | `() => void` |
+
+### `setLogger(logger, name)` / `namedLogger(name)`
+
+Register a logger under a name, and resolve it. `namedLogger` throws for an unknown
+name.
+
+### Interfaces & types (added)
+
+#### `Sink`
+
+`type Sink = (record: LogRecord) => void` — where log lines go.
+
+#### `LogRecord`
+
+`{ level: LogLevel; time: string; msg: string; fields: Record<string, unknown> }` —
+`fields` is already redacted.
+
+#### `RedactOptions`
+
+`{ paths: string[]; censor?: string; remove?: boolean }` — a `*` path segment
+matches every key at that level. `LoggerOptions.redact` also accepts a bare
+`string[]`.

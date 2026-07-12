@@ -9742,6 +9742,315 @@ The signature of `onReady` / `onShutdown` hooks.
 
 ---
 
+<!-- source: docs/i18n.md -->
+
+# Internationalization
+
+Translations with ICU message formatting, plus the `Intl` formatters that go with
+them.
+
+```ts
+import { setTranslations, t } from "@shaferllc/keel/core";
+
+setTranslations({
+  en: { "cart.items": "{count, plural, =0 {Your cart is empty} one {# item} other {# items}}" },
+  fr: { "cart.items": "{count, plural, =0 {Panier vide} one {# article} other {# articles}}" },
+});
+
+t("cart.items", { count: 3 }); // "3 items" — in the request's locale
+```
+
+There is **no dependency here, and there doesn't need to be.** `Intl` ships with
+every modern runtime — Node and Cloudflare Workers both carry the full ICU data —
+so plurals, currencies, dates, and relative times are the platform's job. What Keel
+adds is the message parser on top, which is the part `Intl` doesn't do.
+
+## Setting it up
+
+Register translations once (in a service provider), and add the middleware that
+works out each request's locale:
+
+```ts
+import { setI18n, I18nManager, setTranslations, detectLocale, HttpKernel } from "@shaferllc/keel/core";
+
+export class I18nServiceProvider extends ServiceProvider {
+  boot(): void {
+    setI18n(new I18nManager({ defaultLocale: "en" }));
+
+    setTranslations({
+      en: await import("../resources/lang/en.json", { with: { type: "json" } }).then((m) => m.default),
+      fr: await import("../resources/lang/fr.json", { with: { type: "json" } }).then((m) => m.default),
+    });
+
+    this.app.make(HttpKernel).use(detectLocale());
+  }
+}
+```
+
+Now `t()` works anywhere in the request — a controller, a view, a transformer —
+without threading a locale through every call.
+
+## Translation files
+
+Nested objects and flat dot-keys are the same thing, and you can mix them:
+
+```json
+{
+  "cart": {
+    "items": "{count, plural, one {# item} other {# items}}",
+    "empty": "Your cart is empty"
+  },
+  "checkout.title": "Checkout"
+}
+```
+
+Both `t("cart.items")` and `t("checkout.title")` resolve.
+
+## The message format
+
+The supported ICU subset is the part people actually use.
+
+### Interpolation
+
+```
+Hello {name}!
+```
+
+### Plurals
+
+```
+{count, plural, =0 {Your cart is empty} one {# item} other {# items}}
+```
+
+`#` becomes the count, formatted for the locale (`1,234 items`). An exact `=N`
+branch beats the plural category — which is the whole point of `=0`, because "Your
+cart is empty" reads better than "0 items".
+
+**Categories are the locale's, not English's.** French treats 0 and 1 as singular;
+Polish has `one`/`few`/`many`/`other`. That's exactly why you write a message rather
+than `count === 1 ? "item" : "items"` — that ternary is a bug in most of the world.
+
+### Ordinals
+
+```
+{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}
+```
+
+→ 1st, 2nd, 3rd, 4th, 11th.
+
+### Select
+
+```
+{gender, select, male {He} female {She} other {They}} replied
+```
+
+An unmatched value (or a missing one) takes the `other` branch.
+
+### Numbers, dates, times
+
+```
+{n, number}                 1,234.5
+{n, number, percent}        25%
+{n, number, integer}        4
+{n, number, ::currency/USD} $9.50
+{d, date, medium}           Jul 11, 2026
+{d, time, short}            3:30 PM
+```
+
+### Nesting
+
+Branches are themselves messages, so they nest as deep as you need:
+
+```
+{count, plural,
+  =0 {No messages for {name}}
+  one {{name} has # message}
+  other {{name} has # messages}}
+```
+
+### Literal braces
+
+`'{'` and `'}'` render as literal braces.
+
+## Formatters
+
+`Intl`, bound to the request's locale:
+
+```ts
+const l = i18n();
+
+l.formatNumber(1234.5); // "1,234.5"      (de-DE: "1.234,5")
+l.formatCurrency(9.5, "USD"); // "$9.50"
+l.formatDate(order.createdAt); // "Jul 11, 2026"
+l.formatTime(order.createdAt); // "3:30:00 PM"
+l.formatRelativeTime(post.publishedAt); // "3 days ago"
+l.formatList(["a", "b", "c"]); // "a, b, and c"
+l.formatList(names, { type: "disjunction" }); // "a, b, or c"
+l.formatPlural(5); // "other"
+l.formatDisplayName("fr"); // "French"
+```
+
+`formatRelativeTime` picks a sensible unit from the distance on its own — seconds,
+hours, days — or takes one: `formatRelativeTime(date, "hour")`.
+
+These are worth using even in a **single-locale** app: they're the correct way to
+render money and dates, and they cost nothing.
+
+## Locale detection
+
+`detectLocale()` works out the request's locale and stashes it, in this order:
+
+1. a custom `resolve(c)` you supply
+2. a query param — `detectLocale({ query: "lang" })` → `?lang=fr`
+3. a cookie — `detectLocale({ cookie: "locale" })`
+4. the `Accept-Language` header (turn it off with `header: false`)
+5. the default locale
+
+**Only supported locales are honored**, so `?lang=xx` can't push the app into a
+locale you have no translations for — it falls through to the next source.
+
+`negotiateLocale()` is the header parser on its own, if you want it:
+
+```ts
+negotiateLocale("fr-CA,fr;q=0.9,en;q=0.8", ["en", "fr"], "en"); // "fr"
+```
+
+It honors `q` weights and matches `fr-CA` against a supported `fr`.
+
+## Fallbacks
+
+A key with no translation in the active locale falls back — down a chain, not off
+a cliff:
+
+1. the locale itself (`es-MX`)
+2. its configured fallback (`fallbackLocales: { "es-MX": "es" }`)
+3. its **base language** (`es`)
+4. the default locale (`en`)
+
+So you can ship `es` fully and `es-MX` as a handful of regional overrides, and
+everything else still resolves:
+
+```ts
+setTranslations({
+  es: { greeting: "Hola", chair: "silla" },
+  "es-MX": { chair: "banca" }, // just the override
+});
+
+i18n("es-MX").t("chair"); // "banca"
+i18n("es-MX").t("greeting"); // "Hola" — from `es`
+```
+
+## Missing keys
+
+A missing key **does not throw**. It renders as the key itself (`cart.items`), so
+the page still works and the gap is obvious rather than blank. It also fires an
+`i18n.missing` event, which is how you find them in production:
+
+```ts
+listen("i18n.missing", ({ key, locale }) => {
+  logger().warn("missing translation", { key, locale });
+});
+```
+
+Override what's rendered with the `missing` option:
+
+```ts
+new I18nManager({ missing: (key, locale) => `[${locale}:${key}]` });
+```
+
+---
+
+## API reference
+
+### `t(key, data?)`
+
+`t(key: string, data?: Record<string, unknown>): string`
+
+Translate a key in the **current request's** locale (or the default, outside a
+request), formatting its ICU message with `data`.
+
+### `i18n(locale?)`
+
+`i18n(locale?: string): I18n`
+
+An `I18n` for a locale — or, with no argument, the current request's.
+
+### `I18n`
+
+| Method | Signature |
+|--------|-----------|
+| `t` | `(key, data?) => string` |
+| `has` | `(key) => boolean` |
+| `formatNumber` | `(value, options?: Intl.NumberFormatOptions) => string` |
+| `formatCurrency` | `(value, currency, options?) => string` |
+| `formatDate` | `(value, options?: Intl.DateTimeFormatOptions) => string` |
+| `formatTime` | `(value, options?) => string` |
+| `formatRelativeTime` | `(value, unit?, options?) => string` |
+| `formatList` | `(items, options?: Intl.ListFormatOptions) => string` |
+| `formatPlural` | `(count, options?) => Intl.LDMLPluralRule` |
+| `formatDisplayName` | `(code, type?) => string` |
+| `locale` | the locale code |
+
+### `I18nManager`
+
+| Method | Signature |
+|--------|-----------|
+| `add` | `(data: TranslationsByLocale) => this` |
+| `load` | `(...loaders: TranslationLoader[]) => Promise<this>` |
+| `locale` | `(code?) => I18n` |
+| `supported` | `() => string[]` |
+| `defaultLocale` | the default locale code |
+
+`new I18nManager(options)` — see `I18nOptions`.
+
+### `setI18n(manager)` / `getI18n()` / `setTranslations(data)`
+
+Replace the active manager, read it, or add translations to it.
+
+### `detectLocale(options?)`
+
+`detectLocale(options?: DetectLocaleOptions): MiddlewareHandler`
+
+Work out the request's locale and stash it for `t()` / `i18n()`.
+
+### `negotiateLocale(header, supported, defaultLocale)`
+
+`negotiateLocale(header: string | null | undefined, supported: string[], defaultLocale: string): string`
+
+The `Accept-Language` parser, standalone.
+
+### `formatMessage(message, data?, locale?)`
+
+`formatMessage(message: string, data?: Record<string, unknown>, locale?: string): string`
+
+Format an ICU message directly, without a translation lookup.
+
+### `objectLoader(data)`
+
+`objectLoader(data: TranslationsByLocale): TranslationLoader` — the simplest loader.
+
+### Interfaces & types
+
+#### `I18nOptions`
+
+`{ defaultLocale?, supportedLocales?, fallbackLocales?, missing? }`.
+
+#### `DetectLocaleOptions`
+
+`{ query?, cookie?, header?, resolve? }`.
+
+#### `Translations` / `TranslationsByLocale`
+
+A locale's messages (nested or flat), and those keyed by locale.
+
+#### `TranslationLoader`
+
+`{ load(): Promise<TranslationsByLocale> | TranslationsByLocale }`.
+
+
+
+---
+
 <!-- source: docs/inertia.md -->
 
 # Inertia
@@ -10353,23 +10662,94 @@ field; steer clear of those names in your payloads.
 
 ## Levels
 
-`debug` < `info` < `warn` < `error`. Only events at or above the configured
-level are emitted. Set the threshold via config:
+`trace` < `debug` < `info` < `warn` < `error` < `fatal`. Only events at or above
+the configured level are emitted. Set the threshold via config:
 
 ```ts
 // config/logger.ts
 export default { level: env("LOG_LEVEL", "info") };
 ```
 
-Under the hood the levels are ordinal (`debug` 10, `info` 20, `warn` 30,
-`error` 40); a line is dropped when its level sits below the threshold. The
-default threshold is `"info"`, so `debug` lines stay silent until you lower it.
+Under the hood the levels are ordinal (`trace` 10, `debug` 20, `info` 30, `warn`
+40, `error` 50, `fatal` 60); a line is dropped when its level sits below the
+threshold. The default threshold is `"info"`, so `debug` and `trace` stay silent
+until you lower it.
+
+`log(level, message, context?)` takes the level at runtime, when it isn't known
+statically.
 
 Pretty output turns on automatically when `app.debug` is true. In pretty mode
 each event is a single human-readable line —
 `[2026-07-10T…] INFO  user registered {"userId":42}` — and the writer routes by
-level: `warn` goes to `console.warn`, `error` to `console.error`, everything else
-to `console.log`. In JSON mode every level is written to `console.log`.
+level: `warn` goes to `console.warn`, `error` and `fatal` to `console.error`,
+everything else to `console.log`. In JSON mode every level is written to
+`console.log`.
+
+`enabled: false` silences a logger entirely, at every level.
+
+### Don't pay for lines you won't emit
+
+The threshold drops the *line*, but the **context object is built either way** —
+so an expensive snapshot costs you even when nobody sees it. Gate it:
+
+```ts
+if (logger().isLevelEnabled("debug")) {
+  logger().debug("state", { snapshot: expensiveSnapshot() });
+}
+
+// ...or the callback form
+logger().ifLevelEnabled("debug", (log) => log.debug("state", { snapshot: expensiveSnapshot() }));
+```
+
+## Where the lines go
+
+A **sink** is where log records land. The default writes to the console (JSON, or
+pretty), but it's just a function, so logs can go anywhere — a file, an HTTP
+collector, a buffer:
+
+```ts
+import { Logger, type Sink } from "@shaferllc/keel/core";
+
+const httpSink: Sink = (record) => {
+  void fetch("https://logs.example.com", { method: "POST", body: JSON.stringify(record) });
+};
+
+new Logger({ sink: httpSink });
+```
+
+A sink receives the structured `LogRecord` — `{ level, time, msg, fields }` — not a
+formatted string, so it can do what it likes with the shape. `fields` is already
+redacted.
+
+`MemorySink` collects records in memory, which is what you want in a test:
+
+```ts
+import { Logger, MemorySink } from "@shaferllc/keel/core";
+
+const sink = new MemorySink();
+const log = new Logger({ level: "trace", sink: sink.sink });
+
+log.info("hello", { userId: 1 });
+
+sink.messages(); // ["hello"]
+sink.at("info"); // the records at one level
+sink.records[0].fields; // { userId: 1 }
+sink.clear();
+```
+
+## Named loggers
+
+Give a subsystem its own level or destination:
+
+```ts
+import { setLogger, namedLogger, Logger } from "@shaferllc/keel/core";
+
+setLogger(new Logger({ level: "trace", sink: auditSink }), "audit");
+
+namedLogger("audit").trace("permission granted", { userId });
+```
+
+The application's own logger stays where it is — reach that with `logger()`.
 
 ## Child loggers
 
@@ -10437,7 +10817,8 @@ middleware), `requestLog()` falls back to the base `logger()`.
 ## Redaction
 
 Keep secrets out of your logs with `redact` — top-level keys or dot paths. Matched
-values are replaced with `"[redacted]"`; the original object is never mutated:
+values are replaced with `"[redacted]"`; **the original object is never mutated**,
+so redacting doesn't corrupt the data you're still using:
 
 ```ts
 const log = new Logger({
@@ -10448,8 +10829,30 @@ log.info("login", { user: "ada", password: "s3cret", req: { headers: { authoriza
 // {"level":"info",…,"user":"ada","password":"[redacted]","req":{"headers":{"authorization":"[redacted]"}}}
 ```
 
+A `*` segment matches every key at that level — which is how you catch a secret
+that appears under a key you don't know in advance:
+
+```ts
+new Logger({ redact: ["*.password", "creds.*.token"] });
+
+log.info("audit", {
+  alice: { password: "a", name: "Alice" },
+  bob: { password: "b", name: "Bob" },
+});
+// both passwords redacted; both names kept
+```
+
+Pass an object instead of an array to change the placeholder, or drop the key
+outright:
+
+```ts
+new Logger({ redact: { paths: ["password"], censor: "***" } });
+new Logger({ redact: { paths: ["password"], remove: true } }); // the key disappears
+```
+
 Redaction is inherited by child loggers, so a redacting base logger keeps
-per-request loggers safe too.
+per-request loggers safe too, and it runs **before** the sink — a custom sink can
+never see the unredacted values.
 
 ---
 
@@ -10603,7 +11006,7 @@ const log = new Logger({ level: "debug", pretty: true, bindings: { app: "api" } 
 
 #### `LogLevel`
 
-`type LogLevel = "debug" | "info" | "warn" | "error"`
+`type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal"`
 
 The four severity levels, in ascending order. Used for the `level` option and
 selected implicitly by each method.
@@ -10612,6 +11015,58 @@ selected implicitly by each method.
 const threshold: LogLevel = "warn";
 new Logger({ level: threshold });
 ```
+
+### `isLevelEnabled(level)` / `ifLevelEnabled(level, fn)`
+
+`isLevelEnabled(level: LogLevel): boolean` — whether a level would be emitted.
+Check it before building an expensive context object.
+
+`ifLevelEnabled(level: LogLevel, fn: (log: Logger) => void): void` — the callback
+form.
+
+### `log(level, message, context?)`
+
+`log(level: LogLevel, message: string, context?: Record<string, unknown>): void` —
+log at a level chosen at runtime.
+
+### `consoleSink(pretty?)`
+
+`consoleSink(pretty = false): Sink` — the default sink. JSON to stdout, or a pretty
+single line.
+
+### `MemorySink`
+
+Collects records in memory — for tests.
+
+| Member | Signature |
+|--------|-----------|
+| `sink` | `Sink` — hand this to `LoggerOptions.sink` |
+| `records` | `LogRecord[]` |
+| `at` | `(level) => LogRecord[]` |
+| `messages` | `() => string[]` |
+| `clear` | `() => void` |
+
+### `setLogger(logger, name)` / `namedLogger(name)`
+
+Register a logger under a name, and resolve it. `namedLogger` throws for an unknown
+name.
+
+### Interfaces & types (added)
+
+#### `Sink`
+
+`type Sink = (record: LogRecord) => void` — where log lines go.
+
+#### `LogRecord`
+
+`{ level: LogLevel; time: string; msg: string; fields: Record<string, unknown> }` —
+`fields` is already redacted.
+
+#### `RedactOptions`
+
+`{ paths: string[]; censor?: string; remove?: boolean }` — a `*` path segment
+matches every key at that level. `LoggerOptions.redact` also accepts a bare
+`string[]`.
 
 
 

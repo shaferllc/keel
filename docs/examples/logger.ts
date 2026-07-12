@@ -90,3 +90,77 @@ const options: LoggerOptions = {
 };
 const level: LogLevel = "warn";
 export { options, level };
+
+/* --- Levels, sinks, named loggers, redaction options --- */
+
+import {
+  MemorySink,
+  consoleSink,
+  setLogger,
+  namedLogger,
+  type Sink,
+  type LogRecord,
+  type RedactOptions,
+} from "@shaferllc/keel/core";
+
+declare function expensiveSnapshot(): unknown;
+declare const auditSink: Sink;
+declare const userId: number;
+
+export function allLevels() {
+  const log = new Logger({ level: "trace" });
+  log.trace("t");
+  log.debug("d");
+  log.info("i");
+  log.warn("w");
+  log.error("e");
+  log.fatal("f");
+  log.log("warn", "dynamic");
+}
+
+export function gating() {
+  if (logger().isLevelEnabled("debug")) {
+    logger().debug("state", { snapshot: expensiveSnapshot() });
+  }
+  logger().ifLevelEnabled("debug", (log) =>
+    log.debug("state", { snapshot: expensiveSnapshot() }),
+  );
+}
+
+export function sinks() {
+  const httpSink: Sink = (record: LogRecord) => {
+    void fetch("https://logs.example.com", { method: "POST", body: JSON.stringify(record) });
+  };
+  new Logger({ sink: httpSink });
+  new Logger({ sink: consoleSink(true) });
+  new Logger({ enabled: false });
+}
+
+export function memorySink() {
+  const sink = new MemorySink();
+  const log = new Logger({ level: "trace", sink: sink.sink });
+
+  log.info("hello", { userId: 1 });
+
+  const messages = sink.messages();
+  const infos = sink.at("info");
+  const fields = sink.records[0]?.fields;
+  sink.clear();
+
+  return { messages, infos, fields };
+}
+
+export function named() {
+  setLogger(new Logger({ level: "trace", sink: auditSink }), "audit");
+  namedLogger("audit").trace("permission granted", { userId });
+}
+
+export function redactionOptions() {
+  new Logger({ redact: ["password", "req.headers.authorization"] });
+  new Logger({ redact: ["*.password", "creds.*.token"] });
+
+  const censor: RedactOptions = { paths: ["password"], censor: "***" };
+  const remove: RedactOptions = { paths: ["password"], remove: true };
+  new Logger({ redact: censor });
+  new Logger({ redact: remove });
+}

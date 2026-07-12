@@ -206,8 +206,8 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Models](./docs/models.md) | Active-record: find/create/save, casts, relations |
 | [Migrations](./docs/migrations.md) | Schema builder + migrator, dialect-aware |
 | [Factories & Seeders](./docs/factories.md) | Built-in Faker, model factories, seeders |
-| [Mail](./docs/mail.md) | Fluent mailer, pluggable transports, edge-safe |
-| [Queues & Jobs](./docs/queues.md) | Dispatch jobs, pluggable drivers, workers |
+| [Mail](./docs/mail.md) | Fluent mailer, pluggable transports, `sendLater()`, attachments |
+| [Queues & Jobs](./docs/queues.md) | Dispatch jobs, retries + backoff, dead-letter, workers |
 | [Task Scheduling](./docs/scheduling.md) | Cron-style recurring tasks, one trigger |
 | [Notifications](./docs/notifications.md) | Multi-channel (mail/db), queueable |
 | [Broadcasting](./docs/broadcasting.md) | Real-time channels, pluggable, presence auth |
@@ -215,11 +215,13 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Events](./docs/events.md) | Emit/listen decoupling, async listeners |
 | [Service Broker](./docs/broker.md) | Moleculer-style services, call/emit, pluggable transport |
 | [Cache](./docs/cache.md) | TTLs, the remember pattern, pluggable stores |
+| [Locks](./docs/locks.md) | Distributed locks with ownership + TTL, pluggable stores |
 | [Redis](./docs/redis.md) | Pluggable client, memory driver, cache adapter |
-| [Logger](./docs/logger.md) | Structured logging, per-request `reqId`, redaction |
+| [Logger](./docs/logger.md) | Structured logging, sinks, per-request `reqId`, redaction |
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
 | [Storage](./docs/storage.md) | Pluggable disks (local/S3/R2), signed URLs, direct uploads |
 | [Health Checks](./docs/health.md) | `/health/live` + `/health/ready`, pluggable checks |
+| [Internationalization](./docs/i18n.md) | ICU messages, `Intl` formatters, locale detection |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Templates](./docs/templates.md) | `{{ }}` + `@`-tag templating engine, edge-safe |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
