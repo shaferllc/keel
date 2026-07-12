@@ -1,0 +1,2552 @@
+{
+  "name": "@shaferllc/keel",
+  "version": "0.69.0",
+  "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
+  "repo": "https://github.com/shaferllc/keel",
+  "generated": "run `npm run build:ai` to regenerate",
+  "docs": [
+    {
+      "slug": "ai",
+      "title": "Building Keel apps with AI",
+      "summary": "Keel is built to be written with an AI agent.",
+      "path": "docs/ai.md",
+      "example": null
+    },
+    {
+      "slug": "architecture",
+      "title": "Architecture",
+      "summary": "Keel is small on purpose. This page maps the pieces and traces a request from socket to response. Nothing here is magic — every layer is a short, readable file in src/core/, and this guide is mostly a reading order for it.",
+      "path": "docs/architecture.md",
+      "example": null
+    },
+    {
+      "slug": "authentication",
+      "title": "Authentication",
+      "summary": "Session-based auth built on the pieces you already have: sessions hold the login, hashing checks passwords.",
+      "path": "docs/authentication.md",
+      "example": "docs/examples/authentication.ts"
+    },
+    {
+      "slug": "authorization",
+      "title": "Authorization",
+      "summary": "Where authentication answers who you are, authorization answers what you're allowed to do.",
+      "path": "docs/authorization.md",
+      "example": "docs/examples/authorization.ts"
+    },
+    {
+      "slug": "broadcasting",
+      "title": "Broadcasting",
+      "summary": "Push events to clients in real time over named channels.",
+      "path": "docs/broadcasting.md",
+      "example": "docs/examples/broadcasting.ts"
+    },
+    {
+      "slug": "broker",
+      "title": "Service Broker",
+      "summary": "Structure an application as services that talk to each other by name instead of by import.",
+      "path": "docs/broker.md",
+      "example": "docs/examples/broker.ts"
+    },
+    {
+      "slug": "cache",
+      "title": "Cache",
+      "summary": "A small cache with TTLs and the remember pattern.",
+      "path": "docs/cache.md",
+      "example": "docs/examples/cache.ts"
+    },
+    {
+      "slug": "configuration",
+      "title": "Configuration",
+      "summary": "Keel loads configuration from two sources: environment variables (.env) and config files (config/.ts).",
+      "path": "docs/configuration.md",
+      "example": "docs/examples/configuration.ts"
+    },
+    {
+      "slug": "console",
+      "title": "The Console",
+      "summary": "Keel ships with a console for running the server and generating code.",
+      "path": "docs/console.md",
+      "example": null
+    },
+    {
+      "slug": "container",
+      "title": "The Service Container",
+      "summary": "The container is the backbone of Keel. Every service — config, the router, controllers, and anything you write — is registered in it and resolved out of it. It is the single registry every service resolves out of.",
+      "path": "docs/container.md",
+      "example": "docs/examples/container.ts"
+    },
+    {
+      "slug": "controllers",
+      "title": "Controllers",
+      "summary": "Controllers are plain classes in app/Controllers/.",
+      "path": "docs/controllers.md",
+      "example": "docs/examples/controllers.ts"
+    },
+    {
+      "slug": "cors",
+      "title": "CORS",
+      "summary": "Cross-Origin Resource Sharing lets browsers on other origins call your API.",
+      "path": "docs/cors.md",
+      "example": null
+    },
+    {
+      "slug": "database",
+      "title": "Database",
+      "summary": "Keel ships a small, driver-agnostic query builder.",
+      "path": "docs/database.md",
+      "example": "docs/examples/database.ts"
+    },
+    {
+      "slug": "debugging",
+      "title": "Debugging",
+      "summary": "Two helpers for the moments you'd otherwise reach for console.log.",
+      "path": "docs/debugging.md",
+      "example": "docs/examples/debugging.ts"
+    },
+    {
+      "slug": "decorators",
+      "title": "Request Decorators",
+      "summary": "Attach named, computed values to the current request — request.user, request.tenant, request.locale — resolved lazily and memoized for the life of the request.",
+      "path": "docs/decorators.md",
+      "example": "docs/examples/decorators.ts"
+    },
+    {
+      "slug": "errors",
+      "title": "Errors & Exceptions",
+      "summary": "Throw an exception anywhere — a handler, middleware, or a service deep in the container — and Keel's HTTP kernel turns it into the right response.",
+      "path": "docs/errors.md",
+      "example": "docs/examples/errors.ts"
+    },
+    {
+      "slug": "events",
+      "title": "Events",
+      "summary": "A tiny event emitter for decoupling — fire an event in one place, handle it in another.",
+      "path": "docs/events.md",
+      "example": "docs/examples/events.ts"
+    },
+    {
+      "slug": "factories",
+      "title": "Factories & Seeders",
+      "summary": "Populate the database with realistic fixtures for tests and demos.",
+      "path": "docs/factories.md",
+      "example": "docs/examples/factories.ts"
+    },
+    {
+      "slug": "getting-started",
+      "title": "Getting Started",
+      "summary": "Keel is a house framework for Node.js — a small, legible MVC layer over Hono.",
+      "path": "docs/getting-started.md",
+      "example": null
+    },
+    {
+      "slug": "hashing",
+      "title": "Hashing & Encryption",
+      "summary": "Password hashing and value encryption, both built on the Web Crypto API — so they run identically on Node and the edge, with no native bindings (no bcrypt to compile).",
+      "path": "docs/hashing.md",
+      "example": "docs/examples/hashing.ts"
+    },
+    {
+      "slug": "health",
+      "title": "Health Checks",
+      "summary": "Two endpoints, answering the two questions an orchestrator — Kubernetes, Fly, Railway, a load balancer — actually asks:",
+      "path": "docs/health.md",
+      "example": "docs/examples/health.ts"
+    },
+    {
+      "slug": "helpers",
+      "title": "Helpers",
+      "summary": "Keel gives you a handful of global helper functions so you can reach the running application from anywhere — a route handler, a model, a plain function — without threading a container reference through every call.",
+      "path": "docs/helpers.md",
+      "example": "docs/examples/helpers.ts"
+    },
+    {
+      "slug": "hono",
+      "title": "Built on Hono",
+      "summary": "Keel's HTTP layer is Hono — an ultrafast, web-standard router that runs on Node, Cloudflare Workers, Deno, Bun, and more.",
+      "path": "docs/hono.md",
+      "example": null
+    },
+    {
+      "slug": "hooks",
+      "title": "Lifecycle Hooks",
+      "summary": "Tap into the application lifecycle — run code once the app is ready, clean up on shutdown, and observe route registration.",
+      "path": "docs/hooks.md",
+      "example": "docs/examples/hooks.ts"
+    },
+    {
+      "slug": "inertia",
+      "title": "Inertia",
+      "summary": "Keel ships a server-side Inertia.js adapter.",
+      "path": "docs/inertia.md",
+      "example": "docs/examples/inertia.ts"
+    },
+    {
+      "slug": "locks",
+      "title": "Locks",
+      "summary": "\"Only one of you may do this at a time\" — across processes, across nodes.",
+      "path": "docs/locks.md",
+      "example": "docs/examples/locks.ts"
+    },
+    {
+      "slug": "logger",
+      "title": "Logger",
+      "summary": "A small leveled logger. It writes structured JSON by default — one line per event, ready for log aggregators — and pretty single-line output in debug. Reach it with the global logger() helper.",
+      "path": "docs/logger.md",
+      "example": "docs/examples/logger.ts"
+    },
+    {
+      "slug": "mail",
+      "title": "Mail",
+      "summary": "Send email through a pluggable transport. Compose a message with a fluent builder and dispatch it — the API mirrors the database layer (setMailer / mail() are to mail what setConnection / db() are to the database). The core imports no SDK: the built-in transports use fetch, console, or memory, so it runs on Node and the edge.",
+      "path": "docs/mail.md",
+      "example": "docs/examples/mail.ts"
+    },
+    {
+      "slug": "middleware",
+      "title": "Middleware",
+      "summary": "Middleware wraps every request, running code before and after your route handler.",
+      "path": "docs/middleware.md",
+      "example": "docs/examples/middleware.ts"
+    },
+    {
+      "slug": "migrations",
+      "title": "Migrations",
+      "summary": "Version your database schema. A migration is a { name, up, down } object; a fluent schema builder describes tables, and the migrator runs them against your connection, tracking what's applied. The SQL is dialect-aware (sqlite / mysql / postgres) and the core imports no driver.",
+      "path": "docs/migrations.md",
+      "example": "docs/examples/migrations.ts"
+    },
+    {
+      "slug": "models",
+      "title": "Models",
+      "summary": "Model is a tiny active-record layer over the query builder.",
+      "path": "docs/models.md",
+      "example": "docs/examples/models.ts"
+    },
+    {
+      "slug": "notifications",
+      "title": "Notifications",
+      "summary": "Send a message to a recipient over one or more channels — mail, database, or your own — inline or through the queue.",
+      "path": "docs/notifications.md",
+      "example": "docs/examples/notification.ts"
+    },
+    {
+      "slug": "providers",
+      "title": "Service Providers",
+      "summary": "Service providers are the central place to configure your application.",
+      "path": "docs/providers.md",
+      "example": "docs/examples/providers.ts"
+    },
+    {
+      "slug": "queues",
+      "title": "Queues & Jobs",
+      "summary": "Move slow work — sending mail, calling an API, processing an upload — off the request path.",
+      "path": "docs/queues.md",
+      "example": "docs/examples/queues.ts"
+    },
+    {
+      "slug": "rate-limiting",
+      "title": "Rate Limiting",
+      "summary": "rateLimiter() is a middleware that caps how many requests a client can make in a window.",
+      "path": "docs/rate-limiting.md",
+      "example": "docs/examples/rate-limiting.ts"
+    },
+    {
+      "slug": "redis",
+      "title": "Redis",
+      "summary": "A Redis integration built on a small pluggable driver — like the database and mail layers, the core imports no client, so it runs on Node and on the edge.",
+      "path": "docs/redis.md",
+      "example": "docs/examples/redis.ts"
+    },
+    {
+      "slug": "request-response",
+      "title": "Request & Response",
+      "summary": "Beyond the terse param() / json() shortcuts, the request and response accessors give you the full input/output surface — no context threading.",
+      "path": "docs/request-response.md",
+      "example": "docs/examples/request-response.ts"
+    },
+    {
+      "slug": "routing",
+      "title": "Routing",
+      "summary": "Routes live in routes/web.ts. The default export receives the Router and registers routes on it. The HTTP kernel later compiles them onto Hono.",
+      "path": "docs/routing.md",
+      "example": "docs/examples/routing.ts"
+    },
+    {
+      "slug": "scheduling",
+      "title": "Task Scheduling",
+      "summary": "Declare recurring work with a fluent cadence, then let a single cron trigger drive it — a code-defined scheduler, edge-first.",
+      "path": "docs/scheduling.md",
+      "example": "docs/examples/scheduling.ts"
+    },
+    {
+      "slug": "security",
+      "title": "Securing SSR apps",
+      "summary": "Two middlewares harden server-rendered apps: securityHeaders() sets the defensive HTTP headers browsers act on, and csrf() blocks cross-site form submissions.",
+      "path": "docs/security.md",
+      "example": null
+    },
+    {
+      "slug": "sessions",
+      "title": "Sessions",
+      "summary": "Keel ships a cookie-backed session store. There's no external service to run, so it works the same on Node and on the edge. Session data lives in an HTTP-only cookie: the middleware reads it before your handler runs and writes it back afterward.",
+      "path": "docs/sessions.md",
+      "example": "docs/examples/sessions.ts"
+    },
+    {
+      "slug": "social-auth",
+      "title": "Social authentication",
+      "summary": "\"Sign in with GitHub / Google / Discord\" — OAuth 2.0, without an SDK.",
+      "path": "docs/social-auth.md",
+      "example": null
+    },
+    {
+      "slug": "static-files",
+      "title": "Static Files",
+      "summary": "serveStatic() serves files from a directory (default public/) before your routes run.",
+      "path": "docs/static-files.md",
+      "example": "docs/examples/static-files.ts"
+    },
+    {
+      "slug": "storage",
+      "title": "Storage",
+      "summary": "File storage over a pluggable disk — like the database and mail layers, the core imports no filesystem or SDK, so it runs on Node and the edge.",
+      "path": "docs/storage.md",
+      "example": "docs/examples/storage.ts"
+    },
+    {
+      "slug": "templates",
+      "title": "Templates",
+      "summary": "A string templating engine in the spirit of AdonisJS Edge — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.",
+      "path": "docs/templates.md",
+      "example": "docs/examples/templates.ts"
+    },
+    {
+      "slug": "testing",
+      "title": "Testing",
+      "summary": "Test your app by injecting requests — no server, no port, no network — and asserting on the response.",
+      "path": "docs/testing.md",
+      "example": "docs/examples/testing.ts"
+    },
+    {
+      "slug": "transformers",
+      "title": "Transformers",
+      "summary": "A model knows the database; a transformer knows the API.",
+      "path": "docs/transformers.md",
+      "example": "docs/examples/transformers.ts"
+    },
+    {
+      "slug": "url-builder",
+      "title": "URL Builder",
+      "summary": "Generate URLs from named routes so paths live in one place.",
+      "path": "docs/url-builder.md",
+      "example": "docs/examples/url-builder.ts"
+    },
+    {
+      "slug": "validation",
+      "title": "Validation",
+      "summary": "validate() parses request input against a schema and returns typed data.",
+      "path": "docs/validation.md",
+      "example": "docs/examples/validation.ts"
+    },
+    {
+      "slug": "views",
+      "title": "Views",
+      "summary": "Keel renders HTML with Hono JSX — type-safe components that run identically on Node and on Cloudflare Workers (no filesystem templating, so it ports anywhere).",
+      "path": "docs/views.md",
+      "example": "docs/examples/views.tsx"
+    },
+    {
+      "slug": "vite",
+      "title": "Vite",
+      "summary": "Wire a modern frontend build — bundling, hashed filenames, hot module reload — to Keel's server-rendered HTML, the way modern full-stack frameworks do.",
+      "path": "docs/vite.md",
+      "example": "docs/examples/vite.ts"
+    }
+  ],
+  "api": [
+    {
+      "name": "AccessToken",
+      "kind": "type",
+      "module": "tokens"
+    },
+    {
+      "name": "AcquireOptions",
+      "kind": "type",
+      "module": "lock"
+    },
+    {
+      "name": "ActionDef",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "ActionHandler",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "ActionHooks",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "ActionSchema",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "addConnection",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "AfterCallback",
+      "kind": "type",
+      "module": "authorization"
+    },
+    {
+      "name": "AfterHook",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "alias",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "AnyListener",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "app",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Application",
+      "kind": "value",
+      "module": "application"
+    },
+    {
+      "name": "ArrayChannel",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "ArrayTransport",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "Attachment",
+      "kind": "type",
+      "module": "mail"
+    },
+    {
+      "name": "Attributes",
+      "kind": "type",
+      "module": "transformer"
+    },
+    {
+      "name": "AttrValue",
+      "kind": "type",
+      "module": "vite"
+    },
+    {
+      "name": "auth",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "Auth",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "authGuard",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "authorize",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "authorizeChannel",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "authorizeFor",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "Backoff",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "BadGatewayException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "BadRequestException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "BaseCheck",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "BaseMail",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "basicAuth",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "BasicVerifier",
+      "kind": "type",
+      "module": "auth"
+    },
+    {
+      "name": "bearerAuth",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "BeforeCallback",
+      "kind": "type",
+      "module": "authorization"
+    },
+    {
+      "name": "BeforeHook",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "BelongsTo",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "BelongsToMany",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "bind",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "body",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "BootOptions",
+      "kind": "type",
+      "module": "application"
+    },
+    {
+      "name": "bound",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "broadcast",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "Broadcaster",
+      "kind": "type",
+      "module": "broadcasting"
+    },
+    {
+      "name": "broker",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "Broker",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "BrokerMiddleware",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "BrokerOptions",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "cache",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Cache",
+      "kind": "value",
+      "module": "cache"
+    },
+    {
+      "name": "CacheCheck",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "CacheStore",
+      "kind": "type",
+      "module": "cache"
+    },
+    {
+      "name": "CallOptions",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "can",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "canFor",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "cannot",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "Casts",
+      "kind": "type",
+      "module": "casts"
+    },
+    {
+      "name": "CastType",
+      "kind": "type",
+      "module": "casts"
+    },
+    {
+      "name": "Channel",
+      "kind": "type",
+      "module": "notification"
+    },
+    {
+      "name": "channelAuth",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "ChannelAuthorizer",
+      "kind": "type",
+      "module": "broadcasting"
+    },
+    {
+      "name": "check",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "CheckReport",
+      "kind": "type",
+      "module": "health"
+    },
+    {
+      "name": "clearAuthorization",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "clearChannels",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "clearConnections",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "clearRequestDecorators",
+      "kind": "value",
+      "module": "decorators"
+    },
+    {
+      "name": "Column",
+      "kind": "value",
+      "module": "migrations"
+    },
+    {
+      "name": "config",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Config",
+      "kind": "value",
+      "module": "config"
+    },
+    {
+      "name": "ConfigData",
+      "kind": "type",
+      "module": "config"
+    },
+    {
+      "name": "Configurator",
+      "kind": "type",
+      "module": "application"
+    },
+    {
+      "name": "ConflictException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "connection",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "Connection",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "ConnectionHandle",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "connectionNames",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "consoleSink",
+      "kind": "value",
+      "module": "logger"
+    },
+    {
+      "name": "Constructor",
+      "kind": "type",
+      "module": "container"
+    },
+    {
+      "name": "Container",
+      "kind": "value",
+      "module": "container"
+    },
+    {
+      "name": "Contents",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "contentTypeFor",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "Context",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "cors",
+      "kind": "value",
+      "module": "cors"
+    },
+    {
+      "name": "CorsOptions",
+      "kind": "type",
+      "module": "cors"
+    },
+    {
+      "name": "createError",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "createToken",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "CreateTokenOptions",
+      "kind": "type",
+      "module": "tokens"
+    },
+    {
+      "name": "cronMatches",
+      "kind": "value",
+      "module": "scheduler"
+    },
+    {
+      "name": "csrf",
+      "kind": "value",
+      "module": "csrf"
+    },
+    {
+      "name": "csrfField",
+      "kind": "value",
+      "module": "csrf"
+    },
+    {
+      "name": "CsrfOptions",
+      "kind": "type",
+      "module": "csrf"
+    },
+    {
+      "name": "csrfToken",
+      "kind": "value",
+      "module": "csrf"
+    },
+    {
+      "name": "ctx",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "Ctx",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "DatabaseChannel",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "DatabaseCheck",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "db",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "dd",
+      "kind": "value",
+      "module": "debug"
+    },
+    {
+      "name": "decorated",
+      "kind": "value",
+      "module": "decorators"
+    },
+    {
+      "name": "decorateRequest",
+      "kind": "value",
+      "module": "decorators"
+    },
+    {
+      "name": "define",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "Definition",
+      "kind": "type",
+      "module": "factory"
+    },
+    {
+      "name": "detectLocale",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "DetectLocaleOptions",
+      "kind": "type",
+      "module": "i18n"
+    },
+    {
+      "name": "Dialect",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "discord",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "Disk",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "dispatch",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "Dispatchable",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "DocumentOptions",
+      "kind": "type",
+      "module": "transformer"
+    },
+    {
+      "name": "Drainable",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "dump",
+      "kind": "value",
+      "module": "debug"
+    },
+    {
+      "name": "emit",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "EmitOptions",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "encryption",
+      "kind": "value",
+      "module": "crypto"
+    },
+    {
+      "name": "EncryptOptions",
+      "kind": "type",
+      "module": "crypto"
+    },
+    {
+      "name": "env",
+      "kind": "value",
+      "module": "config"
+    },
+    {
+      "name": "ErrorHandler",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "ErrorHook",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "escapeHtml",
+      "kind": "value",
+      "module": "template"
+    },
+    {
+      "name": "EventBuffer",
+      "kind": "value",
+      "module": "events"
+    },
+    {
+      "name": "EventHandler",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "EventName",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "events",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Events",
+      "kind": "value",
+      "module": "events"
+    },
+    {
+      "name": "EventSchema",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "EventsList",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "EventType",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "exponentialBackoff",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "factory",
+      "kind": "value",
+      "module": "factory"
+    },
+    {
+      "name": "Factory",
+      "kind": "type",
+      "module": "container"
+    },
+    {
+      "name": "FailedJob",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "fakeDisk",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "fakeMail",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "FakeMailer",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "fakeQueue",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "FakeQueue",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "Faker",
+      "kind": "value",
+      "module": "factory"
+    },
+    {
+      "name": "FakeStorage",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "fetchTransport",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "FetchTransportOptions",
+      "kind": "type",
+      "module": "mail"
+    },
+    {
+      "name": "FileMetadata",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "FileVisibility",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "Filter",
+      "kind": "type",
+      "module": "template"
+    },
+    {
+      "name": "fixedBackoff",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "ForbiddenException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "formatMessage",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "gateAfter",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "gateBefore",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "GateCallback",
+      "kind": "type",
+      "module": "authorization"
+    },
+    {
+      "name": "getBroadcaster",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "getI18n",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "getLockStore",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "getMailer",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "getNotifier",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "getQueue",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "github",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "google",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "hash",
+      "kind": "value",
+      "module": "crypto"
+    },
+    {
+      "name": "HasMany",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "HasOne",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "hasRequestDecorator",
+      "kind": "value",
+      "module": "decorators"
+    },
+    {
+      "name": "header",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "health",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "healthCheck",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "HealthCheckOptions",
+      "kind": "type",
+      "module": "health"
+    },
+    {
+      "name": "HealthChecks",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "HealthReport",
+      "kind": "type",
+      "module": "health"
+    },
+    {
+      "name": "HealthStatus",
+      "kind": "type",
+      "module": "health"
+    },
+    {
+      "name": "HstsOptions",
+      "kind": "type",
+      "module": "shield"
+    },
+    {
+      "name": "html",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "HttpException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "HttpKernel",
+      "kind": "value",
+      "module": "http/kernel"
+    },
+    {
+      "name": "i18n",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "I18n",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "I18nManager",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "I18nOptions",
+      "kind": "type",
+      "module": "i18n"
+    },
+    {
+      "name": "inertia",
+      "kind": "value",
+      "module": "inertia"
+    },
+    {
+      "name": "Inertia",
+      "kind": "value",
+      "module": "inertia"
+    },
+    {
+      "name": "InertiaOptions",
+      "kind": "type",
+      "module": "inertia"
+    },
+    {
+      "name": "InertiaPage",
+      "kind": "type",
+      "module": "inertia"
+    },
+    {
+      "name": "inertiaPageAttr",
+      "kind": "value",
+      "module": "inertia"
+    },
+    {
+      "name": "instance",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "IssuedToken",
+      "kind": "type",
+      "module": "tokens"
+    },
+    {
+      "name": "Job",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "JobClass",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "JobContext",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "JobOptions",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "json",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "jwt",
+      "kind": "value",
+      "module": "crypto"
+    },
+    {
+      "name": "JwtPayload",
+      "kind": "type",
+      "module": "crypto"
+    },
+    {
+      "name": "JwtSignOptions",
+      "kind": "type",
+      "module": "crypto"
+    },
+    {
+      "name": "JwtVerifyOptions",
+      "kind": "type",
+      "module": "crypto"
+    },
+    {
+      "name": "LengthRequiredException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "LifecycleHook",
+      "kind": "type",
+      "module": "application"
+    },
+    {
+      "name": "linearBackoff",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "listen",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Listener",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "listTokens",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "LocalTransporter",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "lock",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "Lock",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "LockNotHeldError",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "LockStore",
+      "kind": "type",
+      "module": "lock"
+    },
+    {
+      "name": "logger",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Logger",
+      "kind": "value",
+      "module": "logger"
+    },
+    {
+      "name": "LoggerOptions",
+      "kind": "type",
+      "module": "logger"
+    },
+    {
+      "name": "LogLevel",
+      "kind": "type",
+      "module": "logger"
+    },
+    {
+      "name": "LogRecord",
+      "kind": "type",
+      "module": "logger"
+    },
+    {
+      "name": "LogTransport",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "mail",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "MailChannel",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "MailContent",
+      "kind": "type",
+      "module": "notification"
+    },
+    {
+      "name": "mailer",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "Mailer",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "MailerOptions",
+      "kind": "type",
+      "module": "mail"
+    },
+    {
+      "name": "make",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Manifest",
+      "kind": "type",
+      "module": "vite"
+    },
+    {
+      "name": "ManifestChunk",
+      "kind": "type",
+      "module": "vite"
+    },
+    {
+      "name": "Matcher",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "matchers",
+      "kind": "value",
+      "module": "http/router"
+    },
+    {
+      "name": "MCallDefs",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "MCallOptions",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "MemoryBroadcaster",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "MemoryDisk",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "MemoryDriver",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "MemoryLockStore",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "MemoryRedis",
+      "kind": "value",
+      "module": "redis"
+    },
+    {
+      "name": "MemorySink",
+      "kind": "value",
+      "module": "logger"
+    },
+    {
+      "name": "MemoryStore",
+      "kind": "value",
+      "module": "cache"
+    },
+    {
+      "name": "Message",
+      "kind": "type",
+      "module": "mail"
+    },
+    {
+      "name": "Method",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "MethodNotAllowedException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "MiddlewareRef",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "Migration",
+      "kind": "type",
+      "module": "migrations"
+    },
+    {
+      "name": "Migrator",
+      "kind": "value",
+      "module": "migrations"
+    },
+    {
+      "name": "Model",
+      "kind": "value",
+      "module": "model"
+    },
+    {
+      "name": "ModelFactory",
+      "kind": "value",
+      "module": "factory"
+    },
+    {
+      "name": "namedLogger",
+      "kind": "value",
+      "module": "logger"
+    },
+    {
+      "name": "negotiateLocale",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "noBackoff",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "NotAcceptableException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "NotFoundException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "Notifiable",
+      "kind": "type",
+      "module": "notification"
+    },
+    {
+      "name": "Notification",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "Notifier",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "notify",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "NotImplementedException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "OAuth1Config",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "oauth1Driver",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "OAuth1Driver",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "OAuth1ProviderSpec",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "oauth1Signature",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "OAuth1Token",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "OAuthConfig",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "oauthDriver",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "OAuthDriver",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "OAuthError",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "oauthState",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "OAuthToken",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "objectLoader",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "onReady",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "onShutdown",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Operator",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "Paginated",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "param",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "PayloadOf",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "PaymentRequiredException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "PendingMail",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "policy",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "ProviderClass",
+      "kind": "type",
+      "module": "provider"
+    },
+    {
+      "name": "ProviderSpec",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "PutOptions",
+      "kind": "type",
+      "module": "cache"
+    },
+    {
+      "name": "query",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "QueryBuilder",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "Queue",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "QueuedJob",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "QueueDriver",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "rateLimiter",
+      "kind": "value",
+      "module": "rate-limit"
+    },
+    {
+      "name": "RateLimiterOptions",
+      "kind": "type",
+      "module": "rate-limit"
+    },
+    {
+      "name": "RecordedEvent",
+      "kind": "type",
+      "module": "events"
+    },
+    {
+      "name": "RecordedMail",
+      "kind": "type",
+      "module": "mail"
+    },
+    {
+      "name": "RedactOptions",
+      "kind": "type",
+      "module": "logger"
+    },
+    {
+      "name": "redirect",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "RedirectOptions",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "redis",
+      "kind": "value",
+      "module": "redis"
+    },
+    {
+      "name": "Redis",
+      "kind": "value",
+      "module": "redis"
+    },
+    {
+      "name": "RedisCheck",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "RedisConnection",
+      "kind": "type",
+      "module": "redis"
+    },
+    {
+      "name": "redisStore",
+      "kind": "value",
+      "module": "redis"
+    },
+    {
+      "name": "Relation",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "RememberOptions",
+      "kind": "type",
+      "module": "cache"
+    },
+    {
+      "name": "render",
+      "kind": "value",
+      "module": "template"
+    },
+    {
+      "name": "Renderable",
+      "kind": "type",
+      "module": "view"
+    },
+    {
+      "name": "RenderContext",
+      "kind": "type",
+      "module": "template"
+    },
+    {
+      "name": "request",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "requestLog",
+      "kind": "value",
+      "module": "request-logger"
+    },
+    {
+      "name": "requestLogger",
+      "kind": "value",
+      "module": "request-logger"
+    },
+    {
+      "name": "RequestLoggerOptions",
+      "kind": "type",
+      "module": "request-logger"
+    },
+    {
+      "name": "RequestResolver",
+      "kind": "type",
+      "module": "decorators"
+    },
+    {
+      "name": "RequestSchemas",
+      "kind": "type",
+      "module": "validation"
+    },
+    {
+      "name": "RequestTimeoutError",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "RequestTimeoutException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "response",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "restore",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "restoreDisk",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "restoreLock",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "restoreMail",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "restoreQueue",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "Result",
+      "kind": "value",
+      "module": "health"
+    },
+    {
+      "name": "revokeToken",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "revokeTokens",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "Route",
+      "kind": "value",
+      "module": "http/router"
+    },
+    {
+      "name": "RouteDefinition",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "routeFor",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "RouteGroup",
+      "kind": "value",
+      "module": "http/router"
+    },
+    {
+      "name": "RouteHandler",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "Router",
+      "kind": "value",
+      "module": "http/router"
+    },
+    {
+      "name": "RouteResource",
+      "kind": "value",
+      "module": "http/router"
+    },
+    {
+      "name": "Row",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "schedule",
+      "kind": "value",
+      "module": "scheduler"
+    },
+    {
+      "name": "ScheduledTask",
+      "kind": "value",
+      "module": "scheduler"
+    },
+    {
+      "name": "scheduler",
+      "kind": "value",
+      "module": "scheduler"
+    },
+    {
+      "name": "Scheduler",
+      "kind": "value",
+      "module": "scheduler"
+    },
+    {
+      "name": "Schema",
+      "kind": "type",
+      "module": "validation"
+    },
+    {
+      "name": "SchemaBuilder",
+      "kind": "value",
+      "module": "migrations"
+    },
+    {
+      "name": "securityHeaders",
+      "kind": "value",
+      "module": "shield"
+    },
+    {
+      "name": "SecurityHeadersOptions",
+      "kind": "type",
+      "module": "shield"
+    },
+    {
+      "name": "seed",
+      "kind": "value",
+      "module": "factory"
+    },
+    {
+      "name": "Seeder",
+      "kind": "value",
+      "module": "factory"
+    },
+    {
+      "name": "send",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "sendLater",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "SendMailJob",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "ServerErrorException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "serveStatic",
+      "kind": "value",
+      "module": "static"
+    },
+    {
+      "name": "serveStorage",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "ServeStorageOptions",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "Service",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "ServiceHooks",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "ServiceNotFoundError",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "ServiceProvider",
+      "kind": "value",
+      "module": "provider"
+    },
+    {
+      "name": "ServiceSchema",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "ServiceUnavailableException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "session",
+      "kind": "value",
+      "module": "session"
+    },
+    {
+      "name": "Session",
+      "kind": "value",
+      "module": "session"
+    },
+    {
+      "name": "sessionMiddleware",
+      "kind": "value",
+      "module": "session"
+    },
+    {
+      "name": "SessionOptions",
+      "kind": "type",
+      "module": "session"
+    },
+    {
+      "name": "setBroadcaster",
+      "kind": "value",
+      "module": "broadcasting"
+    },
+    {
+      "name": "setBroker",
+      "kind": "value",
+      "module": "broker"
+    },
+    {
+      "name": "setConnection",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "setDefaultConnection",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "setDisk",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "setI18n",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "setLockStore",
+      "kind": "value",
+      "module": "lock"
+    },
+    {
+      "name": "setLogger",
+      "kind": "value",
+      "module": "logger"
+    },
+    {
+      "name": "setMailer",
+      "kind": "value",
+      "module": "mail"
+    },
+    {
+      "name": "setNotifier",
+      "kind": "value",
+      "module": "notification"
+    },
+    {
+      "name": "SetOptions",
+      "kind": "type",
+      "module": "redis"
+    },
+    {
+      "name": "setQueue",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "setRedis",
+      "kind": "value",
+      "module": "redis"
+    },
+    {
+      "name": "setRequestValue",
+      "kind": "value",
+      "module": "decorators"
+    },
+    {
+      "name": "setScheduler",
+      "kind": "value",
+      "module": "scheduler"
+    },
+    {
+      "name": "setTemplateEngine",
+      "kind": "value",
+      "module": "template"
+    },
+    {
+      "name": "setTokensTable",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "setTranslations",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "setUserProvider",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "setUserResolver",
+      "kind": "value",
+      "module": "authorization"
+    },
+    {
+      "name": "SignedFileOptions",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "SignedUploadOptions",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "SignedUrlOptions",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "signStorageUrl",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "singleton",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "Sink",
+      "kind": "type",
+      "module": "logger"
+    },
+    {
+      "name": "social",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "SocialUser",
+      "kind": "type",
+      "module": "social"
+    },
+    {
+      "name": "StaticOptions",
+      "kind": "type",
+      "module": "static"
+    },
+    {
+      "name": "STATUS_TEXT",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "storage",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "Storage",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "Subscriber",
+      "kind": "type",
+      "module": "broadcasting"
+    },
+    {
+      "name": "swap",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "SyncDriver",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "t",
+      "kind": "value",
+      "module": "i18n"
+    },
+    {
+      "name": "TableBuilder",
+      "kind": "value",
+      "module": "migrations"
+    },
+    {
+      "name": "TemplateEngine",
+      "kind": "value",
+      "module": "template"
+    },
+    {
+      "name": "templates",
+      "kind": "value",
+      "module": "template"
+    },
+    {
+      "name": "terminate",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "testClient",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "TestClient",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "TestResponse",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "text",
+      "kind": "value",
+      "module": "request"
+    },
+    {
+      "name": "token",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "Token",
+      "kind": "type",
+      "module": "container"
+    },
+    {
+      "name": "tokenAllows",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "tokenAuth",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "tokenCan",
+      "kind": "value",
+      "module": "auth"
+    },
+    {
+      "name": "tokenDenies",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "TooManyRequestsException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "Transformer",
+      "kind": "value",
+      "module": "transformer"
+    },
+    {
+      "name": "TranslationLoader",
+      "kind": "type",
+      "module": "i18n"
+    },
+    {
+      "name": "Translations",
+      "kind": "type",
+      "module": "i18n"
+    },
+    {
+      "name": "TranslationsByLocale",
+      "kind": "type",
+      "module": "i18n"
+    },
+    {
+      "name": "Transport",
+      "kind": "type",
+      "module": "mail"
+    },
+    {
+      "name": "Transporter",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "twitter",
+      "kind": "value",
+      "module": "social"
+    },
+    {
+      "name": "UnauthorizedException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "UrlOptions",
+      "kind": "type",
+      "module": "http/router"
+    },
+    {
+      "name": "UserProvider",
+      "kind": "type",
+      "module": "auth"
+    },
+    {
+      "name": "validate",
+      "kind": "value",
+      "module": "validation"
+    },
+    {
+      "name": "validated",
+      "kind": "value",
+      "module": "validation"
+    },
+    {
+      "name": "validateRequest",
+      "kind": "value",
+      "module": "validation"
+    },
+    {
+      "name": "ValidationException",
+      "kind": "value",
+      "module": "exceptions"
+    },
+    {
+      "name": "verifyStorageUrl",
+      "kind": "value",
+      "module": "storage"
+    },
+    {
+      "name": "verifyToken",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "view",
+      "kind": "value",
+      "module": "helpers"
+    },
+    {
+      "name": "View",
+      "kind": "value",
+      "module": "view"
+    },
+    {
+      "name": "ViewConfig",
+      "kind": "type",
+      "module": "view"
+    },
+    {
+      "name": "Visibility",
+      "kind": "type",
+      "module": "broker"
+    },
+    {
+      "name": "Vite",
+      "kind": "value",
+      "module": "vite"
+    },
+    {
+      "name": "viteAsset",
+      "kind": "value",
+      "module": "vite"
+    },
+    {
+      "name": "ViteAttributes",
+      "kind": "type",
+      "module": "vite"
+    },
+    {
+      "name": "ViteOptions",
+      "kind": "type",
+      "module": "vite"
+    },
+    {
+      "name": "viteReactRefresh",
+      "kind": "value",
+      "module": "vite"
+    },
+    {
+      "name": "viteTags",
+      "kind": "value",
+      "module": "vite"
+    },
+    {
+      "name": "work",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "WriteOptions",
+      "kind": "type",
+      "module": "storage"
+    },
+    {
+      "name": "WriteResult",
+      "kind": "type",
+      "module": "database"
+    }
+  ],
+  "generators": [
+    {
+      "command": "make:controller <name>",
+      "produces": "app/Controllers/<Name>Controller.ts",
+      "flags": [
+        "-r, --resource"
+      ],
+      "note": "A controller class resolved from the container. `-r` scaffolds all seven RESTful actions."
+    },
+    {
+      "command": "make:provider <name>",
+      "produces": "app/Providers/<Name>ServiceProvider.ts",
+      "flags": [],
+      "note": "A service provider with register()/boot() lifecycle hooks."
+    },
+    {
+      "command": "make:middleware <name>",
+      "produces": "app/Http/Middleware/<name>.ts",
+      "flags": [],
+      "note": "A Hono middleware handler (before/after next())."
+    },
+    {
+      "command": "make:factory <model>",
+      "produces": "database/factories/<Model>Factory.ts",
+      "flags": [],
+      "note": "A model factory for seeding/testing."
+    },
+    {
+      "command": "make:seeder <name>",
+      "produces": "database/seeders/<Name>Seeder.ts",
+      "flags": [],
+      "note": "A database seeder with an async run()."
+    },
+    {
+      "command": "make:job <name>",
+      "produces": "app/Jobs/<Name>Job.ts",
+      "flags": [],
+      "note": "A queued job with an async handle()."
+    },
+    {
+      "command": "make:notification <name>",
+      "produces": "app/Notifications/<Name>Notification.ts",
+      "flags": [],
+      "note": "A notification with via()/toMail()."
+    },
+    {
+      "command": "make:transformer <name>",
+      "produces": "app/Transformers/<Name>Transformer.ts",
+      "flags": [
+        "-m, --model <model>"
+      ],
+      "note": "An API transformer mapping a value to its serialized shape."
+    }
+  ]
+}

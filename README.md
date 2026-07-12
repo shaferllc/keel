@@ -108,10 +108,37 @@ npm run keel serve --port 8080      # start the server on a chosen port
 npm run keel make:controller Post   # -> app/Controllers/PostController.ts
 npm run keel make:provider Billing  # -> app/Providers/BillingServiceProvider.ts
 npm run keel make:middleware Auth   # -> app/Http/Middleware/authMiddleware.ts
+npm run keel mcp                    # start the MCP server (docs + API for AI agents)
 ```
 
 Under the hood the console binary is `bin/keel.ts`; the npm scripts wrap it with
 `tsx`.
+
+## Built for AI ⚓🤖
+
+Keel is designed to be **written with an AI agent**. Alongside the human docs it
+ships a machine-readable surface that stays generated-in-sync, never stale:
+
+- **An MCP server.** `keel-mcp` exposes Keel's docs, its full public API (380+
+  exports), the generators, and its conventions to any [MCP](https://modelcontextprotocol.io)
+  client. Connect it in Claude Code:
+  ```bash
+  claude mcp add keel -- npx -y keel-mcp
+  ```
+  Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
+  `keel_list_generators`, `keel_scaffold`. Resources: `keel://overview`,
+  `keel://llms-full`, `keel://docs/<slug>`.
+- **[`AGENTS.md`](./AGENTS.md).** The agent playbook — the one import rule, the
+  folder map, the container/provider model, a "how to add X" table, and the
+  guardrails. `CLAUDE.md` points to it.
+- **[`llms.txt`](./llms.txt) + [`llms-full.txt`](./llms-full.txt).** A
+  [spec-compliant](https://llmstxt.org) doc index and a one-file concatenation of
+  every guide, both shipped in the npm package for drop-in context.
+- **Generators an agent can drive.** `keel_scaffold` (or `keel make:*`) emits the
+  correct stub with the right imports and path for every construct.
+
+Full guide: **[docs/ai.md](./docs/ai.md)**. Regenerate the surface after doc or
+export changes with `npm run build:ai` (also runs automatically on `npm run build`).
 
 ## Project layout
 
@@ -206,6 +233,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
 | [Built on Hono](./docs/hono.md) | The Hono layer underneath, and using it directly |
+| [Building with AI](./docs/ai.md) | MCP server, `AGENTS.md`, `llms.txt`, agent workflow |
 
 ## Testing
 

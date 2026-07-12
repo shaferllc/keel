@@ -158,3 +158,106 @@ const seamFetchOptions: FetchTransportOptions = {
 };
 
 export { seamMessage, seamTransport, seamOptions, seamFetchOptions };
+
+/* --- Queueing, attachments, class mails, named mailers, faking, events --- */
+
+import {
+  mailer as namedMailer,
+  send as sendMail,
+  sendLater as queueMail,
+  fakeMail,
+  restoreMail,
+  BaseMail,
+  listen,
+  logger,
+  type PendingMail as PendingMailType,
+  type Attachment,
+  type RecordedMail,
+} from "@shaferllc/keel/core";
+
+declare const user2: { email: string; name: string };
+declare const body: string;
+declare const pdfBytes: Uint8Array;
+declare const logoBytes: Uint8Array;
+declare const postmark: Transport;
+declare const resend: Transport;
+
+export async function queueing() {
+  await mail().to(user2.email).subject("Welcome").html(body).sendLater();
+}
+
+export async function attachments() {
+  await mail()
+    .to("ada@example.com")
+    .subject("Your invoice")
+    .html('<p>Attached. <img src="cid:logo"></p>')
+    .attach("invoice.pdf", pdfBytes)
+    .attach("data.csv", "a,b,c", "text/csv")
+    .embed("logo", logoBytes, "logo.png")
+    .send();
+}
+
+export class WelcomeEmail extends BaseMail {
+  constructor(private user: { email: string; name: string }) {
+    super();
+  }
+
+  build(message: PendingMailType): void {
+    message
+      .to(this.user.email)
+      .subject(`Welcome, ${this.user.name}`)
+      .html(`<h1>Hi ${this.user.name}</h1>`);
+  }
+}
+
+export async function classBasedMails() {
+  await sendMail(new WelcomeEmail(user2));
+  await queueMail(new WelcomeEmail(user2));
+  await sendMail(new WelcomeEmail(user2), "marketing");
+}
+
+export async function namedMailers() {
+  setMailer(postmark, { from: "hi@app.com" });
+  setMailer(resend, { from: "news@app.com" }, "marketing");
+
+  await mail().to(user2.email).subject("Receipt").text(body).send();
+  await mail("marketing").to(user2.email).subject("This month").html(body).send();
+
+  return namedMailer("marketing");
+}
+
+export async function faking() {
+  const faked = fakeMail();
+
+  faked.assertSent();
+  faked.assertSent((m) => m.subject === "Welcome");
+  faked.assertSentCount(1);
+  faked.assertQueued((m) => m.to.includes("ada@example.com"));
+  faked.assertNotSent((m) => m.subject === "Password reset");
+  faked.assertNotQueued();
+  faked.assertQueuedCount(0);
+  faked.assertNothingSent();
+
+  const sent: Message[] = faked.sent();
+  const queued: Message[] = faked.queued();
+  const all: RecordedMail[] = faked.mails;
+
+  restoreMail();
+  restoreMail("marketing");
+
+  return { sent, queued, all };
+}
+
+export function mailEvents() {
+  listen("mail.sent", (message) => {
+    logger().info("mail sent", { subject: (message as Message).subject });
+  });
+}
+
+export function attachmentType(a: Attachment): string | undefined {
+  return a.contentType;
+}
+
+export function composed(): Message {
+  return mail().to("a@b.com").subject("x").text("y").toMessage();
+}

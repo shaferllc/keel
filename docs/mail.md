@@ -117,19 +117,135 @@ setMailer(transport, { from: "hello@myapp.com" });
 The `message` your `send` receives is already validated and has `from` resolved,
 so a transport can trust every required field is present.
 
-## In tests
+## Queueing: `sendLater()`
 
-Register an `ArrayTransport` and assert on what was queued — no network, no SDK:
+Sending is slow and it fails. Holding a request open for an SMTP round trip means
+the user waits on your provider, and a provider hiccup turns "sign up" into an
+error page. Put the message on the [queue](./queues.md) instead:
 
 ```ts
-import { setMailer, ArrayTransport, mail } from "@shaferllc/keel/core";
+await mail().to(user.email).subject("Welcome").html(body).sendLater();
+```
 
+The request returns immediately, and a failed send **retries on the queue** rather
+than failing the user's action. Everything else is identical — same builder, same
+transport.
+
+The message is **validated at the call site**, not on the worker: a missing
+recipient throws where you composed it, where the stack trace means something,
+rather than surfacing in a worker log an hour later.
+
+With the default `SyncDriver` this still sends inline (nothing is deferred until
+you register a real driver), so `sendLater()` is safe to adopt before you have a
+queue.
+
+## Attachments
+
+```ts
+await mail()
+  .to("ada@example.com")
+  .subject("Your invoice")
+  .html('<p>Attached. <img src="cid:logo"></p>')
+  .attach("invoice.pdf", pdfBytes)          // content type inferred: application/pdf
+  .attach("data.csv", "a,b,c", "text/csv")  // ...or set it
+  .embed("logo", logoBytes, "logo.png")     // inline, referenced as cid:logo
+  .send();
+```
+
+`attach(filename, content, contentType?)` takes a string or `Uint8Array`; the
+content type is inferred from the extension when you don't give one.
+
+`embed(cid, content, filename?, contentType?)` is the same thing with a **content
+id**, so the HTML body can display it inline via `<img src="cid:logo">` instead of
+linking out to a hosted image.
+
+## Class-based mails
+
+A one-liner is fine until the email has real content. `BaseMail` is to mail what
+`Job` is to the queue — a reusable, testable class:
+
+```ts
+import { BaseMail, type PendingMail } from "@shaferllc/keel/core";
+
+export class WelcomeEmail extends BaseMail {
+  constructor(private user: User) {
+    super();
+  }
+
+  build(message: PendingMail) {
+    message
+      .to(this.user.email)
+      .subject(`Welcome, ${this.user.name}`)
+      .html(`<h1>Hi ${this.user.name}</h1>`);
+  }
+}
+```
+
+```ts
+import { send, sendLater } from "@shaferllc/keel/core";
+
+await send(new WelcomeEmail(user));
+await sendLater(new WelcomeEmail(user)); // ...or queue it
+```
+
+`build()` may be async, so it can render a template or fetch what it needs.
+
+## Multiple mailers
+
+Register mailers by name — a transactional provider and a marketing one, say — and
+pick one with `mail(name)`:
+
+```ts
+setMailer(postmark, { from: "hi@app.com" });                    // the default
+setMailer(resend, { from: "news@app.com" }, "marketing");
+
+await mail().to(user.email).subject("Receipt").text(body).send();
+await mail("marketing").to(user.email).subject("This month").html(body).send();
+```
+
+`send(email, name)` and `sendLater(email, name)` take a mailer name too.
+
+## In tests
+
+`fakeMail()` swaps the mailer for one that **records instead of delivering**, so
+tests never talk to a provider. `restoreMail()` puts the real one back.
+
+```ts
+import { fakeMail, restoreMail } from "@shaferllc/keel/core";
+
+const mailer = fakeMail();
+
+await registerUser();
+
+mailer.assertSent();
+mailer.assertSent((m) => m.subject === "Welcome");
+mailer.assertSentCount(1);
+mailer.assertQueued((m) => m.to.includes("ada@example.com")); // sent with sendLater()
+mailer.assertNotSent((m) => m.subject === "Password reset");
+mailer.assertNothingSent();
+
+restoreMail();
+```
+
+The fake keeps **sent** and **queued** separate — `assertSent` only matches
+`send()`, `assertQueued` only `sendLater()` — so a test can tell "we emailed them"
+from "we queued an email". A faked `sendLater()` doesn't touch the real queue
+either; recording the intent is the point.
+
+It still **validates** the message, so a fake can't paper over a message the real
+mailer would reject.
+
+`mailer.sent()` and `mailer.queued()` return the raw messages if you'd rather
+assert by hand.
+
+If you want the transport-level view instead, `ArrayTransport` still works:
+
+```ts
 const transport = new ArrayTransport();
 setMailer(transport, { from: "hi@app.com" });
 
 await mail().to("ada@example.com").subject("Welcome").text("hi").send();
 
-assert.equal(transport.sent.length, 1);
 assert.equal(transport.sent[0].subject, "Welcome");
 ```
 
@@ -141,6 +257,23 @@ import { Mailer, ArrayTransport } from "@shaferllc/keel/core";
 
 const mailer = new Mailer(new ArrayTransport(), { from: "hi@app.com" });
 await mailer.message().to("ada@example.com").subject("Hi").text("hey").send();
+```
+
+## Events
+
+Every send fires [events](./events.md), so logging, metrics, and auditing can hang
+off mail without touching the mailer:
+
+| Event | When |
+|-------|------|
+| `mail.sending` | before the transport is called |
+| `mail.sent` | after it returns |
+| `mail.queued` | a `sendLater()` message reached the queue |
+
+Each carries the final `Message` — after defaults are applied.
+
+```ts
+listen("mail.sent", (message) => logger().info("mail sent", { subject: message.subject }));
 ```
 
 ## Related
@@ -543,3 +676,76 @@ const opts: FetchTransportOptions = {
   body: (m) => ({ from: m.from, to: m.to, subject: m.subject, html: m.html }),
 };
 ```
+
+### `mailer(name?)`
+
+`mailer(name?: string): Mailer` — the default mailer, or a named one. Throws for an
+unknown name.
+
+### `send(email, name?)` / `sendLater(email, name?)`
+
+`send(email: BaseMail, name?: string): Promise<Message>` — build a class-based mail
+and send it. `sendLater` queues it instead.
+
+### `BaseMail`
+
+Abstract. Implement `build(message: PendingMail): void | Promise<void>` to compose
+the message.
+
+### `PendingMail.sendLater()`
+
+`sendLater(): Promise<void>` — validate now, then put the message on the queue.
+
+### `PendingMail.attach()` / `.embed()`
+
+`attach(filename, content: string | Uint8Array, contentType?): this` — content type
+inferred from the extension when omitted.
+
+`embed(cid, content, filename?, contentType?): this` — an inline attachment,
+referenced from the HTML as `cid:<cid>`.
+
+### `PendingMail.toMessage()`
+
+`toMessage(): Message` — the message as composed, before the mailer applies its
+defaults.
+
+### Testing
+
+#### `fakeMail(name?)` / `restoreMail(name?)`
+
+`fakeMail(name?): FakeMailer` swaps a mailer for one that records instead of
+delivering. `restoreMail(name?)` puts the real one back — with no name, every faked
+mailer.
+
+`FakeMailer`:
+
+| Method | Signature |
+|--------|-----------|
+| `assertSent` | `(where?) => void` |
+| `assertNotSent` | `(where?) => void` |
+| `assertSentCount` | `(count) => void` |
+| `assertQueued` | `(where?) => void` |
+| `assertNotQueued` | `(where?) => void` |
+| `assertQueuedCount` | `(count) => void` |
+| `assertNothingSent` | `() => void` — nothing sent *and* nothing queued |
+| `sent()` / `queued()` | `() => Message[]` |
+
+### Interfaces & types
+
+#### `Attachment`
+
+`{ filename, content: string | Uint8Array, contentType?, cid? }` — a `cid` makes it
+an inline attachment.
+
+#### `MailerOptions`
+
+`{ from?, replyTo? }` — defaults applied to messages that don't set their own.
+
+#### `RecordedMail`
+
+`{ message: Message, queued: boolean }` — what a `FakeMailer` records.
+
+#### `SendMailJob`
+
+The `Job` that carries a queued message. Exported so a custom queue driver can
+recognize it.

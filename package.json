@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.68.0",
+  "version": "0.69.0",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -18,7 +18,11 @@
     "service-container",
     "web-framework",
     "edge",
-    "cloudflare-workers"
+    "cloudflare-workers",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "llms-txt"
   ],
   "exports": {
     "./core": {
@@ -40,10 +44,22 @@
     "./db/libsql": {
       "types": "./dist/db/libsql.d.ts",
       "import": "./dist/db/libsql.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/server.d.ts",
+      "import": "./dist/mcp/server.js"
     }
   },
+  "bin": {
+    "keel-mcp": "./bin/keel-mcp.mjs"
+  },
   "files": [
-    "dist"
+    "dist",
+    "bin/keel-mcp.mjs",
+    "docs",
+    "AGENTS.md",
+    "llms.txt",
+    "llms-full.txt"
   ],
   "publishConfig": {
     "access": "public"
@@ -52,18 +68,22 @@
     "keel": "tsx bin/keel.ts",
     "serve": "tsx bin/keel.ts serve",
     "dev": "tsx watch bin/keel.ts serve",
+    "mcp": "tsx bin/keel-mcp.ts",
     "typecheck": "tsc --noEmit",
     "typecheck:docs": "npm run build && tsc -p tsconfig.docs.json",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-exclude='tests/**' tests/*.test.ts",
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build:ai": "tsx scripts/build-ai.ts",
+    "build": "npm run build:ai && rm -rf dist && tsc -p tsconfig.build.json",
     "dev:client": "vite",
     "build:client": "vite build",
     "prepare": "npm run build"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^16.4.7",
-    "hono": "^4.6.14"
+    "hono": "^4.6.14",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "vite": "^5 || ^6 || ^7"
@@ -79,7 +99,6 @@
     "commander": "^12.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vite": "^6.4.3",
-    "zod": "^4.4.3"
+    "vite": "^6.4.3"
   }
 }

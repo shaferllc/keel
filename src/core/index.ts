@@ -27,7 +27,8 @@ export {
   terminate,
 } from "./helpers.js";
 export { Logger } from "./logger.js";
-export type { LogLevel, LoggerOptions } from "./logger.js";
+export { consoleSink, MemorySink, setLogger, namedLogger } from "./logger.js";
+export type { LogLevel, LoggerOptions, LogRecord, Sink, RedactOptions } from "./logger.js";
 export { requestLogger, requestLog } from "./request-logger.js";
 export type { RequestLoggerOptions } from "./request-logger.js";
 export { Events, EventBuffer } from "./events.js";
@@ -44,6 +45,36 @@ export { Cache, MemoryStore } from "./cache.js";
 export type { CacheStore, RememberOptions, PutOptions } from "./cache.js";
 export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
+export {
+  i18n,
+  t,
+  getI18n,
+  setI18n,
+  setTranslations,
+  objectLoader,
+  detectLocale,
+  negotiateLocale,
+  formatMessage,
+  I18n,
+  I18nManager,
+} from "./i18n.js";
+export type {
+  Translations,
+  TranslationsByLocale,
+  TranslationLoader,
+  I18nOptions,
+  DetectLocaleOptions,
+} from "./i18n.js";
+export {
+  lock,
+  restoreLock,
+  setLockStore,
+  getLockStore,
+  Lock,
+  MemoryLockStore,
+  LockNotHeldError,
+} from "./lock.js";
+export type { LockStore, AcquireOptions } from "./lock.js";
 export {
   health,
   healthCheck,
@@ -113,26 +144,58 @@ export { Faker, Factory as ModelFactory, factory, Seeder, seed } from "./factory
 export type { Definition } from "./factory.js";
 export {
   Mailer,
+  FakeMailer,
   PendingMail,
+  BaseMail,
+  SendMailJob,
   ArrayTransport,
   LogTransport,
   fetchTransport,
   mail,
+  mailer,
+  send,
+  sendLater,
   setMailer,
   getMailer,
+  fakeMail,
+  restoreMail,
 } from "./mail.js";
-export type { Message, Transport, MailerOptions, FetchTransportOptions } from "./mail.js";
+export type {
+  Message,
+  Transport,
+  MailerOptions,
+  FetchTransportOptions,
+  Attachment,
+  RecordedMail,
+} from "./mail.js";
 export {
   Job,
   Queue,
+  FakeQueue,
   SyncDriver,
   MemoryDriver,
   dispatch,
   work,
   setQueue,
   getQueue,
+  fakeQueue,
+  restoreQueue,
+  exponentialBackoff,
+  linearBackoff,
+  fixedBackoff,
+  noBackoff,
 } from "./queue.js";
-export type { Dispatchable, JobOptions, QueueDriver, Drainable, QueuedJob } from "./queue.js";
+export type {
+  Dispatchable,
+  JobOptions,
+  JobContext,
+  JobClass,
+  QueueDriver,
+  Drainable,
+  QueuedJob,
+  FailedJob,
+  Backoff,
+} from "./queue.js";
 export { Scheduler, ScheduledTask, scheduler, setScheduler, schedule, cronMatches } from "./scheduler.js";
 export {
   MemoryBroadcaster,

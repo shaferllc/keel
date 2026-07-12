@@ -4,6 +4,30 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.69.0] — 2026-07-11
+
+### Added
+
+- **AI-native tooling — write Keel apps with an agent.** A machine-readable
+  surface generated from the same source as the human docs, so it never drifts:
+  - **An MCP server** (`keel mcp` / the shipped `keel-mcp` bin) exposing Keel's
+    docs, full public API (400+ exports), generators, and conventions to any
+    [Model Context Protocol](https://modelcontextprotocol.io) client. Tools:
+    `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
+    `keel_list_generators`, `keel_scaffold`. Resources: `keel://overview`,
+    `keel://llms-full`, and `keel://docs/<slug>` per guide.
+  - **`AGENTS.md` + `CLAUDE.md`** — an agent playbook (import rule, folder map,
+    container/provider model, how-to-add-X table, guardrails), shipped in the
+    package.
+  - **`llms.txt` + `llms-full.txt`** — a [spec-compliant](https://llmstxt.org)
+    doc index and a one-file concatenation of every guide, shipped in the package.
+  - **`docs/ai.md`** — the "Building Keel apps with AI" guide.
+  - **`npm run build:ai`** regenerates `llms.txt`, `llms-full.txt`, and
+    `docs/ai-manifest.json` (the index the MCP server reads); wired into `build`.
+- **Distributed locks** (`lock()`, `MemoryLockStore`, `LockStore`) — "only one
+  of you may do this at a time" across processes and nodes, with a pluggable
+  store seam (the core imports no driver). See the locks guide.
+
 ## [0.68.0] — 2026-07-11
 
 ### Added

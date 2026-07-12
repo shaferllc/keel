@@ -29,6 +29,15 @@ export function setApplication(app: Application): void {
   current = app;
 }
 
+/**
+ * Whether an application has been bootstrapped. Primitives that must work
+ * without one — a queue worker, a mailer in a unit test — check this before
+ * reaching for `logger()` or `emit()`, both of which throw when there's no app.
+ */
+export function hasApplication(): boolean {
+  return current !== undefined;
+}
+
 /** The active application container. Throws if none has been created. */
 export function app(): Application {
   if (!current) {

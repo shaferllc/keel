@@ -31,6 +31,8 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `make:seeder` | `<name>` | `database/seeders/<Name>Seeder.ts` |
 | `make:job` | `<name>` | `app/Jobs/<Name>Job.ts` |
 | `make:notification` | `<name>` | `app/Notifications/<Name>Notification.ts` |
+| `make:transformer` | `<name>` `[-m <model>]` | `app/Transformers/<Name>Transformer.ts` |
+| `mcp` | — | Start the [MCP server](./ai.md) for AI agents (stdio) |
 
 Every generator normalizes the name you pass and refuses to overwrite an existing
 file (see [Generator safety](#generator-safety)).
@@ -84,6 +86,18 @@ reflects how the route was registered:
 A trailing `(name)` appears for [named routes](./routing.md). Multiple verbs on
 one path are joined with `|`. If nothing is registered, it prints
 `No routes registered.` instead.
+
+### `mcp`
+
+Start the Model Context Protocol server over stdio, exposing Keel's docs, public
+API, and generators to AI agents:
+
+```bash
+npm run keel mcp        # or the shipped `keel-mcp` bin in a consuming app
+```
+
+See [Building with AI](./ai.md) for how to connect it to Claude Code, Cursor, or
+any MCP client, and the tools it provides.
 
 ## Generators
 

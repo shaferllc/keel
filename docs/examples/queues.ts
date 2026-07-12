@@ -157,3 +157,98 @@ export function queuedJobEntry(driver: MemoryDriver) {
   const lane: string | undefined = entry.options.queue;
   return lane;
 }
+
+/* --- Retries, backoff, failure, priority, context, faking --- */
+
+import {
+  fakeQueue,
+  restoreQueue,
+  exponentialBackoff,
+  linearBackoff,
+  fixedBackoff,
+  noBackoff,
+  type Backoff,
+  type JobContext,
+  type FailedJob,
+} from "@shaferllc/keel/core";
+
+declare const stripe: { charge(amount: number): Promise<void> };
+declare function notifyBilling(orderId: number, error: unknown): Promise<void>;
+declare function log(message: string, context: Record<string, unknown>): void;
+
+export class ChargeCard extends Job {
+  static override maxRetries = 5;
+  static override backoff = exponentialBackoff(1_000);
+  static override queue = "billing";
+  static override priority = -5;
+
+  constructor(
+    private amount: number,
+    private orderId: number,
+  ) {
+    super();
+  }
+
+  async handle(): Promise<void> {
+    await stripe.charge(this.amount);
+  }
+
+  override async failed(error: unknown): Promise<void> {
+    await notifyBilling(this.orderId, error);
+  }
+}
+
+export class ImportFile extends Job {
+  static override maxRetries = 3;
+
+  async handle(): Promise<void> {
+    const { jobId, attempt, queue }: JobContext = this.context!;
+    if (attempt > 1) log("retrying import", { jobId, attempt, queue });
+  }
+}
+
+export async function overridingPolicy() {
+  await dispatch(new ChargeCard(100, 1), { maxRetries: 1, backoff: noBackoff });
+}
+
+export function backoffStrategies(): Backoff[] {
+  return [
+    exponentialBackoff(1_000),
+    exponentialBackoff(1_000, 30_000),
+    linearBackoff(5_000),
+    fixedBackoff(2_000),
+    noBackoff,
+  ];
+}
+
+export async function priorities() {
+  await dispatch(new ChargeCard(100, 1), { priority: -10 });
+  await dispatch(() => {}, { priority: 10 });
+}
+
+export async function inspectFailures(): Promise<FailedJob[]> {
+  await work();
+  return getQueue().failed;
+}
+
+export async function faking() {
+  const queue = fakeQueue();
+
+  await dispatch(new ChargeCard(100, 7));
+
+  queue.assertPushed(ChargeCard);
+  queue.assertPushed(ChargeCard, (job) => job instanceof ChargeCard);
+  queue.assertPushedCount(1, ChargeCard);
+  queue.assertNotPushed(ImportFile);
+
+  const [entry] = queue.pushedJobs(ChargeCard);
+  void entry?.options.delay;
+
+  restoreQueue();
+}
+
+export function nothingPushed() {
+  const queue = fakeQueue();
+  queue.assertNothingPushed();
+  restoreQueue();
+}

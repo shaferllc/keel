@@ -45,8 +45,10 @@ Out of the box `dispatch` runs against a `SyncDriver`, so a fresh app executes
 jobs inline — no setup, no worker. Call `setQueue` once to defer instead.
 `dispatch` returns a promise that resolves when the driver has accepted the job
 (for `SyncDriver` that means *after* the job has run; for a deferring driver, as
-soon as it's enqueued). Both `delay` and `queue` are advisory — `SyncDriver` and
-`MemoryDriver` ignore them; a real broker driver is where they take effect.
+soon as it's enqueued).
+
+`MemoryDriver` honors `delay` and `priority`; `SyncDriver` runs inline and so
+ignores both. `queue` is a lane label that a real broker driver acts on.
 
 ## Drivers
 
@@ -78,19 +80,21 @@ setQueue(new MemoryDriver());
 await dispatch(new SendWelcome("a@x.com"));
 await dispatch(new SendWelcome("b@x.com"));
 
-const ran = await work(); // runs both in FIFO order; returns 2
+const ran = await work(); // runs both; returns 2
 ```
 
 `work()` is a no-op (returns `0`) for immediate drivers like `SyncDriver` — it
 only drains drivers that hold jobs locally (those implementing `Drainable`).
-`MemoryDriver.work()` empties the queue as it goes, so a second `work()` with
-nothing new dispatched returns `0`.
 
-Jobs run one at a time, in the order dispatched. If a job throws, `work()`
-propagates the error and stops — the jobs that already ran stay done, and the one
-that threw has been `shift`ed off, so it won't be retried on the next `work()`.
-Wrap `handle()` in your own try/catch if you need per-job error isolation or
-retries; the core keeps the loop deliberately simple.
+Jobs run one at a time, highest priority first and otherwise in dispatch order.
+`work()` drains what's **due**: a job still waiting out a `delay` or a retry
+backoff is left on the queue for a later drain, so a second `work()` isn't
+necessarily a no-op.
+
+A job that throws is **retried** and, once it runs out of retries, **failed** —
+`work()` records it and keeps going rather than propagating the error. See
+[Retries and backoff](#retries-and-backoff) and
+[When a job finally fails](#when-a-job-finally-fails).
 
 ## A custom / edge driver
 
@@ -120,22 +124,159 @@ Drivers that hold jobs locally can implement the `Drainable` interface
 (`size` + `work()`) so `Queue.work()` can drive them — that's how `MemoryDriver`
 works.
 
-## In tests
+## Retries and backoff
 
-Use the `MemoryDriver` to assert a job was queued without running it, then drain:
+Background work fails for boring reasons — a provider hiccups, a connection
+drops. A job **retries** before it gives up, with a growing delay between
+attempts. Declare the policy on the job class:
 
 ```ts
-import { setQueue, MemoryDriver, dispatch, work } from "@shaferllc/keel/core";
+class ChargeCard extends Job {
+  static maxRetries = 5;
+  static backoff = exponentialBackoff(1_000); // 1s, 2s, 4s, 8s, 16s
 
-const driver = new MemoryDriver();
-setQueue(driver);
+  async handle() {
+    await stripe.charge(this.amount);
+  }
+}
+```
+
+`maxRetries` defaults to **0** — a job that doesn't opt in fails on its first
+throw, which is the safe default for work that isn't idempotent. The strategies:
+
+| Backoff | Delays |
+|---------|--------|
+| `exponentialBackoff(baseMs?, maxMs?)` | 1s, 2s, 4s, 8s… (the default) |
+| `linearBackoff(stepMs?, maxMs?)` | 5s, 10s, 15s… |
+| `fixedBackoff(delayMs?)` | the same delay every time |
+| `noBackoff` | retry immediately |
+
+Both cap at `maxMs` (default 60s) so a long-lived job can't back off into next
+week. Per-dispatch overrides win over the class:
+
+```ts
+await dispatch(new ChargeCard(id), { maxRetries: 1, backoff: noBackoff });
+```
+
+**A retry's delay is honored, not slept through.** `work()` drains what's *due*;
+a job waiting out its backoff stays on the queue for a later drain. The
+`SyncDriver` is the exception — it runs inline, so it retries immediately and
+ignores the delay, because blocking a request for a 30-second backoff would be
+worse than useless.
+
+## When a job finally fails
+
+Once the retries are exhausted the job is **failed**. Three things happen, in
+order:
+
+1. It's **logged** at `error` level, with the job name, id, and attempt count.
+2. Its `failed(error)` hook runs — the last chance to alert or compensate.
+3. It lands in the driver's **dead-letter list** (`driver.failed`) rather than
+   vanishing.
+
+```ts
+class ChargeCard extends Job {
+  static maxRetries = 3;
+
+  async handle() { … }
+
+  async failed(error: unknown) {
+    await notifyBilling(this.orderId, error);
+  }
+}
+```
+
+**A failed job does not take down the worker.** `work()` records it and carries on
+with the rest of the queue — one bad job can't stop the others. That's why the
+failure is logged loudly: a worker that keeps running past a failure must not do
+so silently.
+
+```ts
+await work();
+
+for (const failure of getQueue().failed) {
+  console.error(failure.id, failure.attempts, failure.error);
+}
+```
+
+A throw inside `failed()` is logged and swallowed too — failing to handle a
+failure must not itself crash the worker.
+
+The `SyncDriver` is again the exception: it ran the job *inline*, so the caller is
+right there and gets the error thrown at them.
+
+## Priority
+
+Lower numbers run first. Default is `0`, so a negative priority jumps the queue:
+
+```ts
+await dispatch(new SendReceipt(id), { priority: -10 }); // ahead of normal work
+await dispatch(new RebuildSearchIndex(), { priority: 10 }); // whenever
+```
+
+A job class can declare its own default lane and priority:
+
+```ts
+class ChargeCard extends Job {
+  static queue = "billing";
+  static priority = -5;
+}
+```
+
+## What a job knows about itself
+
+While `handle()` runs, `this.context` carries the job's id, which attempt this is,
+and the lane it's on — useful for logging, and for making a retry behave
+differently from a first run:
+
+```ts
+class ImportFile extends Job {
+  static maxRetries = 3;
+
+  async handle() {
+    const { jobId, attempt, queue } = this.context!;
+    if (attempt > 1) logger().warn("retrying import", { jobId, attempt });
+  }
+}
+```
+
+## In tests
+
+`fakeQueue()` records dispatches **without running them**, so a test can assert a
+job was queued without paying for it to run — no email sent, no card charged.
+`restoreQueue()` puts the real queue back.
+
+```ts
+import { fakeQueue, restoreQueue } from "@shaferllc/keel/core";
+
+const queue = fakeQueue();
 
 await registerUser(); // internally dispatches SendWelcome
 
-assert.equal(driver.size, 1);
-assert.ok(driver.jobs[0].job instanceof SendWelcome);
+queue.assertPushed(SendWelcome);
+queue.assertPushed(SendWelcome, (job) => job.userId === user.id); // with a predicate
+queue.assertPushedCount(1, SendWelcome);
+queue.assertNotPushed(ChargeCard);
+queue.assertNothingPushed();
 
+restoreQueue();
+```
+
+`queue.pushedJobs(SendWelcome)` returns the queued entries, so you can assert on a
+dispatch's `delay`, `queue`, or `priority`.
+
+When you want the job to actually *run*, use the `MemoryDriver` instead and drain
+it:
+
+```ts
+const driver = new MemoryDriver();
+setQueue(driver);
+
+await registerUser();
+
+assert.equal(driver.size, 1);
 await work(); // now run it and assert on the side effects
+assert.equal(driver.failed.length, 0);
 ```
 
 ---
@@ -465,3 +606,74 @@ dispatched with. What you assert on in tests.
 const entry: QueuedJob = driver.jobs[0];
 entry.options.queue; // string | undefined
 ```
+
+### Retries & backoff
+
+#### `Job.maxRetries`
+
+`static maxRetries: number` — retries after the first failure. Default `0`.
+
+#### `Job.backoff`
+
+`static backoff: Backoff` — how long to wait before each retry. Default
+`exponentialBackoff(1_000)`.
+
+#### `Job.failed(error)`
+
+`failed(error: unknown): void | Promise<void>` — runs once the retries are
+exhausted. A throw in here is logged and swallowed.
+
+#### `Job.context`
+
+`context?: JobContext` — `{ jobId, attempt, queue }`, set by the driver before
+`handle()` runs. `attempt` is 1 on the first run.
+
+#### Backoff strategies
+
+| Function | Signature |
+|----------|-----------|
+| `exponentialBackoff` | `(baseMs = 1000, maxMs = 60000) => Backoff` — 1s, 2s, 4s… |
+| `linearBackoff` | `(stepMs = 1000, maxMs = 60000) => Backoff` — 1s, 2s, 3s… |
+| `fixedBackoff` | `(delayMs = 1000) => Backoff` |
+| `noBackoff` | `Backoff` — retry immediately |
+
+`type Backoff = (attempt: number) => number` — milliseconds before `attempt`
+(1 = the first retry).
+
+### Testing
+
+#### `fakeQueue()` / `restoreQueue()`
+
+`fakeQueue(): FakeQueue` swaps the queue for one that records dispatches without
+running them. `restoreQueue()` puts the real one back.
+
+`FakeQueue`:
+
+| Method | Signature |
+|--------|-----------|
+| `assertPushed` | `(type, where?) => void` |
+| `assertNotPushed` | `(type, where?) => void` |
+| `assertPushedCount` | `(count, type?) => void` |
+| `assertNothingPushed` | `() => void` |
+| `pushedJobs` | `(type) => QueuedJob[]` — to assert on delay/lane/priority |
+
+### Interfaces & types
+
+#### `JobOptions`
+
+`{ delay?, queue?, priority?, maxRetries?, backoff? }` — `delay` in seconds;
+`priority` lower runs first; `maxRetries`/`backoff` override the job class.
+
+#### `JobContext`
+
+`{ jobId: string; attempt: number; queue: string }`.
+
+#### `QueuedJob`
+
+`{ id, job, options, attempts, availableAt }` — a job sitting on a queue.
+`availableAt` is the epoch-ms before which it must not run (delay or backoff).
+
+#### `FailedJob`
+
+`{ id, job, options, attempts, error }` — a job that exhausted its retries. Read
+them from `driver.failed` or `getQueue().failed`.

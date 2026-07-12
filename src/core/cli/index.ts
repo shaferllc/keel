@@ -12,6 +12,7 @@
  *   keel make:notification Paid generate app/Notifications/PaidNotification.ts
  *   keel make:transformer User  generate app/Transformers/UserTransformer.ts
  *   keel routes                 list registered routes
+ *   keel mcp                    start the MCP server (docs + API for AI agents)
  */
 
 import { mkdir, writeFile, access } from "node:fs/promises";
@@ -96,6 +97,14 @@ export async function run(argv: string[]): Promise<void> {
       };
       process.once("SIGINT", () => void shutdown("SIGINT"));
       process.once("SIGTERM", () => void shutdown("SIGTERM"));
+    });
+
+  program
+    .command("mcp")
+    .description("Start the MCP server (exposes Keel docs, API, and generators to AI agents over stdio)")
+    .action(async () => {
+      const { runMcpServer } = await import("../../mcp/server.js");
+      await runMcpServer();
     });
 
   program

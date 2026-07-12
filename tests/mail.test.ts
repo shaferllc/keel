@@ -6,10 +6,21 @@ import {
   ArrayTransport,
   fetchTransport,
   mail,
+  mailer,
+  send,
+  sendLater,
   setMailer,
+  getMailer,
+  fakeMail,
+  restoreMail,
+  BaseMail,
+  PendingMail,
   type Message,
   type Transport,
 } from "../src/core/mail.js";
+import { MemoryDriver, SyncDriver, setQueue, work } from "../src/core/queue.js";
+import { Application } from "../src/core/application.js";
+import { listen, events } from "../src/core/helpers.js";
 
 test("fluent builder composes and sends a message", async () => {
   const transport = new ArrayTransport();
@@ -111,4 +122,283 @@ test("a custom transport receives the finalized message", async () => {
   setMailer(custom, { from: "hi@app.com" });
   await mail().to("a@b.com").subject("Hi").text("b").send();
   assert.equal(received[0]!.from, "hi@app.com");
+});
+
+/* ------------------------------ attachments ------------------------------- */
+
+test("attach and embed put files on the message", async () => {
+  const transport = new ArrayTransport();
+  setMailer(transport, { from: "hi@app.com" });
+
+  await mail()
+    .to("a@b.com")
+    .subject("Report")
+    .html('<img src="cid:logo">')
+    .attach("report.csv", "a,b,c", "text/csv")
+    .embed("logo", new Uint8Array([1, 2, 3]), "logo.png")
+    .send();
+
+  const attachments = transport.sent[0]!.attachments!;
+  assert.equal(attachments.length, 2);
+
+  assert.deepEqual(attachments[0], {
+    filename: "report.csv",
+    content: "a,b,c",
+    contentType: "text/csv",
+  });
+
+  // An embedded file carries a cid, which the HTML references as cid:logo.
+  assert.equal(attachments[1]!.cid, "logo");
+  assert.equal(attachments[1]!.filename, "logo.png");
+  // ...and its content type is inferred from the filename.
+  assert.equal(attachments[1]!.contentType, "image/png");
+});
+
+test("an attachment's content type is inferred from its extension", async () => {
+  const transport = new ArrayTransport();
+  setMailer(transport, { from: "hi@app.com" });
+
+  await mail()
+    .to("a@b.com")
+    .subject("x")
+    .text("y")
+    .attach("invoice.pdf", new Uint8Array([1]))
+    .attach("data", new Uint8Array([1])) // no extension → octet-stream
+    .send();
+
+  const attachments = transport.sent[0]!.attachments!;
+  assert.equal(attachments[0]!.contentType, "application/pdf");
+  assert.equal(attachments[1]!.contentType, "application/octet-stream");
+});
+
+/* -------------------------------- defaults -------------------------------- */
+
+test("a mailer's default replyTo applies when the message sets none", async () => {
+  const transport = new ArrayTransport();
+  setMailer(transport, { from: "hi@app.com", replyTo: "support@app.com" });
+
+  await mail().to("a@b.com").subject("x").text("y").send();
+  assert.equal(transport.sent[0]!.replyTo, "support@app.com");
+
+  await mail().to("a@b.com").subject("x").text("y").replyTo("sales@app.com").send();
+  assert.equal(transport.sent[1]!.replyTo, "sales@app.com"); // an explicit one wins
+});
+
+/* ----------------------------- named mailers ------------------------------ */
+
+test("mailers can be registered by name", async () => {
+  const primary = new ArrayTransport();
+  const marketing = new ArrayTransport();
+
+  setMailer(primary, { from: "hi@app.com" });
+  setMailer(marketing, { from: "news@app.com" }, "marketing");
+
+  await mail().to("a@b.com").subject("tx").text("y").send();
+  await mail("marketing").to("a@b.com").subject("news").text("y").send();
+
+  assert.equal(primary.sent.length, 1);
+  assert.equal(primary.sent[0]!.from, "hi@app.com");
+  assert.equal(marketing.sent.length, 1);
+  assert.equal(marketing.sent[0]!.from, "news@app.com");
+});
+
+test("mailer() throws for an unknown name", () => {
+  assert.throws(() => mailer("nope"), /No mailer named "nope"/);
+});
+
+/* -------------------------------- sendLater ------------------------------- */
+
+test("sendLater puts the message on the queue instead of sending it", async () => {
+  const transport = new ArrayTransport();
+  setMailer(transport, { from: "hi@app.com" });
+
+  const driver = new MemoryDriver();
+  setQueue(driver);
+
+  await mail().to("a@b.com").subject("Welcome").text("hi").sendLater();
+
+  // Nothing sent yet — it's waiting on the queue.
+  assert.equal(transport.sent.length, 0);
+  assert.equal(driver.size, 1);
+
+  await work();
+
+  // Now it's gone out.
+  assert.equal(transport.sent.length, 1);
+  assert.equal(transport.sent[0]!.subject, "Welcome");
+
+  setQueue(new SyncDriver());
+});
+
+test("sendLater validates at the call site, not on the worker", async () => {
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+  setQueue(new MemoryDriver());
+
+  // A malformed message must blow up where it was composed, not later in a worker
+  // where the stack trace means nothing.
+  await assert.rejects(() => mail().subject("no recipient").text("x").sendLater(), /recipient/);
+
+  setQueue(new SyncDriver());
+});
+
+/* ------------------------------- class mails ------------------------------ */
+
+class WelcomeEmail extends BaseMail {
+  constructor(private user: { email: string; name: string }) {
+    super();
+  }
+
+  build(message: PendingMail): void {
+    message
+      .to(this.user.email)
+      .subject(`Welcome, ${this.user.name}`)
+      .html(`<h1>Hi ${this.user.name}</h1>`);
+  }
+}
+
+test("a BaseMail builds and sends", async () => {
+  const transport = new ArrayTransport();
+  setMailer(transport, { from: "hi@app.com" });
+
+  await send(new WelcomeEmail({ email: "ada@x.com", name: "Ada" }));
+
+  const sent = transport.sent[0]!;
+  assert.deepEqual(sent.to, ["ada@x.com"]);
+  assert.equal(sent.subject, "Welcome, Ada");
+  assert.equal(sent.html, "<h1>Hi Ada</h1>");
+  assert.equal(sent.from, "hi@app.com"); // the mailer's default
+});
+
+test("a BaseMail can be queued", async () => {
+  const transport = new ArrayTransport();
+  setMailer(transport, { from: "hi@app.com" });
+  const driver = new MemoryDriver();
+  setQueue(driver);
+
+  await sendLater(new WelcomeEmail({ email: "ada@x.com", name: "Ada" }));
+
+  assert.equal(transport.sent.length, 0);
+  assert.equal(driver.size, 1);
+
+  await work();
+  assert.equal(transport.sent[0]!.subject, "Welcome, Ada");
+
+  setQueue(new SyncDriver());
+});
+
+/* --------------------------------- faking --------------------------------- */
+
+test("fakeMail records sends without touching the transport", async () => {
+  const real = new ArrayTransport();
+  setMailer(real, { from: "hi@app.com" });
+
+  const faked = fakeMail();
+
+  await mail().to("a@b.com").subject("Welcome").text("hi").send();
+
+  assert.equal(real.sent.length, 0, "the real transport must not be touched");
+
+  faked.assertSent();
+  faked.assertSent((m) => m.subject === "Welcome");
+  faked.assertSentCount(1);
+  faked.assertNotQueued();
+  assert.equal(faked.sent()[0]!.to[0], "a@b.com");
+
+  restoreMail();
+  assert.equal(getMailer().driver, real);
+});
+
+test("the fake separates sent from queued", async () => {
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+  const faked = fakeMail();
+
+  await mail().to("a@b.com").subject("Now").text("x").send();
+  await mail().to("a@b.com").subject("Later").text("x").sendLater();
+
+  faked.assertSentCount(1);
+  faked.assertQueuedCount(1);
+  faked.assertSent((m) => m.subject === "Now");
+  faked.assertQueued((m) => m.subject === "Later");
+  faked.assertNotSent((m) => m.subject === "Later");
+
+  restoreMail();
+});
+
+test("a faked sendLater does not reach the queue", async () => {
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+  const driver = new MemoryDriver();
+  setQueue(driver);
+
+  const faked = fakeMail();
+  await mail().to("a@b.com").subject("Later").text("x").sendLater();
+
+  assert.equal(driver.size, 0, "recording the intent is the point — no real dispatch");
+  faked.assertQueued();
+
+  restoreMail();
+  setQueue(new SyncDriver());
+});
+
+test("fake assertions fail with a useful message", async () => {
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+  const faked = fakeMail();
+
+  await mail().to("a@b.com").subject("Welcome").text("x").send();
+
+  assert.throws(() => faked.assertNotSent(), /Expected no matching mail to be sent, but 1 was/);
+  assert.throws(() => faked.assertSentCount(3), /Expected 3 mail\(s\) to be sent, but 1 were/);
+  assert.throws(() => faked.assertQueued(), /Expected a mail to be queued, but none was/);
+  assert.throws(() => faked.assertNothingSent(), /Expected no mail at all, but 1 were recorded/);
+  assert.throws(
+    () => faked.assertSent((m) => m.subject === "Nope"),
+    /1 were sent, but none matched/,
+  );
+
+  restoreMail();
+});
+
+test("assertNothingSent passes on an untouched fake", () => {
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+  const faked = fakeMail();
+  faked.assertNothingSent();
+  restoreMail();
+});
+
+test("a fake still validates the message", async () => {
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+  fakeMail();
+
+  // The fake must not paper over a message the real mailer would reject.
+  await assert.rejects(() => mail().subject("x").text("y").send(), /recipient/);
+
+  restoreMail();
+});
+
+test("faking twice still restores the real mailer", async () => {
+  const real = new ArrayTransport();
+  setMailer(real, { from: "hi@app.com" });
+
+  fakeMail();
+  fakeMail();
+  restoreMail();
+
+  assert.equal(getMailer().driver, real);
+});
+
+/* --------------------------------- events --------------------------------- */
+
+test("sending emits mail.sending and mail.sent", async () => {
+  const app = new Application();
+  await app.boot([], { discoverConfig: false, config: { app: {} } });
+
+  setMailer(new ArrayTransport(), { from: "hi@app.com" });
+
+  const seen: string[] = [];
+  listen("mail.sending", () => void seen.push("sending"));
+  listen("mail.sent", () => void seen.push("sent"));
+
+  await mail().to("a@b.com").subject("x").text("y").send();
+
+  assert.deepEqual(seen, ["sending", "sent"]);
+  events().clear();
 });

@@ -12,5 +12,7 @@ declare module "hono" {
     auth_id?: string;
     /** The verified opaque access token, set by `tokenAuth()`. */
     access_token?: import("./tokens.js").AccessToken;
+    /** The request's locale, set by `detectLocale()`. */
+    locale?: string;
   }
 }
