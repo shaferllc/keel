@@ -21,8 +21,10 @@ const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 
 const REPO = "https://github.com/shaferllc/keel/blob/main";
 
-/** Doc slugs that aren't part of the topical reference (skip in llms.txt lists). */
-const NON_TOPIC = new Set<string>([]);
+/** Doc slugs that aren't part of the topical reference (skip in llms.txt lists
+ * and the concatenated llms-full.txt, but still indexed in the manifest and
+ * rendered by the docs site). */
+const NON_TOPIC = new Set<string>(["changelog"]);
 
 export interface DocEntry {
   slug: string;
@@ -146,6 +148,11 @@ const GENERATORS = [
   { command: "make:transformer <name>", produces: "app/Transformers/<Name>Transformer.ts", flags: ["-m, --model <model>"], note: "An API transformer mapping a value to its serialized shape." },
 ];
 
+// Mirror the root CHANGELOG into docs/ so it ships in the package and the docs
+// site renders it — the site reads the published package's docs, and CHANGELOG.md
+// (repo root) is not part of it. The root file stays the single source of truth.
+await writeFile(join(docsDir, "changelog.md"), await readFile(join(root, "CHANGELOG.md"), "utf8"));
+
 const docs = await collectDocs();
 const api = await collectApi();
 
@@ -192,6 +199,7 @@ const llms = [
   `- [Full text of all docs](${REPO}/llms-full.txt): every guide concatenated into one file`,
   `- [AGENTS.md](${REPO}/AGENTS.md): conventions and workflow for AI agents editing a Keel app`,
   `- [README](${REPO}/README.md): project overview`,
+  `- [Changelog](${REPO}/CHANGELOG.md): release history, newest first`,
   "",
 ];
 if (start) void start;
@@ -211,7 +219,7 @@ const order = [
 ];
 const ranked = [
   ...order.map((s) => docs.find((d) => d.slug === s)).filter(Boolean),
-  ...docs.filter((d) => !order.includes(d.slug)),
+  ...docs.filter((d) => !order.includes(d.slug) && !NON_TOPIC.has(d.slug)),
 ] as DocEntry[];
 
 const parts: string[] = [

@@ -131,3 +131,4 @@ Every topic has a runnable, type-checked example:
 - [Full text of all docs](https://github.com/shaferllc/keel/blob/main/llms-full.txt): every guide concatenated into one file
 - [AGENTS.md](https://github.com/shaferllc/keel/blob/main/AGENTS.md): conventions and workflow for AI agents editing a Keel app
 - [README](https://github.com/shaferllc/keel/blob/main/README.md): project overview
+- [Changelog](https://github.com/shaferllc/keel/blob/main/CHANGELOG.md): release history, newest first

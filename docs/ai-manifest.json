@@ -76,6 +76,13 @@
       "example": "docs/examples/cache.ts"
     },
     {
+      "slug": "changelog",
+      "title": "Changelog",
+      "summary": "All notable changes to Keel are documented here.",
+      "path": "docs/changelog.md",
+      "example": null
+    },
+    {
       "slug": "configuration",
       "title": "Configuration",
       "summary": "Keel loads configuration from two sources: environment variables (.env) and config files (config/.ts).",
