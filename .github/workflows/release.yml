@@ -1,0 +1,66 @@
+name: Release
+
+# Publishing is driven by the tag, so npm can't drift from git the way it did:
+# git reached v0.77.0 while npm's `latest` still said 0.74.0, and the versions that
+# had been published were sporadic (0.12, 0.35, 0.58, 0.66, 0.68, 0.74…).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Trusted publishing: npm mints a short-lived credential from this workflow's
+      # OIDC identity, so there is no token to leak or rotate. It also attaches a
+      # provenance attestation — proof the tarball was built from this commit, by
+      # this workflow, rather than uploaded from someone's laptop.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Node 22 ships npm 10, which cannot do OIDC — trusted publishing needs
+      # npm >= 11.5.1. Without this the publish fails asking for a token.
+      - name: npm that can do trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # The tag IS the release. If it disagrees with package.json, something is
+      # wrong, and publishing the wrong version is worse than not publishing.
+      - name: The tag matches package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p 'require("./package.json").version')"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} says ${tag}, package.json says ${pkg}."
+            exit 1
+          fi
+          echo "publishing ${pkg}"
+
+      # Never publish something that doesn't pass. CI runs these on pushes to main,
+      # but a tag can point at any commit — including one CI never saw.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # The build is what `prepare` runs on a git install, and what produces the
+      # dist/ that actually ships. A tree that can't build can't be published.
+      - name: Build
+        run: npm run build
+
+      - name: Publish
+        run: npm publish --access public
