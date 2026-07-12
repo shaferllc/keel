@@ -10,6 +10,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 ## Docs
 
 - [Building Keel apps with AI](https://github.com/shaferllc/keel/blob/main/docs/ai.md): Keel is built to be written with an AI agent.
+- [API Resources](https://github.com/shaferllc/keel/blob/main/docs/api-resources.md): apiResource(router, Model, options) generates a full CRUD REST API from a Keel model — the Remult idea done the Keel way: explicit, server-side, and composed from pieces you already have.
 - [Architecture](https://github.com/shaferllc/keel/blob/main/docs/architecture.md): Keel is small on purpose. This page maps the pieces and traces a request from socket to response. Nothing here is magic — every layer is a short, readable file in src/core/, and this guide is mostly a reading order for it.
 - [Authentication](https://github.com/shaferllc/keel/blob/main/docs/authentication.md): Session-based auth built on the pieces you already have: sessions hold the login, hashing checks passwords.
 - [Authorization](https://github.com/shaferllc/keel/blob/main/docs/authorization.md): Where authentication answers who you are, authorization answers what you're allowed to do.

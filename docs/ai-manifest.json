@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.73.0",
+  "version": "0.74.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -10,6 +10,13 @@
       "title": "Building Keel apps with AI",
       "summary": "Keel is built to be written with an AI agent.",
       "path": "docs/ai.md",
+      "example": null
+    },
+    {
+      "slug": "api-resources",
+      "title": "API Resources",
+      "summary": "apiResource(router, Model, options) generates a full CRUD REST API from a Keel model — the Remult idea done the Keel way: explicit, server-side, and composed from pieces you already have.",
+      "path": "docs/api-resources.md",
       "example": null
     },
     {
@@ -1042,6 +1049,16 @@
       "module": "console"
     },
     {
+      "name": "defineEnv",
+      "kind": "value",
+      "module": "env"
+    },
+    {
+      "name": "DefineEnvOptions",
+      "kind": "type",
+      "module": "env"
+    },
+    {
       "name": "definePages",
       "kind": "value",
       "module": "pages"
@@ -1125,6 +1142,36 @@
       "name": "env",
       "kind": "value",
       "module": "config"
+    },
+    {
+      "name": "EnvRule",
+      "kind": "type",
+      "module": "env"
+    },
+    {
+      "name": "EnvSchema",
+      "kind": "type",
+      "module": "env"
+    },
+    {
+      "name": "EnvType",
+      "kind": "type",
+      "module": "env"
+    },
+    {
+      "name": "EnvValidationError",
+      "kind": "value",
+      "module": "env"
+    },
+    {
+      "name": "EnvValues",
+      "kind": "type",
+      "module": "env"
+    },
+    {
+      "name": "envVar",
+      "kind": "value",
+      "module": "env"
     },
     {
       "name": "ErrorHandler",

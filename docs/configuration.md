@@ -55,6 +55,80 @@ string. Pass a fallback of the type you expect and the type follows it.
 Use `env()` **only inside config files**, not scattered through your app. That
 keeps all environment coupling in one layer.
 
+## Validating the environment
+
+`env("DATABASE_URL")` hands back whatever is — or isn't — in `process.env`. A
+missing variable is `undefined`, the app boots looking perfectly healthy, and then
+dies on the first request that actually needs it. In production. At night.
+
+`defineEnv()` checks the whole environment **at boot** and refuses to start
+otherwise:
+
+```ts
+// config/env.ts
+import { defineEnv, envVar } from "@shaferllc/keel/core";
+
+export const env = defineEnv({
+  APP_KEY: envVar.string({ required: true, description: "32+ random characters" }),
+  PORT: envVar.number({ default: 3000 }),
+  NODE_ENV: envVar.enum(["development", "test", "production"], { default: "development" }),
+  DATABASE_URL: envVar.url({ required: true }),
+  SENTRY_DSN: envVar.string(), // optional
+});
+```
+
+```ts
+env.PORT; // number — not "3000"
+env.NODE_ENV; // "development" | "test" | "production" — not string
+env.SENTRY_DSN; // string | undefined
+```
+
+The types are **inferred from the rules**. A `number` rule gives you a `number`; an
+`enum` gives you the union, not `string`; anything optional without a default is
+`| undefined`, so you can't forget to handle it.
+
+### It reports every problem at once
+
+```
+The environment is not valid:
+
+  • APP_KEY is required but not set (32+ random characters).
+  • PORT must be a number, got "eighty".
+  • NODE_ENV must be one of development, test, production, got "staging".
+  • DATABASE_URL must be a valid URL, got "not a url".
+
+Set these in your .env (or your host's environment) and start again.
+```
+
+Not the first problem — **all** of them. Fixing a deploy one missing variable per
+restart is its own small hell.
+
+### Rules
+
+| Rule | Value | Notes |
+|------|-------|-------|
+| `envVar.string()` | `string` | |
+| `envVar.number()` | `number` | rejects `"eighty"` |
+| `envVar.boolean()` | `boolean` | accepts `true/false/1/0/yes/no/on/off` |
+| `envVar.enum([...])` | the union | typed as the literal union |
+| `envVar.url()` | `string` | must parse as a URL — catches a truncated connection string |
+
+Each takes `required`, `default`, `description` (shown in the error, so they know
+what to set), and `validate` for anything else:
+
+```ts
+APP_KEY: envVar.string({
+  required: true,
+  validate: (value) => (value.length >= 32 ? true : "must be at least 32 characters"),
+});
+```
+
+**An empty string counts as absent.** `PORT=` in a `.env` file is a typo, not a
+deliberate empty port.
+
+The returned object is frozen, so nothing can quietly reassign your config at
+runtime.
+
 ## Config files
 
 Each file in `config/` exports a default object and is loaded under its

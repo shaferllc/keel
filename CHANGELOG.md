@@ -4,6 +4,43 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.0] — 2026-07-11
+
+### Added
+
+- **Environment validation — fail at boot, not at 3am.** `env("DATABASE_URL")`
+  hands back whatever is (or isn't) in `process.env`, so a missing variable boots a
+  perfectly healthy-looking app that dies on the first request that needs it, in
+  production, at night. `defineEnv()` checks the whole environment up front and
+  **refuses to start** otherwise.
+
+  ```ts
+  export const env = defineEnv({
+    APP_KEY: envVar.string({ required: true, description: "32+ random characters" }),
+    PORT: envVar.number({ default: 3000 }),
+    NODE_ENV: envVar.enum(["development", "test", "production"], { default: "development" }),
+    DATABASE_URL: envVar.url({ required: true }),
+    SENTRY_DSN: envVar.string(),
+  });
+
+  env.PORT;       // number — not "3000"
+  env.NODE_ENV;   // "development" | "test" | "production" — not string
+  env.SENTRY_DSN; // string | undefined
+  ```
+
+  - The value types are **inferred from the rules**: a `number` rule gives a
+    `number`, an `enum` gives the literal union rather than `string`, and anything
+    optional without a default is `| undefined` — so you can't forget to handle it.
+  - **Every problem is reported at once**, not the first one. Fixing a deploy one
+    missing variable per restart is its own small hell.
+  - Rules: `envVar.string/number/boolean/enum/url`, each with `required`, `default`,
+    `description` (shown in the failure, so they know what to set), and `validate`.
+    `url` catches a truncated connection string; `boolean` accepts the spellings
+    people actually use (`1`, `yes`, `on`).
+  - **An empty string counts as absent** — `PORT=` in a `.env` is a typo, not a
+    deliberate empty port.
+  - The returned object is frozen, so nothing reassigns your config at runtime.
+
 ## [0.73.0] — 2026-07-11
 
 ### Added

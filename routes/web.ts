@@ -1,8 +1,10 @@
 import type { Router } from "@keel/core";
 import { json, text, param } from "@keel/core";
 import { apiDoc } from "@keel/openapi";
+import { apiResource } from "@keel/api";
 import { z } from "zod";
 import { HomeController } from "../app/Controllers/HomeController.js";
+import { Note } from "../app/Models/Note.js";
 
 const NewUser = z.object({ email: z.string().email(), age: z.number().min(18) });
 
@@ -34,6 +36,21 @@ export default function routes(router: Router): void {
   router
     .get("/notes", [HomeController, "notes"])
     .config(apiDoc({ summary: "List recent notes", tags: ["notes"] }));
+
+  // A full CRUD REST API generated from the Note model — list/read/create/
+  // update/delete under /api/notes, filtered, paginated, validated, and (being
+  // documented routes) picked up by Swagger at /docs. Writes are open here only
+  // because this is a local demo; in a real app gate them via `access.write`.
+  apiResource(router, Note, {
+    path: "api/notes",
+    filter: ["body"],
+    sort: ["id", "created_at"],
+    body: z.object({ body: z.string().min(1) }),
+    access: { read: true, write: true },
+    beforeWrite: (data, _c, action) =>
+      action === "create" ? { ...data, created_at: Date.now() } : data,
+    tags: ["notes-api"],
+  });
 
   router.get("/missing", [HomeController, "missing"]);
   router.get("/boom", [HomeController, "boom"]);

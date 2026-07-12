@@ -79,3 +79,43 @@ const data: ConfigData = {
   app: { name: "Keel", port: 3000 },
 };
 export { data };
+
+/* --- Environment validation --- */
+
+import { defineEnv, envVar, EnvValidationError } from "@shaferllc/keel/core";
+
+export const validated = defineEnv({
+  APP_KEY: envVar.string({ required: true, description: "32+ random characters" }),
+  PORT: envVar.number({ default: 3000 }),
+  NODE_ENV: envVar.enum(["development", "test", "production"], { default: "development" }),
+  DATABASE_URL: envVar.url({ required: true }),
+  DEBUG: envVar.boolean({ default: false }),
+  SENTRY_DSN: envVar.string(),
+});
+
+export function typedValues() {
+  const key: string = validated.APP_KEY;
+  const port: number = validated.PORT;
+  const mode: "development" | "test" | "production" = validated.NODE_ENV;
+  const debug: boolean = validated.DEBUG;
+  const dsn: string | undefined = validated.SENTRY_DSN;
+  const url: string = validated.DATABASE_URL;
+
+  return { key, port, mode, debug, dsn, url };
+}
+
+export function withCustomValidation() {
+  return defineEnv(
+    {
+      APP_KEY: envVar.string({
+        required: true,
+        validate: (value) => (value.length >= 32 ? true : "must be at least 32 characters"),
+      }),
+    },
+    { source: { APP_KEY: "x".repeat(32) } },
+  );
+}
+
+export function handlingTheFailure(error: unknown): string[] {
+  return error instanceof EnvValidationError ? error.problems : [];
+}
