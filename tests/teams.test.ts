@@ -189,6 +189,35 @@ test("creating a team makes the creator its owner", async () => {
   assert.deepEqual((await teamsFor(1)).map((t) => t.name), ["Acme"]);
 });
 
+test("two teams with the same name don't collide", async () => {
+  await boot();
+
+  // Personal teams are named after their owner, and names aren't unique — two
+  // people called Ada must both be able to sign up. `teams.slug` is UNIQUE, so
+  // without this the second one's registration is a 500.
+  const first = await createTeam("Ada's team", 1);
+  const second = await createTeam("Ada's team", 2);
+
+  assert.notEqual(first.slug, second.slug);
+  assert.equal(first.slug, "ada-s-team");
+  assert.equal(second.slug, "ada-s-team-2");
+});
+
+test("two people signing up at the same instant both get a team", async () => {
+  await boot();
+
+  // A check-then-act slug lookup loses this race: both see "ada-s-team" as free,
+  // and one of them gets a constraint error instead of an account. The unique index
+  // is the arbiter; createTeam has to retry, not look harder.
+  const teams = await Promise.all([
+    createTeam("Ada's team", 1),
+    createTeam("Ada's team", 2),
+  ]);
+
+  const slugs = teams.map((t) => t.slug);
+  assert.equal(new Set(slugs).size, 2, `both signups must succeed, got ${slugs.join(", ")}`);
+});
+
 test("roles are ordered: an owner can do what an admin can", () => {
   assert.equal(roleAtLeast("owner", "admin"), true);
   assert.equal(roleAtLeast("admin", "member"), true);

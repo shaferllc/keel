@@ -4,13 +4,15 @@
   "type": "module",
   "scripts": {
     "keel": "tsx bin/keel.ts",
-    "dev": "tsx watch bin/keel.ts serve",
+    "dev": "npm run css:build && concurrently -k -n css,web \"npm run css:watch\" \"tsx watch bin/keel.ts serve\"",
     "serve": "tsx bin/keel.ts serve",
-    "migrate": "tsx bin/keel.ts migrate",
-    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
-    "typecheck": "tsc --noEmit",
     "dev:edge": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "npm run css:build && wrangler deploy",
+    "migrate": "tsx bin/keel.ts migrate",
+    "css:build": "tailwindcss -i ./resources/css/app.css -o ./public/assets/app.css --minify",
+    "css:watch": "tailwindcss -i ./resources/css/app.css -o ./public/assets/app.css --watch",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
@@ -25,6 +27,9 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "wrangler": "^4.0.0",
-    "@types/pg": "^8.11.10"
+    "@types/pg": "^8.11.10",
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "concurrently": "^9.1.0"
   }
 }
