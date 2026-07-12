@@ -30,7 +30,15 @@ import {
 import { ModelQuery } from "./model-query.js";
 
 /** A global scope: a constraint applied to every query a model builds. */
-export type GlobalScope = (query: QueryBuilder) => void;
+/**
+ * A global scope: a constraint applied to every query a model builds.
+ *
+ * The second argument is the model the query is being built for — which a scope
+ * declared on a *base* class needs, since it runs for every subclass and they may
+ * not all be configured the same way (a tenant scope reading each model's own
+ * `teamColumn`, say).
+ */
+export type GlobalScope = (query: QueryBuilder, model: typeof Model) => void;
 
 /** Registered global scopes, keyed by the model class they were declared on. */
 const globalScopes = new WeakMap<object, Map<string, GlobalScope>>();
@@ -135,7 +143,7 @@ export class Model {
 
     for (const [name, scope] of scopesFor(this)) {
       if (skip?.has(name)) continue;
-      scope(query);
+      scope(query, this);
     }
 
     if (this.softDeletes) {
