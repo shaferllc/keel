@@ -178,6 +178,107 @@ SQL — so it's injection-safe by construction. Writes return a `WriteResult`;
 > matches the current `where` clause — with no `where`, that's the whole table.
 > Always scope a write with `where` unless you truly mean to touch every row.
 
+## Transactions
+
+Two related writes should either both land or neither should. `transaction()`
+commits when your callback returns and **rolls back if it throws**:
+
+```ts
+import { transaction, db } from "@shaferllc/keel/core";
+
+await transaction(async () => {
+  await db("orders").insert(order);
+  await db("stock").where("id", id).decrement("count"); // a throw here undoes the insert
+});
+```
+
+The error still reaches you — it's rethrown after the rollback. Nothing is
+swallowed.
+
+### Queries inside are ambient
+
+You don't have to thread a transaction object through your code. `db()`, models,
+and relations all pick up the open transaction automatically:
+
+```ts
+await transaction(async () => {
+  const user = await User.create({ email }); // the model is in the transaction
+  await user.related("posts").create({ title }); // so is the relation
+  await db("audit").insert({ userId: user.id }); // and the raw builder
+});
+```
+
+That works because the transaction lives in `AsyncLocalStorage`, not a module
+global — so two requests running transactions at the same time can't steal each
+other's connection.
+
+If you'd rather be explicit, the callback gets a handle:
+
+```ts
+await transaction(async (tx) => {
+  await tx.table("orders").insert(order);
+  await tx.write("UPDATE stock SET count = count - 1 WHERE id = ?", [id]);
+});
+```
+
+`tx.rollback()` abandons the transaction without committing. `inTransaction()`
+tells you whether one is open.
+
+### Nesting uses savepoints
+
+A `transaction()` inside another doesn't open a second one — databases don't have
+those. It takes a **savepoint**, so an inner failure rolls back only the inner
+work and the outer transaction carries on:
+
+```ts
+await transaction(async () => {
+  await db("orders").insert(order); // survives
+
+  try {
+    await transaction(async () => {
+      await db("items").insert(item);
+      throw new Error("out of stock"); // only this is rolled back
+    });
+  } catch {
+    // handle it
+  }
+
+  await db("audit").insert(entry); // still in the outer transaction
+});
+
+// the outer transaction commits: the order and the audit row are both saved
+```
+
+Without savepoints, a nested helper's failure would silently abandon its caller's
+writes too — which is the sort of bug you find in production, months later.
+
+### Drivers and the pooling trap
+
+A transaction needs every statement to run on **one** connection. A connection
+*pool* hands each statement to whichever connection is free — so issuing `BEGIN`
+through a pool wraps nothing: the `INSERT` after it can land on a different
+connection entirely, the `COMMIT` commits nothing, and a failure half-writes.
+It looks like it works. It doesn't.
+
+So a pooled driver implements `begin()` on its `Connection`, checking one
+connection out and running the whole transaction on it. Keel's Postgres adapter
+does this automatically when you hand it a `Pool` (it checks for `connect()`), and
+releases the connection afterwards even if the `COMMIT` throws.
+
+| Driver | Transactions |
+|--------|--------------|
+| Postgres (`Pool`) | ✅ a dedicated connection is checked out |
+| Postgres (`Client`), SQLite, libSQL | ✅ `BEGIN` / `COMMIT` on the one connection they have |
+| **Cloudflare D1** | ❌ — no interactive transactions; use `database.batch([...])` |
+
+D1 can't hold a transaction open across awaits, so `transaction()` on it **throws
+a clear error** rather than letting a `BEGIN` fail cryptically. A transaction that
+quietly isn't one is far worse than one that refuses to start.
+
+Writing your own driver? Implement `begin(): Promise<TransactionConnection>` if it
+pools. If it owns a single connection, you can leave it out and Keel will use
+`BEGIN`/`COMMIT`/`ROLLBACK`.
+
 ## Typed rows
 
 Pass a row type for typed results — it flows through to `get()` and `first()`:

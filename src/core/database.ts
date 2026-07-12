@@ -10,6 +10,8 @@
  *   await db("users").insert({ email });
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { instrument, currentRequestId } from "./instrumentation.js";
 
 export type Row = Record<string, unknown>;
@@ -34,6 +36,28 @@ export interface Connection {
   select(sql: string, bindings: unknown[]): Promise<Row[]>;
   /** Run an INSERT/UPDATE/DELETE and return write metadata. */
   write(sql: string, bindings: unknown[]): Promise<WriteResult>;
+
+  /**
+   * Start a transaction on a **dedicated** connection.
+   *
+   * This is optional, but it is not optional for a *pooled* driver, and getting
+   * that wrong is the classic way to ship a transaction that silently isn't one:
+   * a pool hands each statement to whichever connection is free, so a `BEGIN`
+   * and the `INSERT` after it can land on different connections. The `BEGIN`
+   * then wraps nothing, the `COMMIT` commits nothing, and a failure half-writes.
+   *
+   * A driver that pools MUST implement this by checking out one connection and
+   * running the whole transaction on it. A driver that owns a single connection
+   * (SQLite, libSQL, a bare `pg.Client`) can leave it out, and Keel falls back to
+   * issuing `BEGIN` / `COMMIT` / `ROLLBACK` on the connection it has.
+   */
+  begin?(): Promise<TransactionConnection>;
+}
+
+/** A connection with an open transaction on it. */
+export interface TransactionConnection extends Connection {
+  commit(): Promise<void>;
+  rollback(): Promise<void>;
 }
 
 export type Dialect = "sqlite" | "mysql" | "postgres";
@@ -131,8 +155,27 @@ export function clearConnections(): void {
   defaultConnection = "default";
 }
 
-/** Resolve a connection by name (or the default); throws if it isn't registered. */
-function resolve(name?: string): Source {
+/* ----------------------------- transactions --------------------------- */
+
+/** The transaction in flight on a connection, if any. */
+interface TxState {
+  source: Source;
+  /** 0 for the outermost transaction; deeper values are savepoints. */
+  depth: number;
+}
+
+/**
+ * The transactions open on the *current async context*, keyed by connection name.
+ *
+ * This is what makes an ambient transaction work: `db("users")` inside
+ * `transaction(...)` resolves to the transaction's connection without anyone
+ * passing it down. `AsyncLocalStorage` (not a module global) is what keeps two
+ * concurrent requests from stealing each other's transaction.
+ */
+const openTransactions = new AsyncLocalStorage<Map<string, TxState>>();
+
+/** The registered connection under a name — ignoring any open transaction. */
+function lookup(name?: string): Source {
   const source = registry.get(name ?? defaultConnection);
   if (!source) {
     throw new Error(
@@ -141,6 +184,16 @@ function resolve(name?: string): Source {
     );
   }
   return source;
+}
+
+/**
+ * Resolve a connection by name (or the default); throws if it isn't registered.
+ * A transaction open on that connection wins — that's the ambient part.
+ */
+function resolve(name?: string): Source {
+  const key = name ?? defaultConnection;
+  const open = openTransactions.getStore()?.get(key);
+  return open ? open.source : lookup(key);
 }
 
 /** Render `?` placeholders for a dialect (Postgres uses $1, $2, …). */
@@ -395,6 +448,143 @@ export interface ConnectionHandle {
  *   const reporting = connection("reporting");
  *   await reporting.table("events").where("kind", "signup").count();
  */
+/** A handle to the transaction in flight, handed to `transaction()`'s callback. */
+export interface TransactionHandle extends ConnectionHandle {
+  /**
+   * Roll back now and abandon the rest of the transaction. The callback should
+   * return straight after — queries on a rolled-back transaction will fail.
+   */
+  rollback(): Promise<void>;
+  /** 0 for the outermost transaction; deeper values are savepoints. */
+  readonly depth: number;
+}
+
+function handleFor(source: Source, depth: number, rollback: () => Promise<void>): TransactionHandle {
+  return {
+    table: <T extends Row = Row>(t: string) => new QueryBuilder<T>(t, () => source),
+    select: (sql, bindings = []) => selectOn(source, sql, bindings),
+    write: (sql, bindings = []) => writeOn(source, sql, bindings),
+    dialect: source.dialect,
+    depth,
+    rollback,
+  };
+}
+
+/** Open a transaction: the driver's own if it has one, else BEGIN on what we have. */
+async function begin(source: Source): Promise<{
+  source: Source;
+  commit: () => Promise<void>;
+  rollback: () => Promise<void>;
+}> {
+  if (source.conn.begin) {
+    const tx = await source.conn.begin();
+    return {
+      source: { name: source.name, conn: tx, dialect: source.dialect },
+      commit: () => tx.commit(),
+      rollback: () => tx.rollback(),
+    };
+  }
+
+  await writeOn(source, "BEGIN", []);
+  return {
+    source,
+    commit: async () => void (await writeOn(source, "COMMIT", [])),
+    rollback: async () => void (await writeOn(source, "ROLLBACK", [])),
+  };
+}
+
+/**
+ * Run `fn` inside a database transaction. It commits when `fn` returns, and
+ * **rolls back if `fn` throws** — which is the entire point: two related writes
+ * either both land or neither does, so a failure between them can't leave the row
+ * charged and the order missing.
+ *
+ *   await transaction(async () => {
+ *     await db("orders").insert(order);
+ *     await db("stock").where("id", id).decrement("count");   // a throw here undoes the insert
+ *   });
+ *
+ * Queries inside are **ambient**: `db()`, models, and relations all pick up the
+ * transaction's connection without being handed it. The callback also gets an
+ * explicit handle if you'd rather be obvious about it:
+ *
+ *   await transaction(async (tx) => {
+ *     await tx.table("orders").insert(order);
+ *   });
+ *
+ * **Nesting uses savepoints.** A `transaction()` inside another doesn't open a
+ * second transaction — databases don't have those — it takes a savepoint, so an
+ * inner failure rolls back only the inner work and the outer transaction carries
+ * on. Without that, a nested helper's failure would silently abandon its caller's
+ * writes too.
+ */
+export async function transaction<T>(
+  fn: (tx: TransactionHandle) => Promise<T> | T,
+  connectionName?: string,
+): Promise<T> {
+  const key = connectionName ?? defaultConnection;
+  const store = openTransactions.getStore();
+  const open = store?.get(key);
+
+  /* ----------------------------- nested: savepoint ---------------------- */
+  if (open) {
+    const depth = open.depth + 1;
+    const name = `keel_sp_${depth}`;
+    const source = open.source;
+
+    await writeOn(source, `SAVEPOINT ${name}`, []);
+
+    const nested = new Map(store);
+    nested.set(key, { source, depth });
+
+    let undone = false;
+    const undo = async (): Promise<void> => {
+      undone = true;
+      await writeOn(source, `ROLLBACK TO SAVEPOINT ${name}`, []);
+    };
+
+    try {
+      const result = await openTransactions.run(nested, () => fn(handleFor(source, depth, undo)));
+      if (!undone) await writeOn(source, `RELEASE SAVEPOINT ${name}`, []);
+      return result;
+    } catch (error) {
+      // Only this savepoint is undone — the transaction around it survives.
+      if (!undone) await writeOn(source, `ROLLBACK TO SAVEPOINT ${name}`, []);
+      throw error;
+    }
+  }
+
+  /* ---------------------------- outermost ------------------------------- */
+  const tx = await begin(lookup(key));
+
+  const next = new Map(store ?? []);
+  next.set(key, { source: tx.source, depth: 0 });
+
+  let undone = false;
+  const undo = async (): Promise<void> => {
+    undone = true;
+    await tx.rollback();
+  };
+
+  try {
+    const result = await openTransactions.run(next, () => fn(handleFor(tx.source, 0, undo)));
+    if (!undone) await tx.commit();
+    return result;
+  } catch (error) {
+    if (!undone) {
+      // A rollback that itself fails must not replace the error that caused it —
+      // that's how you end up debugging the wrong problem.
+      await tx.rollback().catch(() => {});
+    }
+    throw error;
+  }
+}
+
+/** Whether a transaction is open on this connection in the current context. */
+export function inTransaction(connectionName?: string): boolean {
+  return openTransactions.getStore()?.has(connectionName ?? defaultConnection) ?? false;
+}
+
 export function connection(name?: string): ConnectionHandle {
   const source = resolve(name);
   return {

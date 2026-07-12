@@ -35,5 +35,21 @@ export function d1Connection(database: D1Like): Connection {
       const { meta } = await database.prepare(sql).bind(...bindings).run();
       return { rowsAffected: meta.changes ?? 0, insertId: meta.last_row_id };
     },
+
+    /**
+     * D1 has no interactive transactions — it can't hold one open across awaits
+     * over its HTTP protocol, and a `BEGIN` sent through `prepare()` is rejected.
+     *
+     * So say that, rather than letting the generic BEGIN fallback fire and fail
+     * with something cryptic from the driver. A transaction that quietly isn't one
+     * is far worse than a transaction that refuses to start.
+     */
+    async begin(): Promise<never> {
+      throw new Error(
+        "D1 does not support interactive transactions. Use `database.batch([...])` for an " +
+          "atomic group of statements, or run transactional work against a database that " +
+          "supports them (Postgres, libSQL, SQLite).",
+      );
+    },
   };
 }

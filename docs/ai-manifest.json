@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.72.0",
+  "version": "0.73.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -1507,6 +1507,11 @@
       "module": "instrumentation"
     },
     {
+      "name": "inTransaction",
+      "kind": "value",
+      "module": "database"
+    },
+    {
       "name": "IssuedToken",
       "kind": "type",
       "module": "tokens"
@@ -2915,6 +2920,21 @@
       "name": "TracingOptions",
       "kind": "type",
       "module": "telemetry"
+    },
+    {
+      "name": "transaction",
+      "kind": "value",
+      "module": "database"
+    },
+    {
+      "name": "TransactionConnection",
+      "kind": "type",
+      "module": "database"
+    },
+    {
+      "name": "TransactionHandle",
+      "kind": "type",
+      "module": "database"
     },
     {
       "name": "Transformer",

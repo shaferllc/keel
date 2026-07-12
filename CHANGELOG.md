@@ -4,6 +4,40 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.73.0] — 2026-07-11
+
+### Added
+
+- **Database transactions.** `transaction(fn)` commits when `fn` returns and
+  **rolls back if it throws** — so two related writes either both land or neither
+  does, and a failure between them can't leave the card charged and the order
+  missing. The error is rethrown after the rollback; nothing is swallowed.
+  - **Queries inside are ambient.** `db()`, models, and relations all pick up the
+    open transaction without being handed it, because it lives in
+    `AsyncLocalStorage` rather than a module global — so two requests running
+    transactions at once can't steal each other's connection. `transaction()` also
+    passes an explicit handle (`tx.table()`, `tx.write()`, `tx.rollback()`) for
+    when you'd rather be obvious, and `inTransaction()` reports whether one is open.
+  - **Nesting uses savepoints.** A `transaction()` inside another doesn't open a
+    second transaction — databases don't have those — it takes a savepoint, so an
+    inner failure rolls back only the inner work and the outer transaction carries
+    on. Without that, a nested helper's failure would silently abandon its caller's
+    writes too.
+  - **The pooling trap, closed.** A transaction needs every statement on *one*
+    connection, but a pool hands each statement to whichever is free — so `BEGIN`
+    issued through a pool wraps nothing, the `COMMIT` commits nothing, and a
+    failure half-writes. It looks like it works. `Connection` therefore gains an
+    optional `begin()`: the Postgres adapter now checks a connection out of the
+    `Pool` (detected via `connect()`), runs the whole transaction on it, and
+    releases it afterwards **even if the `COMMIT` throws**. Single-connection
+    drivers (a bare `pg.Client`, SQLite, libSQL) need nothing and fall back to
+    `BEGIN`/`COMMIT`/`ROLLBACK`.
+  - **D1 refuses honestly.** Cloudflare D1 can't hold a transaction open across
+    awaits, so `transaction()` on it throws a clear error pointing at
+    `database.batch([...])`, rather than letting a `BEGIN` fail cryptically inside
+    the driver. A transaction that quietly isn't one is far worse than one that
+    refuses to start.
+
 ## [0.72.0] — 2026-07-11
 
 ### Added

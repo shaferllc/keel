@@ -116,3 +116,93 @@ const dialect: Dialect = "postgres";
 const op: Operator = "like";
 const row: Row = { id: 1 };
 export { mock, dialect, op, row };
+
+/* --- Transactions --- */
+
+import {
+  transaction,
+  inTransaction,
+  type TransactionHandle,
+  type TransactionConnection,
+} from "@shaferllc/keel/core";
+
+declare const order: Record<string, unknown>;
+declare const item: Record<string, unknown>;
+declare const entry: Record<string, unknown>;
+declare const id: number;
+
+export async function committing() {
+  await transaction(async () => {
+    await db("orders").insert(order);
+    await db("stock").where("id", id).update({ count: 0 });
+  });
+}
+
+export async function explicitHandle() {
+  return transaction(async (tx: TransactionHandle) => {
+    await tx.table("orders").insert(order);
+    await tx.write("UPDATE stock SET count = count - 1 WHERE id = ?", [id]);
+    void tx.depth;
+    void tx.dialect;
+    return "done";
+  });
+}
+
+export async function abandoning() {
+  await transaction(async (tx) => {
+    await tx.table("orders").insert(order);
+    await tx.rollback();
+  });
+}
+
+export async function nesting() {
+  await transaction(async () => {
+    await db("orders").insert(order);
+
+    try {
+      await transaction(async () => {
+        await db("items").insert(item);
+        throw new Error("out of stock");
+      });
+    } catch {
+      // only the inner work was rolled back
+    }
+
+    await db("audit").insert(entry);
+  });
+}
+
+export function checking(): boolean {
+  return inTransaction();
+}
+
+export async function onANamedConnection() {
+  await transaction(async () => {
+    await db("events", "reporting").insert(entry);
+  }, "reporting");
+}
+
+/** A driver that pools must implement begin() — see the guide. */
+export function pooledDriver(): Connection {
+  const conn: Connection = {
+    async select() {
+      return [];
+    },
+    async write() {
+      return { rowsAffected: 0 };
+    },
+    async begin(): Promise<TransactionConnection> {
+      return {
+        async select() {
+          return [];
+        },
+        async write() {
+          return { rowsAffected: 0 };
+        },
+        async commit() {},
+        async rollback() {},
+      };
+    },
+  };
+  return conn;
+}

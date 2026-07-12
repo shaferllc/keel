@@ -135,9 +135,21 @@ export {
   setDefaultConnection,
   connectionNames,
   clearConnections,
+  transaction,
+  inTransaction,
   QueryBuilder,
 } from "./database.js";
-export type { Connection, ConnectionHandle, WriteResult, Row, Dialect, Operator, Paginated } from "./database.js";
+export type {
+  Connection,
+  TransactionConnection,
+  TransactionHandle,
+  ConnectionHandle,
+  WriteResult,
+  Row,
+  Dialect,
+  Operator,
+  Paginated,
+} from "./database.js";
 export { Model } from "./model.js";
 export type { CastType, Casts } from "./casts.js";
 export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
