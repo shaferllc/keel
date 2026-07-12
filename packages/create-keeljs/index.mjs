@@ -62,7 +62,10 @@ if (existsSync(dir) && readdirSync(dir).length) bail(`${target} already exists a
 
 // The templates ship inside the framework package, so the version we copy from is,
 // by construction, the version they were written for.
-const keelPkg = require.resolve("@shaferllc/keel/package.json");
+// Resolve from next to this script (how npx installs it) and fall back to the
+// directory the user is standing in — so a globally-installed or linked generator
+// still finds the framework instead of dying with a module-not-found.
+const keelPkg = resolveKeel();
 const keelRoot = dirname(keelPkg);
 const version = JSON.parse(readFileSync(keelPkg, "utf8")).version;
 
@@ -120,6 +123,23 @@ console.log(`
     wrangler d1 create ${appName}     # paste the id into wrangler.jsonc
     npm run deploy
 `);
+
+function resolveKeel() {
+  const candidates = [
+    () => require.resolve("@shaferllc/keel/package.json"),
+    () => createRequire(join(process.cwd(), "noop.js")).resolve("@shaferllc/keel/package.json"),
+  ];
+
+  for (const attempt of candidates) {
+    try {
+      return attempt();
+    } catch {
+      // try the next one
+    }
+  }
+
+  bail("Couldn't find @shaferllc/keel. Run this through `npm create keeljs@latest`.");
+}
 
 function walk(directory) {
   return readdirSync(directory).flatMap((entry) => {
