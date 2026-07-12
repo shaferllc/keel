@@ -2,7 +2,7 @@
   "name": "@shaferllc/keel",
   "version": "0.81.1",
   "type": "module",
-  "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
+  "description": "The house framework for Node.js \u2014 a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
   "author": "Tom Shafer",
   "homepage": "https://github.com/shaferllc/keel#readme",
@@ -36,6 +36,10 @@
     "./db/d1": {
       "types": "./dist/db/d1.d.ts",
       "import": "./dist/db/d1.js"
+    },
+    "./db/d1-http": {
+      "types": "./dist/db/d1-http.d.ts",
+      "import": "./dist/db/d1-http.js"
     },
     "./db/pg": {
       "types": "./dist/db/pg.d.ts",
@@ -88,7 +92,8 @@
     "docs",
     "AGENTS.md",
     "llms.txt",
-    "llms-full.txt"
+    "llms-full.txt",
+    "templates"
   ],
   "publishConfig": {
     "access": "public"

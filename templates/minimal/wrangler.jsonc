@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__APP_NAME__",
+  "main": "worker.ts",
+  "compatibility_date": "2025-01-01",
+  // AsyncLocalStorage — Keel carries the request context in it.
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": { "directory": "./public" }
+}
