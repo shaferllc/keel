@@ -73,12 +73,41 @@ t.boolean("active").default(true);     // sqlite: DEFAULT 1, else DEFAULT true
 t.integer("retries").default(0);       // ... DEFAULT 0
 ```
 
-For anything the builder doesn't cover — indexes, foreign keys, an `ALTER
-TABLE` — `schema.raw(sql, bindings?)` runs arbitrary SQL:
+### Indexes and foreign keys
+
+`createTable` builds indexes and foreign keys alongside the columns:
+
+```ts
+schema.createTable("members", (t) => {
+  t.id();
+  t.integer("team_id");
+  t.string("email");
+  t.uniqueIndex("email");                       // or t.index(["a", "b"]) for composite
+  t.foreign("team_id").references("id").on("teams").onDelete("cascade");
+});
+```
+
+### Altering a table
+
+`schema.alterTable(name, build)` adds, renames, and drops columns and indexes on
+an existing table (dialect-aware SQL). Drop an index before the column it covers:
 
 ```ts
 up: (schema) =>
-  schema.raw("CREATE INDEX idx_posts_user ON posts (user_id)"),
+  schema.alterTable("users", (t) => {
+    t.string("phone").nullable();     // ADD COLUMN
+    t.renameColumn("name", "full_name");
+    t.index("phone");
+    t.dropIndex("users_legacy_index");
+    t.dropColumn("legacy");
+  }),
+```
+
+For anything the builder still doesn't cover, `schema.raw(sql, bindings?)` runs
+arbitrary SQL:
+
+```ts
+up: (schema) => schema.raw("CREATE INDEX idx_posts_user ON posts (user_id)"),
 ```
 
 > `raw()` writes through the connection **without** placeholder conversion, so

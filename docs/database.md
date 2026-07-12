@@ -145,6 +145,23 @@ await db("posts").latest().get();          // ORDER BY created_at DESC
 await db("posts").oldest("published_at").get();
 ```
 
+Joins, grouping, and conditional/raw clauses:
+
+```ts
+await db("posts")
+  .join("users", "posts.user_id", "users.id")   // also leftJoin(...)
+  .select("posts.title", "users.name")
+  .get();
+
+await db("posts").select("user_id").groupBy("user_id").having("COUNT(*)", ">", 5).get();
+await db("users").distinct().select("country").pluck("country");
+
+await db("events").whereColumn("updated_at", ">", "created_at").get();
+await db("users").whereRaw("score >= ?", [10]).orderByRaw("LENGTH(name) DESC").get();
+
+await db("users").when(search, (q, term) => q.whereLike("name", `%${term}%`)).get();
+```
+
 ## Aggregates, single values, and pagination
 
 ```ts
@@ -173,6 +190,22 @@ await db("users").where("id", id).delete();
 Everything is parameterized — values become bindings, never string-interpolated
 SQL — so it's injection-safe by construction. Writes return a `WriteResult`;
 `insertGetId` unwraps it to just the new id.
+
+Counters, bulk upserts, and paged iteration:
+
+```ts
+await db("posts").where("id", id).increment("views");        // += 1
+await db("posts").where("id", id).decrement("stock", 3, { updated_at: now });
+
+// Insert, updating the listed columns on a unique-key conflict (dialect-aware).
+await db("users").upsert([{ id: 1, name: "Ada" }], ["id"], ["name"]);
+await db("logs").insertOrIgnore({ key, value });             // skip duplicates
+
+// Process a large table a page at a time (return false to stop early).
+await db("users").orderBy("id").chunk(500, async (rows) => {
+  for (const row of rows) await process(row);
+});
+```
 
 > **Guard your writes.** `update()` and `delete()` apply to every row that
 > matches the current `where` clause — with no `where`, that's the whole table.

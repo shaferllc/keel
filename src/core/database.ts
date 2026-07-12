@@ -215,6 +215,10 @@ export class QueryBuilder<T extends Row = Row> {
   private columns = "*";
   private _limit?: number;
   private _offset?: number;
+  private joins: string[] = [];
+  private groups: string[] = [];
+  private havings: Where[] = [];
+  private _distinct = false;
 
   // The connection is resolved lazily, when a query actually runs — so building
   // a query never throws, and an unregistered connection surfaces as a rejected
@@ -282,8 +286,65 @@ export class QueryBuilder<T extends Row = Row> {
     return this;
   }
 
+  /** Compare two columns (no binding): `whereColumn("updated_at", ">", "created_at")`. */
+  whereColumn(first: string, opOrSecond: string, second?: string): this {
+    const [op, col] = second === undefined ? ["=", opOrSecond] : [opOrSecond, second];
+    this.wheres.push({ boolean: "AND", sql: `${first} ${op} ${col}`, bindings: [] });
+    return this;
+  }
+
+  /** A raw WHERE fragment with its own bindings. */
+  whereRaw(sql: string, bindings: unknown[] = []): this {
+    this.wheres.push({ boolean: "AND", sql, bindings });
+    return this;
+  }
+
+  join(table: string, first: string, opOrSecond: string, second?: string): this {
+    const [op, col] = second === undefined ? ["=", opOrSecond] : [opOrSecond, second];
+    this.joins.push(`INNER JOIN ${table} ON ${first} ${op} ${col}`);
+    return this;
+  }
+  leftJoin(table: string, first: string, opOrSecond: string, second?: string): this {
+    const [op, col] = second === undefined ? ["=", opOrSecond] : [opOrSecond, second];
+    this.joins.push(`LEFT JOIN ${table} ON ${first} ${op} ${col}`);
+    return this;
+  }
+
+  groupBy(...columns: string[]): this {
+    this.groups.push(...columns);
+    return this;
+  }
+
+  having(column: string, opOrValue: unknown, value?: unknown): this {
+    const [op, val] = value === undefined ? ["=", opOrValue] : [opOrValue, value];
+    this.havings.push({ boolean: "AND", sql: `${column} ${op} ?`, bindings: [val] });
+    return this;
+  }
+
+  distinct(): this {
+    this._distinct = true;
+    return this;
+  }
+
+  /** Apply `then` only when `condition` is truthy (optionally `otherwise`). */
+  when(
+    condition: unknown,
+    then: (query: this, value: unknown) => void,
+    otherwise?: (query: this, value: unknown) => void,
+  ): this {
+    if (condition) then(this, condition);
+    else otherwise?.(this, condition);
+    return this;
+  }
+
   orderBy(column: string, direction: "asc" | "desc" = "asc"): this {
     this.orders.push(`${column} ${direction.toUpperCase()}`);
+    return this;
+  }
+
+  /** A raw ORDER BY fragment, e.g. `orderByRaw("LENGTH(name) DESC")`. */
+  orderByRaw(sql: string): this {
+    this.orders.push(sql);
     return this;
   }
 
@@ -312,15 +373,31 @@ export class QueryBuilder<T extends Row = Row> {
     return { sql, bindings: this.wheres.flatMap((w) => w.bindings) };
   }
 
+  private havingClause(): { sql: string; bindings: unknown[] } {
+    if (!this.havings.length) return { sql: "", bindings: [] };
+    const sql =
+      " HAVING " +
+      this.havings.map((w, i) => (i === 0 ? "" : `${w.boolean} `) + w.sql).join(" ");
+    return { sql, bindings: this.havings.flatMap((w) => w.bindings) };
+  }
+
+  private joinSql(): string {
+    return this.joins.length ? ` ${this.joins.join(" ")}` : "";
+  }
+
   /* ------------------------------- reads ------------------------------- */
 
   async get(): Promise<T[]> {
     const where = this.whereClause();
-    let sql = `SELECT ${this.columns} FROM ${this.table}${where.sql}`;
+    const having = this.havingClause();
+    let sql = `SELECT ${this._distinct ? "DISTINCT " : ""}${this.columns} FROM ${this.table}`;
+    sql += this.joinSql() + where.sql;
+    if (this.groups.length) sql += ` GROUP BY ${this.groups.join(", ")}`;
+    sql += having.sql;
     if (this.orders.length) sql += ` ORDER BY ${this.orders.join(", ")}`;
     if (this._limit != null) sql += ` LIMIT ${this._limit}`;
     if (this._offset != null) sql += ` OFFSET ${this._offset}`;
-    return (await this.runSelect(sql, where.bindings)) as T[];
+    return (await this.runSelect(sql, [...where.bindings, ...having.bindings])) as T[];
   }
 
   async first(): Promise<T | null> {
@@ -332,7 +409,7 @@ export class QueryBuilder<T extends Row = Row> {
   async count(): Promise<number> {
     const where = this.whereClause();
     const rows = (await this.runSelect(
-      `SELECT COUNT(*) AS count FROM ${this.table}${where.sql}`,
+      `SELECT COUNT(*) AS count FROM ${this.table}${this.joinSql()}${where.sql}`,
       where.bindings,
     )) as { count: number }[];
     return Number(rows[0]?.count ?? 0);
@@ -345,7 +422,7 @@ export class QueryBuilder<T extends Row = Row> {
   private async aggregate(fn: string, column: string): Promise<number> {
     const where = this.whereClause();
     const rows = (await this.runSelect(
-      `SELECT ${fn}(${column}) AS agg FROM ${this.table}${where.sql}`,
+      `SELECT ${fn}(${column}) AS agg FROM ${this.table}${this.joinSql()}${where.sql}`,
       where.bindings,
     )) as { agg: number | null }[];
     return Number(rows[0]?.agg ?? 0);
@@ -420,6 +497,80 @@ export class QueryBuilder<T extends Row = Row> {
   async delete(): Promise<WriteResult> {
     const where = this.whereClause();
     return this.runWrite(`DELETE FROM ${this.table}${where.sql}`, where.bindings);
+  }
+
+  /** Atomically add to a numeric column (optionally setting other columns too). */
+  increment(column: string, amount = 1, extra: Row = {}): Promise<WriteResult> {
+    const where = this.whereClause();
+    const sets = [`${column} = ${column} + ?`, ...Object.keys(extra).map((k) => `${k} = ?`)];
+    const bindings = [amount, ...Object.values(extra), ...where.bindings];
+    return this.runWrite(`UPDATE ${this.table} SET ${sets.join(", ")}${where.sql}`, bindings);
+  }
+
+  /** Atomically subtract from a numeric column. */
+  decrement(column: string, amount = 1, extra: Row = {}): Promise<WriteResult> {
+    const where = this.whereClause();
+    const sets = [`${column} = ${column} - ?`, ...Object.keys(extra).map((k) => `${k} = ?`)];
+    const bindings = [amount, ...Object.values(extra), ...where.bindings];
+    return this.runWrite(`UPDATE ${this.table} SET ${sets.join(", ")}${where.sql}`, bindings);
+  }
+
+  /** Insert one or more rows, ignoring any that violate a unique constraint. */
+  async insertOrIgnore(rows: Row | Row[]): Promise<WriteResult> {
+    const list = Array.isArray(rows) ? rows : [rows];
+    if (!list.length) return { rowsAffected: 0 };
+    const dialect = this.getSource().dialect;
+    const keys = Object.keys(list[0]!);
+    const values = list.map(() => `(${keys.map(() => "?").join(", ")})`).join(", ");
+    const bindings = list.flatMap((r) => keys.map((k) => r[k]));
+    const verb = dialect === "mysql" ? "INSERT IGNORE" : "INSERT";
+    const suffix = dialect === "postgres" || dialect === "sqlite" ? " ON CONFLICT DO NOTHING" : "";
+    return this.runWrite(
+      `${verb} INTO ${this.table} (${keys.join(", ")}) VALUES ${values}${suffix}`,
+      bindings,
+    );
+  }
+
+  /**
+   * Insert rows, updating `update` columns on a conflict against `uniqueBy`.
+   * Dialect-aware: `ON CONFLICT … DO UPDATE` (sqlite/postgres) or
+   * `ON DUPLICATE KEY UPDATE` (mysql).
+   */
+  async upsert(rows: Row | Row[], uniqueBy: string[], update?: string[]): Promise<WriteResult> {
+    const list = Array.isArray(rows) ? rows : [rows];
+    if (!list.length) return { rowsAffected: 0 };
+    const dialect = this.getSource().dialect;
+    const keys = Object.keys(list[0]!);
+    const cols = update ?? keys.filter((k) => !uniqueBy.includes(k));
+    const values = list.map(() => `(${keys.map(() => "?").join(", ")})`).join(", ");
+    const bindings = list.flatMap((r) => keys.map((k) => r[k]));
+
+    let sql = `INSERT INTO ${this.table} (${keys.join(", ")}) VALUES ${values}`;
+    if (dialect === "mysql") {
+      sql += ` ON DUPLICATE KEY UPDATE ${cols.map((c) => `${c} = VALUES(${c})`).join(", ")}`;
+    } else {
+      sql += ` ON CONFLICT (${uniqueBy.join(", ")}) DO UPDATE SET ${cols
+        .map((c) => `${c} = excluded.${c}`)
+        .join(", ")}`;
+    }
+    return this.runWrite(sql, bindings);
+  }
+
+  /**
+   * Process results in pages of `size`, so a large table never loads at once.
+   * The callback runs per page; return `false` from it to stop early.
+   */
+  async chunk(size: number, callback: (rows: T[]) => void | boolean | Promise<void | boolean>): Promise<void> {
+    let offset = 0;
+    for (;;) {
+      this._limit = size;
+      this._offset = offset;
+      const rows = await this.get();
+      if (!rows.length) return;
+      if ((await callback(rows)) === false) return;
+      if (rows.length < size) return;
+      offset += size;
+    }
   }
 }
 

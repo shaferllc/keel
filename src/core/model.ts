@@ -18,7 +18,7 @@
 
 import { db, type QueryBuilder, type Row, type Paginated } from "./database.js";
 import { NotFoundException } from "./exceptions.js";
-import { BelongsTo, BelongsToMany, HasMany, HasOne } from "./relations.js";
+import { BelongsTo, BelongsToMany, HasMany, HasOne, MorphMany, MorphOne, MorphTo } from "./relations.js";
 import { applyCasts, castGet, castSet, type Casts } from "./casts.js";
 import {
   addModelHook,
@@ -404,6 +404,33 @@ export class Model {
       parentKey,
       relatedKey,
     );
+  }
+
+  /** Polymorphic one-to-many: children carry `<name>_id` + `<name>_type`. */
+  morphMany<T extends Model>(
+    related: ModelClass<T>,
+    name: string,
+    localKey: string = this.ctor().primaryKey,
+  ): MorphMany<T> {
+    return new MorphMany<T>(this, related, this.constructor.name, `${name}_id`, `${name}_type`, localKey);
+  }
+
+  /** Polymorphic one-to-one. */
+  morphOne<T extends Model>(
+    related: ModelClass<T>,
+    name: string,
+    localKey: string = this.ctor().primaryKey,
+  ): MorphOne<T> {
+    return new MorphOne<T>(this, related, this.constructor.name, `${name}_id`, `${name}_type`, localKey);
+  }
+
+  /** The owning side of a polymorphic relation — resolves via `<name>_type` (see `registerMorphType`). */
+  morphTo(
+    name: string,
+    idColumn: string = `${name}_id`,
+    typeColumn: string = `${name}_type`,
+  ): MorphTo {
+    return new MorphTo(this, idColumn, typeColumn);
   }
 
   /** Store an eager-loaded relation result under `name`. */

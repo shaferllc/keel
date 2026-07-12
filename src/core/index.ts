@@ -157,7 +157,17 @@ export type { GlobalScope } from "./model.js";
 export { ModelQuery } from "./model-query.js";
 export type { ModelEvent, ModelHook, ModelObserver } from "./model-events.js";
 export type { CastType, Casts } from "./casts.js";
-export { Relation, HasOne, HasMany, BelongsTo, BelongsToMany } from "./relations.js";
+export {
+  Relation,
+  HasOne,
+  HasMany,
+  BelongsTo,
+  BelongsToMany,
+  MorphOne,
+  MorphMany,
+  MorphTo,
+  registerMorphType,
+} from "./relations.js";
 export { Faker, Factory as ModelFactory, factory, Seeder, seed } from "./factory.js";
 export type { Definition } from "./factory.js";
 export {
@@ -239,7 +249,14 @@ export {
   getNotifier,
 } from "./notification.js";
 export type { Notifiable, MailContent, Channel } from "./notification.js";
-export { SchemaBuilder, Migrator, TableBuilder, Column } from "./migrations.js";
+export {
+  SchemaBuilder,
+  Migrator,
+  TableBuilder,
+  AlterTableBuilder,
+  ForeignKeyBuilder,
+  Column,
+} from "./migrations.js";
 export type { Migration } from "./migrations.js";
 export {
   ctx,

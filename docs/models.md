@@ -344,11 +344,39 @@ this.belongsTo(User, "owner_id", "id");
 this.belongsToMany(Role, "user_roles", "user_id", "role_id");
 ```
 
+### Polymorphic
+
+A polymorphic relation lets one model belong to more than one type. The related
+rows carry `<name>_id` + `<name>_type`; register each owner type so `morphTo`
+can resolve it:
+
+```ts
+class Post extends Model {
+  comments() { return this.morphMany(Comment, "commentable"); }
+}
+class Video extends Model {
+  comments() { return this.morphMany(Comment, "commentable"); }
+}
+class Comment extends Model {
+  commentable() { return this.morphTo("commentable"); } // resolves back to Post or Video
+}
+
+registerMorphType("Post", Post);
+registerMorphType("Video", Video);
+
+await post.comments().create({ body: "nice" }); // sets commentable_id/_type
+const owner = await comment.commentable();       // Post | Video | null
+```
+
+`morphOne` is the one-to-one variant. Eager loading (`Model.load` / `with`) works
+across mixed types.
+
 ## What this is (and isn't)
 
-This is a deliberately small active-record — enough for CRUD, relationships,
-casts, and simple queries without an ORM dependency. Nested eager loading
-(`posts.comments`) and query-time `with()` aren't here yet. For complex schemas
+This is a compact active-record — CRUD, lifecycle events, scopes, soft deletes,
+serialization control, eager loading (including nested `with("posts.comments")`),
+relationship queries (`whereHas`/`withCount`), and polymorphic relations — all on
+a driver-agnostic query builder, no ORM dependency. For complex one-off queries
 you can always drop to `db()` or your driver directly.
 
 ---

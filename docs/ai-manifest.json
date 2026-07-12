@@ -483,6 +483,11 @@
       "module": "helpers"
     },
     {
+      "name": "AlterTableBuilder",
+      "kind": "value",
+      "module": "migrations"
+    },
+    {
       "name": "AnyCommand",
       "kind": "type",
       "module": "console"
@@ -1388,6 +1393,11 @@
       "module": "exceptions"
     },
     {
+      "name": "ForeignKeyBuilder",
+      "kind": "value",
+      "module": "migrations"
+    },
+    {
       "name": "formatMessage",
       "kind": "value",
       "module": "i18n"
@@ -1928,6 +1938,21 @@
       "module": "model-query"
     },
     {
+      "name": "MorphMany",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "MorphOne",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
+      "name": "MorphTo",
+      "kind": "value",
+      "module": "relations"
+    },
+    {
       "name": "namedLogger",
       "kind": "value",
       "module": "logger"
@@ -2296,6 +2321,11 @@
       "name": "RegisteredPage",
       "kind": "type",
       "module": "pages"
+    },
+    {
+      "name": "registerMorphType",
+      "kind": "value",
+      "module": "relations"
     },
     {
       "name": "Relation",

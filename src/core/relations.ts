@@ -366,3 +366,183 @@ export class BelongsToMany<T extends Model> extends Relation<T, T[]> {
     );
   }
 }
+
+/* ----------------------------- polymorphic --------------------------------- */
+
+/** Maps a stored morph-type string to its model class, so `morphTo` can resolve it. */
+const morphRegistry = new Map<string, ModelClass<Model>>();
+
+/** Register a model under a morph type string (usually its class name). */
+export function registerMorphType(type: string, related: ModelClass<Model>): void {
+  morphRegistry.set(type, related);
+}
+
+/** The parent side of a polymorphic one-to-many (`Post.comments()` over `commentable`). */
+export class MorphMany<T extends Model> extends Relation<T, T[]> {
+  constructor(
+    parent: Model,
+    related: ModelClass<T>,
+    private morphType: string,
+    private idColumn: string,
+    private typeColumn: string,
+    private localKey: string,
+  ) {
+    super(parent, related);
+  }
+
+  private localValue(): unknown {
+    return (this.parent as Row)[this.localKey];
+  }
+
+  query(): QueryBuilder {
+    return db(this.related.table, this.related.connection)
+      .where(this.typeColumn, this.morphType)
+      .where(this.idColumn, this.localValue());
+  }
+
+  async get(): Promise<T[]> {
+    return this.hydrate(await this.query().get());
+  }
+
+  async eager(models: Model[], name: string): Promise<void> {
+    const keys = unique(models.map((m) => (m as Row)[this.localKey]).filter((v) => v != null));
+    const rows = keys.length
+      ? await db(this.related.table, this.related.connection)
+          .where(this.typeColumn, this.morphType)
+          .whereIn(this.idColumn, keys)
+          .get()
+      : [];
+    const grouped = new Map<unknown, T[]>();
+    for (const row of rows) {
+      const bucket = grouped.get(row[this.idColumn]) ?? [];
+      bucket.push(new this.related(row));
+      grouped.set(row[this.idColumn], bucket);
+    }
+    for (const m of models) m.setRelation(name, grouped.get((m as Row)[this.localKey]) ?? []);
+  }
+
+  parentColumn(): string {
+    return this.localKey;
+  }
+
+  async matchingParentKeys(constrain?: (q: QueryBuilder) => void): Promise<unknown[]> {
+    const q = db(this.related.table, this.related.connection).where(this.typeColumn, this.morphType);
+    constrain?.(q);
+    return unique((await q.pluck(this.idColumn)).filter((v) => v != null));
+  }
+
+  async countsByParent(parentKeys: unknown[]): Promise<Map<unknown, number>> {
+    return tally(
+      parentKeys.length
+        ? await db(this.related.table, this.related.connection)
+            .where(this.typeColumn, this.morphType)
+            .whereIn(this.idColumn, parentKeys)
+            .pluck(this.idColumn)
+        : [],
+    );
+  }
+
+  /** Create a related row with the morph keys (`*_id` / `*_type`) filled in. */
+  create(attributes: Row): Promise<T> {
+    return this.related.create({
+      ...attributes,
+      [this.idColumn]: this.localValue(),
+      [this.typeColumn]: this.morphType,
+    }) as Promise<T>;
+  }
+}
+
+/** The parent side of a polymorphic one-to-one. */
+export class MorphOne<T extends Model> extends Relation<T, T | null> {
+  constructor(
+    parent: Model,
+    related: ModelClass<T>,
+    private morphType: string,
+    private idColumn: string,
+    private typeColumn: string,
+    private localKey: string,
+  ) {
+    super(parent, related);
+  }
+
+  query(): QueryBuilder {
+    return db(this.related.table, this.related.connection)
+      .where(this.typeColumn, this.morphType)
+      .where(this.idColumn, (this.parent as Row)[this.localKey]);
+  }
+
+  async get(): Promise<T | null> {
+    const row = await this.query().first();
+    return row ? new this.related(row) : null;
+  }
+
+  async eager(models: Model[], name: string): Promise<void> {
+    const keys = unique(models.map((m) => (m as Row)[this.localKey]).filter((v) => v != null));
+    const rows = keys.length
+      ? await db(this.related.table, this.related.connection)
+          .where(this.typeColumn, this.morphType)
+          .whereIn(this.idColumn, keys)
+          .get()
+      : [];
+    const byKey = new Map<unknown, T>();
+    for (const row of rows) if (!byKey.has(row[this.idColumn])) byKey.set(row[this.idColumn], new this.related(row));
+    for (const m of models) m.setRelation(name, byKey.get((m as Row)[this.localKey]) ?? null);
+  }
+}
+
+/** The owning side of a polymorphic relation — resolves its parent by stored type + id. */
+export class MorphTo implements PromiseLike<Model | null> {
+  constructor(
+    private parent: Model,
+    private idColumn: string,
+    private typeColumn: string,
+  ) {}
+
+  private relatedClass(): ModelClass<Model> | undefined {
+    const type = (this.parent as Row)[this.typeColumn] as string | undefined;
+    return type ? morphRegistry.get(type) : undefined;
+  }
+
+  async get(): Promise<Model | null> {
+    const cls = this.relatedClass();
+    const id = (this.parent as Row)[this.idColumn];
+    if (!cls || id == null) return null;
+    const row = await db(cls.table, cls.connection).where(cls.primaryKey, id).first();
+    return row ? new cls(row) : null;
+  }
+
+  async eager(models: Model[], name: string): Promise<void> {
+    const byType = new Map<string, Model[]>();
+    for (const m of models) {
+      const type = (m as Row)[this.typeColumn] as string | undefined;
+      if (!type) {
+        m.setRelation(name, null);
+        continue;
+      }
+      const group = byType.get(type) ?? [];
+      group.push(m);
+      byType.set(type, group);
+    }
+    for (const [type, group] of byType) {
+      const cls = morphRegistry.get(type);
+      if (!cls) {
+        for (const m of group) m.setRelation(name, null);
+        continue;
+      }
+      const ids = unique(group.map((m) => (m as Row)[this.idColumn]).filter((v) => v != null));
+      const rows = ids.length ? await db(cls.table, cls.connection).whereIn(cls.primaryKey, ids).get() : [];
+      const byId = new Map(rows.map((row) => [row[cls.primaryKey], row]));
+      for (const m of group) {
+        const row = byId.get((m as Row)[this.idColumn]);
+        m.setRelation(name, row ? new cls(row) : null);
+      }
+    }
+  }
+
+  then<R1 = Model | null, R2 = never>(
+    onFulfilled?: ((value: Model | null) => R1 | PromiseLike<R1>) | null,
+    onRejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
+  ): PromiseLike<R1 | R2> {
+    return this.get().then(onFulfilled, onRejected);
+  }
+}
