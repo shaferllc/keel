@@ -1,9 +1,0 @@
-/**
- * Keel API-resource defaults.
- * Published with `keel vendor:publish --tag api-config`.
- */
-export default {
-  // Default list page size, and the hard ceiling on ?perPage=.
-  perPage: 25,
-  maxPerPage: 100,
-};
