@@ -50,7 +50,7 @@
     {
       "slug": "billing",
       "title": "Billing",
-      "summary": "Keel Billing is a subscription-billing layer — a port of Laravel Cashier — for charging customers, managing subscriptions, and reconciling gateway state through webhooks.",
+      "summary": "Keel Billing is a subscription-billing layer for charging customers, managing subscriptions, and reconciling gateway state through webhooks.",
       "path": "docs/billing.md",
       "example": null
     },

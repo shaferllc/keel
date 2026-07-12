@@ -1,8 +1,8 @@
 /**
  * Per-request logging. `requestLogger()` middleware binds a child logger to each
  * request with a generated `reqId`, so every log line within that request
- * correlates — Fastify's `request.log`, built on Keel's `Logger.child()`. It can
- * also log the request start and completion (method, path, status, duration).
+ * correlates — built on Keel's `Logger.child()`. It can also log the request
+ * start and completion (method, path, status, duration).
  *
  *   kernel.use(requestLogger());          // in app/Http/Kernel.ts
  *   requestLog().info("charging card");   // anywhere in the request → carries reqId

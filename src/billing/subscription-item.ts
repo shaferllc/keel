@@ -1,7 +1,6 @@
 /**
  * One line of a subscription — a single price and its quantity. A single-price
  * subscription has exactly one item; a multi-product subscription has several.
- * Mirrors Cashier's `subscription_items` table.
  */
 
 import { Model } from "../core/model.js";

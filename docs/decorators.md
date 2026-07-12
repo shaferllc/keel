@@ -2,10 +2,9 @@
 
 Attach named, computed values to the current request — `request.user`,
 `request.tenant`, `request.locale` — resolved **lazily** and **memoized for the
-life of the request**. Inspired by [Fastify's decorators](https://fastify.dev/docs/latest/Reference/Decorators/),
-but without the footguns: you register a resolver once, and Keel computes it on
+life of the request**. You register a resolver once, and Keel computes it on
 first access and caches it per request. No null-placeholder declaration, no
-`onRequest` hook to remember, no shared-state leak between requests.
+shared-state leak between requests.
 
 > Decorating the **application** is already the [service container's](./container.md)
 > job — `bind` / `singleton` / `instance` / `make`, with `bound()` as
@@ -52,9 +51,6 @@ setRequestValue("user", theAuthenticatedUser);
 // later, in a controller:
 const user = await decorated("user"); // returns the value set above, no re-lookup
 ```
-
-This is the clean version of Fastify's "declare a placeholder, set it in an
-`onRequest` hook" pattern.
 
 ## Why lazy + memoized
 

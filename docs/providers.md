@@ -111,12 +111,12 @@ app.register(RateLimitProvider, { max: 100 }); // parameterized, like a plugin
 The same provider class can be registered more than once with different options.
 Without options, `this.options` is an empty object.
 
-> Unlike Fastify plugins, Keel providers are **not encapsulated** — bindings,
-> decorators, and routes are registered into the one global container. That's a
-> deliberate simplification: there's a single, predictable scope, and no
-> plugin-boundary rules to reason about. For per-request behavior in the HTTP
-> pipeline (auth, logging, etc.), reach for [middleware](./middleware.md), which
-> *is* scoped to the routes you attach it to.
+> Keel providers are **not encapsulated** — bindings, decorators, and routes are
+> registered into the one global container. That's a deliberate simplification:
+> there's a single, predictable scope, and no plugin-boundary rules to reason
+> about. For per-request behavior in the HTTP pipeline (auth, logging, etc.),
+> reach for [middleware](./middleware.md), which *is* scoped to the routes you
+> attach it to.
 
 ## Generating a provider
 

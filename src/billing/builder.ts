@@ -1,6 +1,6 @@
 /**
- * The fluent subscription builder — Cashier's `newSubscription(...)->create()`.
- * The `Billable` mixin hands it a small `BillableTarget` (so this file needn't
+ * The fluent subscription builder — `newSubscription(...).create()`. The
+ * `Billable` mixin hands it a small `BillableTarget` (so this file needn't
  * import the mixin, avoiding a cycle); the builder shapes the request, calls the
  * gateway, and persists a local `Subscription` synced from the result.
  *

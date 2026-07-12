@@ -1,7 +1,6 @@
 /**
- * The `Billable` mixin — Cashier's Billable trait, as a TypeScript mixin. Apply
- * it to a model to give that model a gateway customer, subscriptions, charges,
- * and checkout:
+ * The `Billable` mixin — apply it to a model to give that model a gateway
+ * customer, subscriptions, charges, and checkout:
  *
  *   class User extends Billable(Model) {
  *     static table = "users";

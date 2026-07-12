@@ -1,5 +1,5 @@
 /**
- * Keel Billing — a Cashier-style port covering Stripe and Paddle, shipped as a
+ * Keel Billing — subscription billing covering Stripe and Paddle, shipped as a
  * Keel package. One line in `bootstrap/providers.ts` turns it on:
  *
  *   app.register(BillingServiceProvider)
@@ -38,7 +38,7 @@ export class BillingServiceProvider extends PackageProvider {
     setBilling(this.manager);
     this.app.instance(BillingManager, this.manager);
 
-    // Cashier targets the standard `users` billable table.
+    // Default billable table is `users`.
     this.migrations([billingMigration("users")]);
     this.publishes({ [join(here, "billing.config.stub")]: "config/billing.ts" }, "billing-config");
   }

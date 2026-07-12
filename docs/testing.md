@@ -2,8 +2,7 @@
 
 Test your app by **injecting requests** — no server, no port, no network — and
 asserting on the response. `testClient()` wraps your app's Hono instance (which
-already does fetch-style injection) with verb helpers and fluent assertions, the
-way Fastify's `inject()` works.
+already does fetch-style injection) with verb helpers and fluent assertions.
 
 ## The client
 

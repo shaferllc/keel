@@ -1233,12 +1233,12 @@ app.register(RateLimitProvider, { max: 100 }); // parameterized, like a plugin
 The same provider class can be registered more than once with different options.
 Without options, `this.options` is an empty object.
 
-> Unlike Fastify plugins, Keel providers are **not encapsulated** — bindings,
-> decorators, and routes are registered into the one global container. That's a
-> deliberate simplification: there's a single, predictable scope, and no
-> plugin-boundary rules to reason about. For per-request behavior in the HTTP
-> pipeline (auth, logging, etc.), reach for [middleware](./middleware.md), which
-> *is* scoped to the routes you attach it to.
+> Keel providers are **not encapsulated** — bindings, decorators, and routes are
+> registered into the one global container. That's a deliberate simplification:
+> there's a single, predictable scope, and no plugin-boundary rules to reason
+> about. For per-request behavior in the HTTP pipeline (auth, logging, etc.),
+> reach for [middleware](./middleware.md), which *is* scoped to the routes you
+> attach it to.
 
 ## Generating a provider
 
@@ -3102,8 +3102,8 @@ and host (handy for building absolute links or forcing HTTPS).
 
 `all()` understands JSON and form bodies. For anything else — XML, CSV, a binary
 payload, a custom format — read the raw body and parse it yourself. There's no
-content-type parser registry to configure (unlike Fastify): parsing is explicit,
-so you call the accessor you want.
+content-type parser registry to configure: parsing is explicit, so you call the
+accessor you want.
 
 ```ts
 await request.text();          // the body as a string  (XML, CSV, …)
@@ -5559,10 +5559,9 @@ all gates/policies/hooks (a test helper).
 
 # Billing
 
-Keel Billing is a subscription-billing layer — a port of [Laravel
-Cashier](https://laravel.com/docs/13.x/billing) — for charging customers,
-managing subscriptions, and reconciling gateway state through webhooks. It ships
-as a Keel [package](./packages.md) and supports two gateways behind one API:
+Keel Billing is a subscription-billing layer for charging customers, managing
+subscriptions, and reconciling gateway state through webhooks. It ships as a
+Keel [package](./packages.md) and supports two gateways behind one API:
 **Stripe** and **Paddle**.
 
 It attaches to a model with a mixin. Your `User` becomes billable, gains a
@@ -5780,8 +5779,8 @@ resolveBillableUsing(async (customerId) => {
 The migration is gateway-neutral: `subscriptions` (with `gateway`,
 `provider_id`, `provider_status`, `provider_price`, trial/grace timestamps),
 `subscription_items`, and columns on `users` (`billing_gateway`,
-`billing_customer_id`, `pm_type`, `pm_last_four`, `trial_ends_at`). Cashier
-targets the standard `users` billable table.
+`billing_customer_id`, `pm_type`, `pm_last_four`, `trial_ends_at`). The default
+migration targets the standard `users` billable table.
 
 ## Testing
 
@@ -8162,10 +8161,9 @@ arguments still halts the request and renders an empty page.
 
 Attach named, computed values to the current request — `request.user`,
 `request.tenant`, `request.locale` — resolved **lazily** and **memoized for the
-life of the request**. Inspired by [Fastify's decorators](https://fastify.dev/docs/latest/Reference/Decorators/),
-but without the footguns: you register a resolver once, and Keel computes it on
+life of the request**. You register a resolver once, and Keel computes it on
 first access and caches it per request. No null-placeholder declaration, no
-`onRequest` hook to remember, no shared-state leak between requests.
+shared-state leak between requests.
 
 > Decorating the **application** is already the [service container's](./container.md)
 > job — `bind` / `singleton` / `instance` / `make`, with `bound()` as
@@ -8212,9 +8210,6 @@ setRequestValue("user", theAuthenticatedUser);
 // later, in a controller:
 const user = await decorated("user"); // returns the value set above, no re-lookup
 ```
-
-This is the clean version of Fastify's "declare a placeholder, set it in an
-`onRequest` hook" pattern.
 
 ## Why lazy + memoized
 
@@ -8479,7 +8474,7 @@ subclasses don't define either — they render through the default path.
 
 When all you want is a coded error class — a stable `code`, a message, a status —
 skip the boilerplate and mint one with `createError`. It's the ergonomic shortcut
-for the common case, inspired by Fastify's `@fastify/error`:
+for the common case:
 
 ```ts
 import { createError } from "@shaferllc/keel/core";
@@ -10418,9 +10413,7 @@ implementing anything — the same `fetch` handler just gets served over it.
 # Lifecycle Hooks
 
 Tap into the **application lifecycle** — run code once the app is ready, clean up
-on shutdown, and observe route registration. Inspired by
-[Fastify's hooks](https://fastify.dev/docs/latest/Reference/Hooks/), scoped to the
-parts Keel doesn't already cover.
+on shutdown, and observe route registration.
 
 > **Request-lifecycle hooks** (before/after a request, on error) are
 > [middleware](./middleware.md) in Keel — `HttpKernel.use()`, route/group
@@ -11585,8 +11578,8 @@ With no options it defaults to `level: "info"`, `pretty: false`, and no bindings
 
 `requestLogger()` is a built-in middleware that binds a **child logger with a
 generated `reqId` to each request**, so every log line within a request
-correlates — Fastify's `request.log`. Install it in your HTTP kernel, then reach
-the request's logger anywhere with `requestLog()`:
+correlates. Install it in your HTTP kernel, then reach the request's logger
+anywhere with `requestLog()`:
 
 ```ts
 import { requestLogger, requestLog } from "@shaferllc/keel/core";
@@ -14956,9 +14949,9 @@ adds the conventions a *shippable* package needs so it can carry its own schema
 and assets instead of asking the app to wire them by hand.
 
 [Keel Watch](./watch.md) — the debug dashboard — is a first-party package and the
-reference implementation of everything below. [Billing](./billing.md) (a Cashier
-port for Stripe and Paddle) is another, and shows a package contributing models,
-a schema migration, gateway drivers, and verified webhook routes.
+reference implementation of everything below. [Billing](./billing.md) (Stripe and
+Paddle subscriptions) is another, and shows a package contributing models, a
+schema migration, gateway drivers, and verified webhook routes.
 
 ## The shape of a package
 
@@ -19171,8 +19164,7 @@ construct it directly.
 
 Test your app by **injecting requests** — no server, no port, no network — and
 asserting on the response. `testClient()` wraps your app's Hono instance (which
-already does fetch-style injection) with verb helpers and fluent assertions, the
-way Fastify's `inject()` works.
+already does fetch-style injection) with verb helpers and fluent assertions.
 
 ## The client
 
@@ -20355,8 +20347,7 @@ router.get("/posts/:id", [Posts, "show"]).middleware([
 
 `validated(part)` returns the parsed, typed value for that part (defaults to
 `"body"`). Coercion (`z.coerce.number()`) is the schema's job — it applies before
-your handler sees the value. This is the declarative counterpart to Fastify's
-route schemas, on top of the same `validate()` engine.
+your handler sees the value. Built on the same `validate()` engine.
 
 ## Body parsing is JSON-only
 

@@ -51,8 +51,8 @@ and host (handy for building absolute links or forcing HTTPS).
 
 `all()` understands JSON and form bodies. For anything else — XML, CSV, a binary
 payload, a custom format — read the raw body and parse it yourself. There's no
-content-type parser registry to configure (unlike Fastify): parsing is explicit,
-so you call the accessor you want.
+content-type parser registry to configure: parsing is explicit, so you call the
+accessor you want.
 
 ```ts
 await request.text();          // the body as a string  (XML, CSV, …)

@@ -185,7 +185,7 @@ subclasses don't define either — they render through the default path.
 
 When all you want is a coded error class — a stable `code`, a message, a status —
 skip the boilerplate and mint one with `createError`. It's the ergonomic shortcut
-for the common case, inspired by Fastify's `@fastify/error`:
+for the common case:
 
 ```ts
 import { createError } from "@shaferllc/keel/core";

@@ -1,7 +1,7 @@
 import { env } from "@shaferllc/keel/core";
 
 /**
- * Billing configuration — a Cashier-style port covering Stripe and Paddle.
+ * Billing configuration — subscriptions and charges, covering Stripe and Paddle.
  * Published with `keel vendor:publish --tag billing-config`.
  */
 export default {

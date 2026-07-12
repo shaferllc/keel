@@ -1,8 +1,8 @@
 /**
  * A test client for Keel apps — inject requests without a live server and assert
- * on the response, the way Fastify's `inject()` does. Wraps the app's Hono
- * instance (which already does fetch-style request injection), adding verb
- * helpers with JSON bodies and fluent response assertions.
+ * on the response. Wraps the app's Hono instance (which already does fetch-style
+ * request injection), adding verb helpers with JSON bodies and fluent response
+ * assertions.
  *
  *   const client = await testClient(app);
  *   const res = await client.post("/users", { email: "a@b.com" });

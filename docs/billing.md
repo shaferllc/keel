@@ -1,9 +1,8 @@
 # Billing
 
-Keel Billing is a subscription-billing layer — a port of [Laravel
-Cashier](https://laravel.com/docs/13.x/billing) — for charging customers,
-managing subscriptions, and reconciling gateway state through webhooks. It ships
-as a Keel [package](./packages.md) and supports two gateways behind one API:
+Keel Billing is a subscription-billing layer for charging customers, managing
+subscriptions, and reconciling gateway state through webhooks. It ships as a
+Keel [package](./packages.md) and supports two gateways behind one API:
 **Stripe** and **Paddle**.
 
 It attaches to a model with a mixin. Your `User` becomes billable, gains a
@@ -221,8 +220,8 @@ resolveBillableUsing(async (customerId) => {
 The migration is gateway-neutral: `subscriptions` (with `gateway`,
 `provider_id`, `provider_status`, `provider_price`, trial/grace timestamps),
 `subscription_items`, and columns on `users` (`billing_gateway`,
-`billing_customer_id`, `pm_type`, `pm_last_four`, `trial_ends_at`). Cashier
-targets the standard `users` billable table.
+`billing_customer_id`, `pm_type`, `pm_last_four`, `trial_ends_at`). The default
+migration targets the standard `users` billable table.
 
 ## Testing
 

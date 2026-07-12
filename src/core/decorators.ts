@@ -1,10 +1,9 @@
 /**
  * Request decorators — attach named, computed values to the current request,
- * resolved lazily and memoized for the life of that request. Inspired by
- * Fastify's `decorateRequest`, but without its footguns: you register a resolver
- * once, and Keel computes it on first access and caches it per request (keyed off
- * the Hono context via a WeakMap, so there's no shared-state leak between
- * requests and no V8 shape deopt to design around).
+ * resolved lazily and memoized for the life of that request. You register a
+ * resolver once, and Keel computes it on first access and caches it per request
+ * (keyed off the Hono context via a WeakMap, so there's no shared-state leak
+ * between requests and no V8 shape deopt to design around).
  *
  *   decorateRequest("user", async (c) => findUser(c.req.header("authorization")));
  *
@@ -36,8 +35,7 @@ function bag(c: Context): Map<string, unknown> {
 }
 
 /**
- * Register a request decorator. Throws if `name` is already registered — a
- * collision guard, like Fastify's.
+ * Register a request decorator. Throws if `name` is already registered.
  */
 export function decorateRequest<T>(name: string, resolver: RequestResolver<T>): void {
   if (resolvers.has(name)) {

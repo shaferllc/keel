@@ -112,8 +112,7 @@ router.get("/posts/:id", [Posts, "show"]).middleware([
 
 `validated(part)` returns the parsed, typed value for that part (defaults to
 `"body"`). Coercion (`z.coerce.number()`) is the schema's job — it applies before
-your handler sees the value. This is the declarative counterpart to Fastify's
-route schemas, on top of the same `validate()` engine.
+your handler sees the value. Built on the same `validate()` engine.
 
 ## Body parsing is JSON-only
 

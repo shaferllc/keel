@@ -7,9 +7,9 @@ adds the conventions a *shippable* package needs so it can carry its own schema
 and assets instead of asking the app to wire them by hand.
 
 [Keel Watch](./watch.md) — the debug dashboard — is a first-party package and the
-reference implementation of everything below. [Billing](./billing.md) (a Cashier
-port for Stripe and Paddle) is another, and shows a package contributing models,
-a schema migration, gateway drivers, and verified webhook routes.
+reference implementation of everything below. [Billing](./billing.md) (Stripe and
+Paddle subscriptions) is another, and shows a package contributing models, a
+schema migration, gateway drivers, and verified webhook routes.
 
 ## The shape of a package
 

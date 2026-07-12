@@ -218,9 +218,8 @@ export class ServiceUnavailableException extends HttpException {
 
 /**
  * Mint a reusable, coded `HttpException` subclass — the ergonomic way to define
- * app-specific errors with a stable, machine-readable `code`. Inspired by
- * `@fastify/error`. The `message` may carry `%s` placeholders, filled in order
- * from the constructor arguments.
+ * app-specific errors with a stable, machine-readable `code`. The `message` may
+ * carry `%s` placeholders, filled in order from the constructor arguments.
  *
  *   const InsufficientFunds = createError("E_FUNDS", "Balance too low: need %s", 402);
  *   throw new InsufficientFunds("$40");

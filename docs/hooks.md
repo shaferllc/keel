@@ -1,9 +1,7 @@
 # Lifecycle Hooks
 
 Tap into the **application lifecycle** — run code once the app is ready, clean up
-on shutdown, and observe route registration. Inspired by
-[Fastify's hooks](https://fastify.dev/docs/latest/Reference/Hooks/), scoped to the
-parts Keel doesn't already cover.
+on shutdown, and observe route registration.
 
 > **Request-lifecycle hooks** (before/after a request, on error) are
 > [middleware](./middleware.md) in Keel — `HttpKernel.use()`, route/group

@@ -123,7 +123,7 @@ export function html(body: string, status?: number): Response {
 
 export function redirect(location: string, status?: number): Response {
   const c = maybeCtx();
-  // Koa-style `redirect("back")`: bounce to the Referer, or "/" if there isn't one.
+  // `redirect("back")`: bounce to the Referer, or "/" if there isn't one.
   if (location === "back") location = c?.req.header("referer") ?? "/";
   return c
     ? c.redirect(location, status as never)

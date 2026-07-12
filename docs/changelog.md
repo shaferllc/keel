@@ -4,6 +4,92 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.0] — 2026-07-12
+
+### Added
+
+- **Starter kits, and a generator that can't fall behind.** Four curated
+  applications — `minimal`, `api`, `app` (views, sessions, register/login, password
+  reset, two-factor), and `saas` (teams, roles, invitations, billing,
+  multi-tenancy):
+
+  ```bash
+  npm create keeljs@latest my-app -- --preset saas
+  ```
+
+  The templates ship **inside this package**, so the version a kit is generated from
+  is, by construction, the version it was written for. The old standalone starter
+  drifted to five releases behind and nothing noticed; CI now generates all four kits
+  on every push and typechecks, migrates, boots, serves a request, bundles the
+  Worker, and runs their tests.
+
+- **Teams (`@shaferllc/keel/teams`)** — multi-tenancy, membership, roles, and
+  invitations. `TenantModel` makes isolation the default rather than a habit: reads
+  are constrained by an inherited global scope (so even `find(id)` returns `null` for
+  another team's row — not a filter you can forget), and writes are stamped with the
+  current team, so a row can't be born ownerless.
+
+  Outside a team context a tenant query **throws**. A job, console command, or
+  webhook has no request and therefore no team; returning everything is how one
+  customer's data reaches another, and `team_id = NULL` means jobs quietly do
+  nothing. So work says which team it is for — `runForTeam(team, fn)` — or says out
+  loud that it spans all of them — `withoutTenant(fn)`. Both are greppable at audit
+  time.
+
+- **Accounts (`@shaferllc/keel/accounts`)** — password reset, email verification, and
+  two-factor, mounted with one provider. A correct password on a 2FA account yields a
+  short-lived, single-purpose **challenge, not a session**, so there is no
+  half-authenticated state for a route to forget to check. TOTP is RFC 6238, verified
+  against the RFC's published vectors, WebCrypto-only, and therefore edge-safe. No
+  tokens table: reset links carry their own purpose and expiry and are bound to a
+  fingerprint of the current password hash, so spending one kills it.
+
+- **D1 over HTTP (`@shaferllc/keel/db/d1-http`).** The D1 binding only exists inside a
+  Worker, so `keel migrate` had nowhere to point and you could not create your
+  tables. The same `Connection` over D1's HTTP API closes that: migrations run from a
+  laptop and from CI. It treats an error in the response *body* as an error even when
+  the status is 200 — which is how Cloudflare often reports them, and trusting the
+  status would let a failed migration look like it succeeded.
+
+- **`Model.withoutGlobalScope(...)` / `withoutGlobalScopes()`** — escaping a scope
+  should be typed out and greppable, never something you arrive at by forgetting a
+  `where`.
+
+### Fixed
+
+- **Global scopes and model hooks now inherit.** Both were keyed by the exact class,
+  so a scope or a `creating` hook declared on a *base* class was silently ignored by
+  every subclass. The models guide advertises global scopes as "the base for
+  multi-tenancy", and that was precisely the case that didn't work: the scope did
+  nothing, the query returned every tenant's rows, and nothing complained. It failed
+  **open**. Both now walk the prototype chain, and a scope is passed the model it is
+  scoping so a base class can read each subclass's own configuration.
+
+- **The official `@libsql/client` no longer needs a cast.** Under
+  `strictFunctionTypes` the narrower parameter types made the real `Client`
+  unassignable to `LibSqlLike`, so wiring libSQL the obvious way required
+  `client as unknown as LibSqlLike` — a cast even Keel's own tests carried.
+
+- **`createTeam()` could not give two people with the same name a team.** It slugged
+  the name into a `UNIQUE` column, so the second "Ada" to sign up got a 500. Looking
+  for a free slug first is check-then-act and loses the race anyway; the unique index
+  is the only real arbiter, so it now arbitrates and the insert retries.
+
+## [0.82.0] — 2026-07-12
+
+### Added
+
+- **Query builder: the methods people actually reach for.** `join`/`leftJoin`,
+  `groupBy`/`having`/`distinct`, `whereColumn`/`whereRaw`/`orderByRaw`, `when`,
+  `increment`/`decrement`, `upsert`/`insertOrIgnore`, and `chunk`, with docs.
+
+## [0.81.2] — 2026-07-12
+
+### Documentation
+
+- **The changelog is published to the docs site** (`docs/changelog.md`), so releases
+  are readable at keeljs.com rather than only in the repository.
+
 ## [0.81.1] — 2026-07-12
 
 ### Documentation
@@ -25,8 +111,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **ORM: Eloquent-parity features.** The active-record `Model` grows most of the
-  Eloquent surface people reach for, all backward-compatible and still on the
+- **ORM: the features people reach for.** The active-record `Model` grows the
+  surface a real ORM needs, all backward-compatible and still on the
   driver-agnostic query builder (no JOINs, edge-safe):
 
   - **Lifecycle events & observers** — `creating`/`created`, `updating`/
@@ -91,8 +177,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Billing** — a new `@shaferllc/keel/billing` package: a Cashier-style
-  subscription layer with **one gateway-neutral API over Stripe and Paddle**
+- **Billing** — a new `@shaferllc/keel/billing` package: a subscription
+  layer with **one gateway-neutral API over Stripe and Paddle**
   (switching gateways is a config change). `class User extends Billable(Model)`
   gives a gateway customer, subscriptions (create/swap/quantity/trials/cancel/
   resume + status checks), single charges + refunds, invoices, hosted checkout,
@@ -286,7 +372,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- **Removed the Remult references** from the API-resources guide and source
+- **Removed comparisons to other frameworks** from the API-resources guide and source
   comments. Keel isn't that, and the docs shouldn't read as a comparison to another
   framework. The surrounding sentences are rewritten so they still say what the
   feature does rather than leaving a hole. No behavior change.
@@ -960,7 +1046,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   connection. They honor `X-Forwarded-Proto` / `X-Forwarded-Host` over the raw
   URL, so an app behind a TLS-terminating proxy or load balancer sees the
   client's real scheme and host — use `origin` to build absolute links and
-  `secure` to gate insecure requests. (Koa-inspired.)
+  `secure` to gate insecure requests.
 - **`response.back(fallback?)` and `redirect("back")`.** Redirect to the
   request's `Referer`, falling back to `fallback` (default `"/"`) when it's
   absent — the "return where you came from" shortcut for post-form flows.
@@ -1189,7 +1275,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Route config / metadata.** Attach arbitrary data to a route or group with
   `.config({ … })` and read it in the handler or route middleware via
   `request.route.config` — per-route flags like an auth scope, rate tier, or
-  layout choice (Fastify's route `config`). Group config merges into every route,
+  layout choice. Group config merges into every route,
   with a route's own keys winning. The matched-route context is now set *before*
   a route's middleware, so route/group middleware can branch on `request.route`.
   See [docs/routing.md](./docs/routing.md#route-config).
@@ -1236,7 +1322,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Response header helpers.** The `response` accessor gains `headers({...})` (set
   several at once), `getHeader(name)`, and `hasHeader(name)` — so middleware can
   inspect and conditionally set what a handler already put on the response (e.g.
-  a default `cache-control`). Brings `response` to parity with Fastify's Reply.
+  a default `cache-control`).
   See [docs/request-response.md](./docs/request-response.md).
 - **Design principles** documented in
   [docs/architecture.md](./docs/architecture.md#design-principles) — edge-safe /
@@ -1253,9 +1339,9 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   options at registration: `app.register(RateLimitProvider, { max: 100 })`, typed
   via `ServiceProvider<{ max: number }>` and read as `this.options`. The same
   provider class can register more than once with different options, so a provider
-  is now genuinely reusable (Fastify's `register(plugin, options)`). Backward
-  compatible — options default to `{}`. (Keel providers stay un-encapsulated by
-  design; per-request scoping is [middleware](./docs/middleware.md).) See
+  is now genuinely reusable. Backward compatible — options default to `{}`.
+  (Keel providers stay un-encapsulated by design; per-request scoping is
+  [middleware](./docs/middleware.md).) See
   [docs/providers.md](./docs/providers.md#providers-are-keels-plugin-system).
 
 [0.50.0]: https://github.com/shaferllc/keel/releases/tag/v0.50.0
@@ -1350,8 +1436,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   a bad request with a `422` `ValidationException` (errors from every part
   aggregated, keyed `body.field` / `query.field` / `params.field`) so the handler
   only ever sees valid input. `validated(part)` returns the parsed, typed value.
-  The declarative counterpart to Fastify's route schemas, built on the same
-  schema-agnostic `validate()` engine (bring your own Zod-style schema). See
+  Built on the same schema-agnostic `validate()` engine (bring your own
+  Zod-style schema). See
   [docs/validation.md](./docs/validation.md#declarative-validation-before-the-handler).
 
 [0.44.0]: https://github.com/shaferllc/keel/releases/tag/v0.44.0
@@ -1362,7 +1448,7 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Per-request logging.** `requestLogger()` middleware binds a child logger with
   a generated `reqId` to each request, so every log line within a request
-  correlates (Fastify's `request.log`). It logs request start/completion
+  correlates. It logs request start/completion
   (method, path, status, ms) by default; options for `genReqId`, reusing an
   incoming `idHeader` (distributed tracing), and disabling the auto lines.
   `requestLog()` reaches the current request's logger anywhere (falls back to the
@@ -1400,8 +1486,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   through the default path (with `code` in the JSON body) and passes
   `instanceof HttpException`. The built-in exceptions now carry stable codes too
   (`E_NOT_FOUND`, `E_UNAUTHORIZED`, `E_FORBIDDEN`, `E_VALIDATION`), so `code`
-  surfaces without any work. Inspired by Fastify's `@fastify/error`. Also
-  documented: serving over **HTTP/2** needs no framework code — it's a transport
+  surfaces without any work. Also documented: serving over **HTTP/2** needs no
+  framework code — it's a transport
   concern handled by the edge platform, a reverse proxy, or a `@hono/node-server`
   `node:http2` option. See [docs/errors.md](./docs/errors.md#coded-errors-with-createerror)
   and [docs/hono.md](./docs/hono.md#serving-over-http2).
@@ -1435,8 +1521,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Raw request-body accessors.** `request.text()`, `request.arrayBuffer()`, and
   `request.blob()` read the body for content types `json()` / `all()` don't
   handle — XML, CSV, protobuf, msgpack, or any custom format — which you then
-  parse yourself. Keel keeps body parsing explicit (no Fastify-style content-type
-  parser registry): you call the accessor you want. See
+  parse yourself. Keel keeps body parsing explicit (no content-type parser
+  registry): you call the accessor you want. See
   [docs/request-response.md](./docs/request-response.md#other-content-types).
 
 [0.40.1]: https://github.com/shaferllc/keel/releases/tag/v0.40.1
@@ -1450,9 +1536,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   life of the request. `decorateRequest(name, resolver)` registers a resolver
   (sync or async), `decorated(name)` reads it (computed once, then cached),
   `setRequestValue(name, value)` sets it imperatively (e.g. from middleware), and
-  `hasRequestDecorator(name)` checks. Inspired by Fastify's `decorateRequest`,
-  but without the null-placeholder/`onRequest`-hook dance — the per-request memo
-  is keyed off the context via a WeakMap, so nothing leaks between requests.
+  `hasRequestDecorator(name)` checks. The per-request memo is keyed off the
+  context via a WeakMap, so nothing leaks between requests.
   (Decorating the *app* is already the container's job.) See
   [docs/decorators.md](./docs/decorators.md).
 

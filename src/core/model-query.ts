@@ -1,7 +1,7 @@
 /**
  * A model-aware query builder — what `Model.query()` sugar and eager loading are
  * built on. It wraps the plain `QueryBuilder`, hydrates rows into models (firing
- * `retrieved`), and adds the relationship-aware operations Eloquent has and a raw
+ * `retrieved`), and adds the relationship-aware operations a query builder lacks and a raw
  * builder can't: `with()` (nested eager loading), `withCount()`, and existence
  * filters `has()` / `whereHas()` / `doesntHave()`.
  *

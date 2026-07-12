@@ -156,8 +156,8 @@ With no options it defaults to `level: "info"`, `pretty: false`, and no bindings
 
 `requestLogger()` is a built-in middleware that binds a **child logger with a
 generated `reqId` to each request**, so every log line within a request
-correlates — Fastify's `request.log`. Install it in your HTTP kernel, then reach
-the request's logger anywhere with `requestLog()`:
+correlates. Install it in your HTTP kernel, then reach the request's logger
+anywhere with `requestLog()`:
 
 ```ts
 import { requestLogger, requestLog } from "@shaferllc/keel/core";
