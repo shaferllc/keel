@@ -73,3 +73,32 @@ jobs:
             exit 1
           fi
           echo "clean"
+
+  # Every starter kit, generated against THIS commit's framework, then typechecked,
+  # migrated, booted, served a request, bundled for Cloudflare, and tested.
+  #
+  # This is what makes four hand-copied trees safe to keep: duplication you can test
+  # beats composition you can't. It has already caught a Node-only driver leaking
+  # into the edge bundle, a slug collision that broke signup for any two users with
+  # the same name, and three API mistakes that typechecked fine in isolation.
+  templates:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [minimal, api, app, saas]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify the ${{ matrix.preset }} kit
+        run: ./scripts/verify-templates.sh ${{ matrix.preset }}

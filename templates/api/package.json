@@ -1,0 +1,30 @@
+{
+  "name": "__APP_NAME__",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "keel": "tsx bin/keel.ts",
+    "dev": "tsx watch bin/keel.ts serve",
+    "serve": "tsx bin/keel.ts serve",
+    "migrate": "tsx bin/keel.ts migrate",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "dev:edge": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@libsql/client": "^0.14.0",
+    "@shaferllc/keel": "__KEEL_VERSION__",
+    "hono": "^4.6.14",
+    "zod": "^3.24.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.0.0",
+    "@types/pg": "^8.11.10"
+  }
+}

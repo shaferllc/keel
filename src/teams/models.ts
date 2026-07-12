@@ -90,14 +90,41 @@ export async function createTeam(
   ownerId: string | number,
   slug?: string,
 ): Promise<Team> {
-  const team = await Team.create({
-    name,
-    slug: slug ?? slugify(name),
-    owner_id: ownerId,
-  });
+  let team: Team | undefined;
+
+  // Retry on the unique index, don't just look before leaping.
+  //
+  // Picking a free slug with a SELECT is a check-then-act race: two people called
+  // Ada signing up at the same moment both see "ada-s-team" is free, and one of them
+  // gets a constraint error instead of an account. The index is the only real
+  // arbiter, so the fix is to let it arbitrate and try again — not to look harder.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = slug ?? (await uniqueSlug(slugify(name)));
+
+    try {
+      team = (await Team.create({ name, slug: candidate, owner_id: ownerId })) as Team;
+      break;
+    } catch (error) {
+      // An explicit slug was asked for and taken: that's the caller's problem.
+      if (slug || !isUniqueViolation(error)) throw error;
+    }
+  }
+
+  if (!team) throw new Error(`Could not find a free slug for "${name}".`);
 
   await Membership.create({ team_id: team.id, user_id: ownerId, role: "owner" });
-  return team as Team;
+  return team;
+}
+
+/** Every driver phrases it differently, and none of them agree on an error code. */
+function isUniqueViolation(error: unknown): boolean {
+  const message = String((error as { message?: string })?.message ?? error);
+
+  return (
+    /unique/i.test(message) || // sqlite / libsql / d1
+    /duplicate key/i.test(message) || // postgres
+    /duplicate entry/i.test(message) // mysql
+  );
 }
 
 /**
@@ -116,6 +143,33 @@ export async function switchTeam(
 
   await db(userTable).where("id", userId).update({ current_team_id: teamId });
   return true;
+}
+
+/**
+ * A slug nobody else has taken.
+ *
+ * `teams.slug` is unique, and personal teams are named after their owner — so two
+ * people called Ada would collide and the second one's signup would 500. Names are
+ * not unique and were never going to be; the slug has to make itself so.
+ */
+async function uniqueSlug(base: string): Promise<string> {
+  const stem = base || "team";
+
+  // The unique index is still the real guarantee; this just avoids the collision in
+  // the common case rather than surfacing a constraint error to someone signing up.
+  const taken = new Set(
+    (await db(Team.table).where("slug", "like", `${stem}%`).get()).map((row) => String(row.slug)),
+  );
+
+  if (!taken.has(stem)) return stem;
+
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${stem}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+
+  // A thousand teams called the same thing. Fine — stop counting.
+  return `${stem}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 function slugify(name: string): string {

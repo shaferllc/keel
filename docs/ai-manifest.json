@@ -356,6 +356,13 @@
       "example": null
     },
     {
+      "slug": "starter-kits",
+      "title": "Starter kits",
+      "summary": "",
+      "path": "docs/starter-kits.md",
+      "example": null
+    },
+    {
       "slug": "static-files",
       "title": "Static Files",
       "summary": "serveStatic() serves files from a directory (default public/) before your routes run.",

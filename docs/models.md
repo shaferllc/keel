@@ -205,8 +205,11 @@ User.observe({
 ```
 
 Events: `retrieved`, `creating`/`created`, `updating`/`updated`,
-`saving`/`saved`, `deleting`/`deleted`, `restoring`/`restored`. They're keyed by
-the exact class (subclasses don't inherit a parent's hooks).
+`saving`/`saved`, `deleting`/`deleted`, `restoring`/`restored`.
+
+Hooks **inherit**, ancestors first: a hook on a base class fires for every model
+that extends it. That's what lets a base class do real work — a `creating` hook
+that stamps a tenant id is useless if subclasses never fire it.
 
 ## Query scopes
 

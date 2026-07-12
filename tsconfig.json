@@ -3,8 +3,12 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
-    "types": ["node"],
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
@@ -15,14 +19,33 @@
     "verbatimModuleSyntax": false,
     "baseUrl": ".",
     "paths": {
-      "@keel/core": ["src/core/index.ts"],
-      "@keel/watch": ["src/watch/index.ts"],
-      "@keel/openapi": ["src/openapi/index.ts"],
-      "@keel/api": ["src/api/index.ts"],
-      "@keel/*": ["src/core/*"]
+      "@keel/core": [
+        "src/core/index.ts"
+      ],
+      "@keel/watch": [
+        "src/watch/index.ts"
+      ],
+      "@keel/openapi": [
+        "src/openapi/index.ts"
+      ],
+      "@keel/api": [
+        "src/api/index.ts"
+      ],
+      "@keel/*": [
+        "src/core/*"
+      ]
     },
     "noEmit": true
   },
-  "include": ["src", "bin"],
-  "exclude": ["node_modules", "dist", "src/watch/ui"]
+  "include": [
+    "src",
+    "bin"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/watch/ui",
+    "templates",
+    "packages"
+  ]
 }
