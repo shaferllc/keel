@@ -27,7 +27,8 @@
 
 import type { MiddlewareHandler } from "hono";
 import { getMimeType } from "hono/utils/mime";
-import type { Command } from "commander";
+
+import type { AnyCommand } from "./console.js";
 
 import { ServiceProvider } from "./provider.js";
 import type { Application } from "./application.js";
@@ -52,15 +53,12 @@ export class MigrationRegistry {
 }
 
 /** A console command a package adds to `keel`. */
-export interface PackageCommand {
-  /** The command name, e.g. `"watch:prune"`. */
-  name: string;
-  description?: string;
-  /** Add arguments/options to the commander command before its action. */
-  configure?: (cmd: Command) => void;
-  /** What the command does. Receives parsed options and the command. */
-  action: (opts: Record<string, unknown>, cmd: Command) => void | Promise<void>;
-}
+/**
+ * A command a package contributes to the console — the same `defineCommand()`
+ * shape an app uses, so a package's command gets typed args and flags, generated
+ * help, the terminal UI, and the prompt-trapping test story for free.
+ */
+export type PackageCommand = AnyCommand;
 
 /** Package-contributed console commands, mounted by the CLI after boot. */
 export class CommandRegistry {

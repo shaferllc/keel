@@ -7,19 +7,22 @@
  */
 
 import type { PackageCommand } from "../core/package.js";
+import { defineCommand, flag } from "../core/console.js";
 import type { EntryStore } from "./store.js";
 import type { WatchConfig } from "./config.js";
 
 export function pruneCommand(store: EntryStore, config: WatchConfig): PackageCommand {
-  return {
+  return defineCommand({
     name: "watch:prune",
     description: "Delete Watch entries older than the retention window",
-    configure: (cmd) => cmd.option("--hours <hours>", "override the retention window (hours)"),
-    action: async (opts) => {
-      const hours = opts.hours ? Number(opts.hours) : config.retentionHours;
-      const before = Date.now() - hours * 3_600_000;
-      const removed = await store.prune(before);
-      console.log(`Pruned ${removed} Watch entr${removed === 1 ? "y" : "ies"} older than ${hours}h.`);
+    flags: { hours: flag.number({ description: "override the retention window (hours)" }) },
+
+    async run({ flags, ui }) {
+      // A typed flag, so `--hours nonsense` is now a usage error rather than a NaN
+      // that silently prunes everything.
+      const hours = flags.hours ?? config.retentionHours;
+      const removed = await store.prune(Date.now() - hours * 3_600_000);
+      ui.success(`Pruned ${removed} Watch entr${removed === 1 ? "y" : "ies"} older than ${hours}h.`);
     },
-  };
+  }) as PackageCommand;
 }

@@ -18,11 +18,10 @@
 import { mkdir, writeFile, access, readdir, stat, copyFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { serve } from "@hono/node-server";
-import { Command } from "commander";
 
-import { ConsoleKernel, type AnyCommand } from "../console.js";
+import { ConsoleKernel, defineCommand, arg, flag, type AnyCommand } from "../console.js";
 import type { Application } from "../application.js";
+import type { Ui } from "../console-ui.js";
 import { HttpKernel } from "../http/kernel.js";
 import { Router } from "../http/router.js";
 import { getConnection } from "../database.js";
@@ -45,11 +44,12 @@ import {
 
 const basePath = process.cwd();
 
-async function generate(relPath: string, contents: string, label: string) {
+async function generate(relPath: string, contents: string, label: string, ui: Ui): Promise<void> {
   const full = join(basePath, relPath);
   try {
     await access(full);
-    console.error(`✗ ${label} already exists: ${relPath}`);
+    // Never clobber a file someone has written code in.
+    ui.error(`${label} already exists: ${relPath}`);
     process.exitCode = 1;
     return;
   } catch {
@@ -57,7 +57,7 @@ async function generate(relPath: string, contents: string, label: string) {
   }
   await mkdir(dirname(full), { recursive: true });
   await writeFile(full, contents);
-  console.log(`✓ Created ${label}: ${relPath}`);
+  ui.action("create", relPath);
 }
 
 /** Normalize "foo" / "FooController" into a canonical suffixed class name. */
@@ -99,16 +99,16 @@ function migratorFor(): Migrator {
 }
 
 /** Copy a published file/dir into the app, skipping existing files unless forced. */
-async function publishPath(from: string, toRel: string, force: boolean): Promise<void> {
+async function publishPath(from: string, toRel: string, force: boolean, ui: Ui): Promise<void> {
   const dest = join(basePath, toRel);
   const s = await stat(from).catch(() => null);
   if (!s) {
-    console.error(`✗ Source not found: ${from}`);
+    ui.error(`Source not found: ${from}`);
     return;
   }
   if (s.isDirectory()) {
     for (const item of await readdir(from)) {
-      await publishPath(join(from, item), join(toRel, item), force);
+      await publishPath(join(from, item), join(toRel, item), force, ui);
     }
     return;
   }
@@ -120,12 +120,12 @@ async function publishPath(from: string, toRel: string, force: boolean): Promise
     // destination is free
   }
   if (exists && !force) {
-    console.log(`• Skipped ${toRel} (exists; pass --force to overwrite)`);
+    ui.action("skip", `${toRel} (exists; pass --force to overwrite)`, "skipped");
     return;
   }
   await mkdir(dirname(dest), { recursive: true });
   await copyFile(from, dest);
-  console.log(`✓ Published ${toRel}`);
+  ui.action("publish", toRel);
 }
 
 /** What the console needs from your app: a way to build it. */
@@ -140,9 +140,6 @@ export interface ConsoleOptions {
 }
 
 export async function run(argv: string[], options: ConsoleOptions): Promise<void> {
-  const program = new Command();
-  program.name("keel").description("Keel framework console").version("0.1.0");
-
   // Boot the app once so commands share it, and so package providers get a
   // chance to contribute migrations, commands, and publishables. Scaffolding
   // commands (`make:*`) don't need it, so a boot failure isn't fatal — it's
@@ -165,19 +162,16 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
 
   /**
    * Commands your app defines with `defineCommand()`, discovered from
-   * `app/Commands`. They run on the console kernel — typed args and flags,
-   * prompts, and the terminal UI — rather than through the wrapper below.
+   * `app/Commands`. They register alongside the built-ins — same kernel, same
+   * typed args and flags — and an app command of the same name wins, so you can
+   * override one.
    */
   async function appCommands(): Promise<AnyCommand[]> {
     const dir = join(basePath, "app/Commands");
     const found: AnyCommand[] = [];
 
-    const { readdir } = await import("node:fs/promises");
-    const { pathToFileURL } = await import("node:url");
-
-    // No app/Commands at all is fine — that's the only thing we swallow.
     const files = await readdir(dir).catch(() => null);
-    if (!files) return found;
+    if (!files) return found; // no app/Commands — the only thing we swallow
 
     for (const file of files) {
       if (!/\.(ts|js|mjs)$/.test(file)) continue;
@@ -211,278 +205,305 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     return found;
   }
 
-  // An app command wins over the built-ins, so you can override one.
-  const commands = await appCommands();
-  const name = argv[2];
+  /* ------------------------------- the built-ins ------------------------------ */
 
-  if (name && commands.some((c) => c.name === name || c.aliases?.includes(name))) {
-    const kernel = new ConsoleKernel({ binary: "keel" }).register(...commands);
-    process.exitCode = await kernel.run(argv.slice(2));
-    return;
-  }
+  const serve = defineCommand({
+    name: "serve",
+    description: "Start the HTTP server",
+    flags: { port: flag.number({ alias: "p", description: "port to listen on" }) },
 
-  program
-    .command("repl")
-    .description("An interactive shell with the application booted")
-    .action(async () => {
-      const app = requireApp();
-      const { startRepl } = await import("../repl.js");
-      await startRepl(app);
-    });
-
-  program
-    .command("serve")
-    .description("Start the HTTP server")
-    .option("-p, --port <port>", "port to listen on")
-    .action(async (opts) => {
-      const app = requireApp();
-      const kernel = app.bound(HttpKernel)
-        ? app.make(HttpKernel)
-        : new HttpKernel(app);
+    async run({ flags, ui }) {
+      const application = requireApp();
+      const kernel = application.bound(HttpKernel)
+        ? application.make(HttpKernel)
+        : new HttpKernel(application);
       const hono = kernel.build();
-      const port = Number(
-        opts.port ?? app.config().get("app.port", 3000),
-      );
-      const server = serve({ fetch: hono.fetch, port }, (info) => {
-        const name = app.config().get("app.name", "Keel");
-        console.log(`⚓ ${name} listening on http://localhost:${info.port}`);
+      const port = flags.port ?? Number(application.config().get("app.port", 3000));
+
+      // Imported here, not at the top: the Node server is only needed to *serve*,
+      // and the console must still load on a machine (or a Worker) that has no
+      // reason to install it.
+      const { serve: listen } = await import("@hono/node-server").catch(() => {
+        throw new Error(
+          "`keel serve` needs @hono/node-server. Install it: npm i @hono/node-server",
+        );
+      });
+
+      const server = listen({ fetch: hono.fetch, port }, (info: { port: number }) => {
+        ui.success(`${application.config().get("app.name", "Keel")} listening on http://localhost:${info.port}`);
       });
 
       // Graceful shutdown: stop accepting connections, run the app's shutdown
       // hooks (and every provider's shutdown()), then exit. `once` so a second
       // signal isn't swallowed if cleanup hangs — hit Ctrl-C again to force it.
-      const shutdown = async (signal: string) => {
-        console.log(`\n${signal} received — shutting down…`);
+      const shutdown = async (signal: string): Promise<void> => {
+        ui.write(`\n${signal} received — shutting down…`);
         server.close();
         try {
-          await app.terminate();
+          await application.terminate();
         } catch (err) {
-          console.error("Error during shutdown:", err);
+          ui.error(`Error during shutdown: ${String(err)}`);
           process.exit(1);
         }
         process.exit(0);
       };
       process.once("SIGINT", () => void shutdown("SIGINT"));
       process.once("SIGTERM", () => void shutdown("SIGTERM"));
-    });
 
-  program
-    .command("mcp")
-    .description("Start the MCP server (exposes Keel docs, API, and generators to AI agents over stdio)")
-    .action(async () => {
+      // `serve` stays alive on purpose — the server is the command.
+      await new Promise(() => {});
+    },
+  });
+
+  const repl = defineCommand({
+    name: "repl",
+    description: "An interactive shell with the application booted",
+    async run() {
+      const { startRepl } = await import("../repl.js");
+      await startRepl(requireApp());
+    },
+  });
+
+  const mcp = defineCommand({
+    name: "mcp",
+    description: "Start the MCP server (Keel's docs, API, and generators, over stdio)",
+    async run() {
       const { runMcpServer } = await import("../../mcp/server.js");
       await runMcpServer();
-    });
+    },
+  });
 
-  program
-    .command("routes")
-    .description("List registered routes")
-    .action(async () => {
-      const app = requireApp();
-      const router = app.make(Router);
-      const rows = router.all();
-      if (rows.length === 0) {
-        console.log("No routes registered.");
-        return;
-      }
+  const routes = defineCommand({
+    name: "routes",
+    description: "List registered routes",
+    run({ ui }) {
+      const rows = requireApp().make(Router).all();
+      if (!rows.length) return void ui.info("No routes registered.");
+
+      const table = ui.table(["Method", "Path", "Handler", "Name"]);
       for (const r of rows) {
         const handler = Array.isArray(r.handler)
           ? `${r.handler[0].name}@${r.handler[1]}`
           : r.handler instanceof Response
             ? "Static"
             : "Closure";
-        const verbs = r.methods.join("|");
-        const named = r.name ? `  (${r.name})` : "";
-        console.log(`${verbs.padEnd(12)} ${r.path.padEnd(24)} ${handler}${named}`);
+        table.row([r.methods.join("|"), r.path, handler, r.name ?? ""]);
       }
-    });
+      table.render();
+    },
+  });
 
-  program
-    .command("make:controller <name>")
-    .description("Generate a controller")
-    .option("-r, --resource", "generate a RESTful resource controller")
-    .action(async (name: string, opts: { resource?: boolean }) => {
-      const cls = className(name, "Controller");
-      const stub = opts.resource ? resourceControllerStub(cls) : controllerStub(cls);
-      await generate(`app/Controllers/${cls}.ts`, stub, "Controller");
-    });
+  /* -------------------------------- generators -------------------------------- */
 
-  program
-    .command("make:provider <name>")
-    .description("Generate a service provider")
-    .action(async (name: string) => {
-      const cls = className(name, "ServiceProvider");
-      await generate(`app/Providers/${cls}.ts`, providerStub(cls), "Provider");
-    });
+  const makeController = defineCommand({
+    name: "make:controller",
+    description: "Generate a controller",
+    args: { name: arg.string({ description: "e.g. Post" }) },
+    flags: { resource: flag.boolean({ alias: "r", description: "a RESTful resource controller" }) },
+    async run({ args, flags, ui }) {
+      const cls = className(args.name, "Controller");
+      const stub = flags.resource ? resourceControllerStub(cls) : controllerStub(cls);
+      await generate(`app/Controllers/${cls}.ts`, stub, "Controller", ui);
+    },
+  });
 
-  program
-    .command("make:middleware <name>")
-    .description("Generate an HTTP middleware")
-    .action(async (name: string) => {
-      const cls = className(name, "Middleware");
+  const makeProvider = defineCommand({
+    name: "make:provider",
+    description: "Generate a service provider",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const cls = className(args.name, "ServiceProvider");
+      await generate(`app/Providers/${cls}.ts`, providerStub(cls), "Provider", ui);
+    },
+  });
+
+  const makeMiddleware = defineCommand({
+    name: "make:middleware",
+    description: "Generate an HTTP middleware",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const cls = className(args.name, "Middleware");
       const file = cls.charAt(0).toLowerCase() + cls.slice(1);
-      await generate(`app/Http/Middleware/${file}.ts`, middlewareStub(cls), "Middleware");
-    });
+      await generate(`app/Http/Middleware/${file}.ts`, middlewareStub(cls), "Middleware", ui);
+    },
+  });
 
-  program
-    .command("make:factory <model>")
-    .description("Generate a model factory")
-    .action(async (model: string) => {
-      const cls = className(model, "");
-      await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory");
-    });
+  const makeFactory = defineCommand({
+    name: "make:factory",
+    description: "Generate a model factory",
+    args: { model: arg.string({ description: "e.g. User" }) },
+    async run({ args, ui }) {
+      const cls = className(args.model, "");
+      await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory", ui);
+    },
+  });
 
-  program
-    .command("make:seeder <name>")
-    .description("Generate a database seeder")
-    .action(async (name: string) => {
-      const cls = className(name, "Seeder");
-      await generate(`database/seeders/${cls}.ts`, seederStub(cls), "Seeder");
-    });
+  const makeSeeder = defineCommand({
+    name: "make:seeder",
+    description: "Generate a database seeder",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const cls = className(args.name, "Seeder");
+      await generate(`database/seeders/${cls}.ts`, seederStub(cls), "Seeder", ui);
+    },
+  });
 
-  program
-    .command("make:job <name>")
-    .description("Generate a queued job")
-    .action(async (name: string) => {
-      const cls = className(name, "Job");
-      await generate(`app/Jobs/${cls}.ts`, jobStub(cls), "Job");
-    });
+  const makeJob = defineCommand({
+    name: "make:job",
+    description: "Generate a queued job",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const cls = className(args.name, "Job");
+      await generate(`app/Jobs/${cls}.ts`, jobStub(cls), "Job", ui);
+    },
+  });
 
-  program
-    .command("make:page <path>")
-    .description("Generate a page (its path is its URL): make:page users/[id]")
-    .action(async (path: string) => {
+  const makePage = defineCommand({
+    name: "make:page",
+    description: "Generate a page — its path is its URL: make:page users/[id]",
+    args: { path: arg.string({ description: "e.g. users/[id]" }) },
+    async run({ args, ui }) {
       // The path IS the route, so it's used verbatim — no class-name munging.
-      const file = path.replace(/^\/+/, "").replace(/\.(tsx|jsx)$/, "");
-      await generate(`resources/pages/${file}.tsx`, pageStub(file), "Page");
-    });
+      const file = args.path.replace(/^\/+/, "").replace(/\.(tsx|jsx)$/, "");
+      await generate(`resources/pages/${file}.tsx`, pageStub(file), "Page", ui);
+    },
+  });
 
-  program
-    .command("make:command <name>")
-    .description("Generate a console command (typed args + flags, prompts, UI)")
-    .action(async (name: string) => {
-      const file = name.replace(/[^a-zA-Z0-9:_-]/g, "");
-      await generate(`app/Commands/${file.replace(/:/g, "-")}.ts`, commandStub(file), "Command");
-    });
+  const makeCommand = defineCommand({
+    name: "make:command",
+    description: "Generate a console command (typed args + flags, prompts, UI)",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const file = args.name.replace(/[^a-zA-Z0-9:_-]/g, "");
+      await generate(`app/Commands/${file.replace(/:/g, "-")}.ts`, commandStub(file), "Command", ui);
+    },
+  });
 
-  program
-    .command("make:notification <name>")
-    .description("Generate a notification")
-    .action(async (name: string) => {
-      const cls = className(name, "Notification");
-      await generate(`app/Notifications/${cls}.ts`, notificationStub(cls), "Notification");
-    });
+  const makeNotification = defineCommand({
+    name: "make:notification",
+    description: "Generate a notification",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const cls = className(args.name, "Notification");
+      await generate(`app/Notifications/${cls}.ts`, notificationStub(cls), "Notification", ui);
+    },
+  });
 
-  program
-    .command("make:transformer <name>")
-    .description("Generate an API transformer")
-    .option("-m, --model <model>", "the value it maps (e.g. User)")
-    .action(async (name: string, opts: { model?: string }) => {
-      const cls = className(name, "Transformer");
-      const model = opts.model ? className(opts.model, "") : cls.replace(/Transformer$/, "");
-      await generate(`app/Transformers/${cls}.ts`, transformerStub(cls, model), "Transformer");
-    });
+  const makeTransformer = defineCommand({
+    name: "make:transformer",
+    description: "Generate an API transformer",
+    args: { name: arg.string() },
+    flags: { model: flag.string({ alias: "m", description: "the value it maps (e.g. User)" }) },
+    async run({ args, flags, ui }) {
+      const cls = className(args.name, "Transformer");
+      const model = flags.model ? className(flags.model, "") : cls.replace(/Transformer$/, "");
+      await generate(`app/Transformers/${cls}.ts`, transformerStub(cls, model), "Transformer", ui);
+    },
+  });
 
-  program
-    .command("make:package <name>")
-    .description("Scaffold a Keel package (a PackageProvider skeleton)")
-    .action(async (name: string) => {
-      const slug = name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const makePackage = defineCommand({
+    name: "make:package",
+    description: "Scaffold a Keel package (a PackageProvider skeleton)",
+    args: { name: arg.string() },
+    async run({ args, ui }) {
+      const slug = args.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
       const cls = slug.charAt(0).toUpperCase() + slug.slice(1);
-      await generate(
-        `packages/${slug}/${cls}ServiceProvider.ts`,
-        packageProviderStub(slug),
-        "Package",
-      );
-    });
+      await generate(`packages/${slug}/${cls}ServiceProvider.ts`, packageProviderStub(slug), "Package", ui);
+    },
+  });
 
-  program
-    .command("migrate")
-    .description("Run pending database migrations (app + package)")
-    .action(async () => {
-      const app = requireApp();
-      try {
-        const applied = await migratorFor().up(await collectMigrations(app));
-        if (!applied.length) console.log("Nothing to migrate.");
-        else for (const name of applied) console.log(`✓ Migrated ${name}`);
-      } catch (err) {
-        console.error(`✗ Migration failed: ${(err as Error).message}`);
-        process.exitCode = 1;
-      }
-    });
+  /* -------------------------------- migrations -------------------------------- */
 
-  program
-    .command("migrate:rollback")
-    .description("Roll back the most recent batch of migrations")
-    .action(async () => {
-      const app = requireApp();
-      try {
-        const rolled = await migratorFor().down(await collectMigrations(app));
-        if (!rolled.length) console.log("Nothing to roll back.");
-        else for (const name of rolled) console.log(`✓ Rolled back ${name}`);
-      } catch (err) {
-        console.error(`✗ Rollback failed: ${(err as Error).message}`);
-        process.exitCode = 1;
-      }
-    });
+  const migrate = defineCommand({
+    name: "migrate",
+    description: "Run pending database migrations (app + package)",
+    async run({ ui }) {
+      const applied = await migratorFor().up(await collectMigrations(requireApp()));
+      if (!applied.length) return void ui.info("Nothing to migrate.");
+      for (const name of applied) ui.success(`Migrated ${name}`);
+    },
+  });
 
-  program
-    .command("migrate:status")
-    .description("Show which migrations have run and which are pending")
-    .action(async () => {
-      const app = requireApp();
-      try {
-        const migrator = migratorFor();
-        const ran = new Set(await migrator.ran());
-        const migrations = await collectMigrations(app);
-        if (!migrations.length) {
-          console.log("No migrations found.");
-          return;
-        }
-        for (const m of migrations) {
-          console.log(`${ran.has(m.name) ? "✓ ran    " : "· pending"}  ${m.name}`);
-        }
-      } catch (err) {
-        console.error(`✗ ${(err as Error).message}`);
-        process.exitCode = 1;
-      }
-    });
+  const migrateRollback = defineCommand({
+    name: "migrate:rollback",
+    description: "Roll back the most recent batch of migrations",
+    async run({ ui }) {
+      const rolled = await migratorFor().down(await collectMigrations(requireApp()));
+      if (!rolled.length) return void ui.info("Nothing to roll back.");
+      for (const name of rolled) ui.success(`Rolled back ${name}`);
+    },
+  });
 
-  program
-    .command("vendor:publish")
-    .description("Copy package-published files (config, assets) into this app")
-    .option("--tag <tag>", "only publish files under this tag")
-    .option("--force", "overwrite files that already exist")
-    .action(async (opts: { tag?: string; force?: boolean }) => {
-      const app = requireApp();
-      const registry = app.make(PublishRegistry);
-      const entries = registry.all(opts.tag);
+  const migrateStatus = defineCommand({
+    name: "migrate:status",
+    description: "Show which migrations have run and which are pending",
+    async run({ ui }) {
+      const migrator = migratorFor();
+      const ran = new Set(await migrator.ran());
+      const migrations = await collectMigrations(requireApp());
+
+      if (!migrations.length) return void ui.info("No migrations found.");
+
+      const table = ui.table(["Status", "Migration"]);
+      for (const m of migrations) table.row([ran.has(m.name) ? "ran" : "pending", m.name]);
+      table.render();
+    },
+  });
+
+  const vendorPublish = defineCommand({
+    name: "vendor:publish",
+    description: "Copy package-published files (config, assets) into this app",
+    flags: {
+      tag: flag.string({ description: "only publish files under this tag" }),
+      force: flag.boolean({ description: "overwrite files that already exist" }),
+    },
+    async run({ flags, ui }) {
+      const registry = requireApp().make(PublishRegistry);
+      const entries = registry.all(flags.tag);
+
       if (!entries.length) {
+        ui.info(flags.tag ? `Nothing published under tag "${flags.tag}".` : "Nothing to publish.");
         const tags = registry.tags();
-        console.log(
-          opts.tag
-            ? `Nothing published under tag "${opts.tag}".`
-            : "Nothing to publish.",
-        );
-        if (!opts.tag && tags.length) console.log(`Available tags: ${tags.join(", ")}`);
+        if (!flags.tag && tags.length) ui.info(`Available tags: ${tags.join(", ")}`);
         return;
       }
+
       for (const entry of entries) {
         for (const [from, to] of Object.entries(entry.files)) {
-          await publishPath(from, to, Boolean(opts.force));
+          await publishPath(from, to, flags.force, ui);
         }
       }
-    });
+    },
+  });
 
-  // Mount package-contributed commands (e.g. `watch:prune`) gathered at boot.
-  if (app) {
-    for (const cmd of app.make(CommandRegistry).all()) {
-      const command = program.command(cmd.name);
-      if (cmd.description) command.description(cmd.description);
-      cmd.configure?.(command);
-      command.action((opts: Record<string, unknown>, c: Command) => cmd.action(opts, c));
-    }
-  }
+  /* ---------------------------------- dispatch -------------------------------- */
 
-  await program.parseAsync(argv);
+  const kernel = new ConsoleKernel({ binary: "keel" }).register(
+    serve as AnyCommand,
+    repl as AnyCommand,
+    mcp as AnyCommand,
+    routes as AnyCommand,
+    makeController as AnyCommand,
+    makeProvider as AnyCommand,
+    makeMiddleware as AnyCommand,
+    makeFactory as AnyCommand,
+    makeSeeder as AnyCommand,
+    makeJob as AnyCommand,
+    makePage as AnyCommand,
+    makeCommand as AnyCommand,
+    makeNotification as AnyCommand,
+    makeTransformer as AnyCommand,
+    makePackage as AnyCommand,
+    migrate as AnyCommand,
+    migrateRollback as AnyCommand,
+    migrateStatus as AnyCommand,
+    vendorPublish as AnyCommand,
+  );
+
+  // Package-contributed commands (a package's `commands([...])`), then the app's —
+  // registered last, so an app command of the same name overrides anything above.
+  if (app) kernel.register(...app.make(CommandRegistry).all());
+  kernel.register(...(await appCommands()));
+
+  process.exitCode = await kernel.run(argv.slice(2));
 }

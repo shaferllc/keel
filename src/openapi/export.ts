@@ -4,6 +4,7 @@
  */
 
 import type { PackageCommand } from "../core/package.js";
+import { defineCommand, flag } from "../core/console.js";
 import type { Router } from "../core/http/router.js";
 import type { OpenApiConfig } from "./config.js";
 import { buildSpec } from "./spec.js";
@@ -13,16 +14,16 @@ export function exportCommand(
   config: OpenApiConfig,
   base: string,
 ): PackageCommand {
-  return {
+  return defineCommand({
     name: "openapi:export",
     description: "Write the OpenAPI spec to a file",
-    configure: (cmd) => cmd.option("--out <file>", "output path", "openapi.json"),
-    action: async (opts) => {
+    flags: { out: flag.string({ description: "output path", default: "openapi.json" }) },
+
+    async run({ flags, ui }) {
       const spec = buildSpec(getRouter().all(), config, base);
-      const out = String(opts.out ?? "openapi.json");
       const { writeFile } = await import("node:fs/promises");
-      await writeFile(out, JSON.stringify(spec, null, 2));
-      console.log(`✓ Wrote ${out} (${Object.keys(spec.paths).length} paths)`);
+      await writeFile(flags.out, JSON.stringify(spec, null, 2));
+      ui.success(`Wrote ${flags.out} (${Object.keys(spec.paths).length} paths)`);
     },
-  };
+  }) as PackageCommand;
 }

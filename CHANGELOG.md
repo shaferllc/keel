@@ -4,6 +4,42 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.0] — 2026-07-11
+
+### Changed
+
+- **The console runs on Keel's own console.** All 20 built-in commands (`serve`,
+  `routes`, `repl`, `mcp`, every `make:*`, `migrate:*`, `vendor:publish`) are now
+  `defineCommand()`s on the `ConsoleKernel`. **`commander` is gone** — not moved to
+  a runtime dependency, removed.
+
+  This was forced by shipping the console in 0.76.0: `@shaferllc/keel/cli` imported
+  `commander`, which was a *devDependency*, so a consumer installing the package got
+  `ERR_MODULE_NOT_FOUND` on import. Promoting commander to a runtime dep would have
+  fixed the symptom while shipping a second command system alongside the one we'd
+  just built. So the built-ins moved instead.
+
+  What you get for it: **generated help** (`keel help make:controller` prints usage,
+  args, and options), commands **grouped by namespace**, `routes` and `migrate:status`
+  as real tables, and typed flags everywhere — `keel routes --nope` is now an error
+  rather than a shrug.
+
+- **`PackageCommand` is now `defineCommand()`'s shape** — it was typed against a
+  commander `Command`. A package's command gets typed args and flags, generated help,
+  the terminal UI, and the prompt-trapping test story for free.
+
+  **Breaking** for a package contributing commands: replace `configure`/`action` with
+  `flags`/`args`/`run`. Both in-tree packages (`openapi:export`, `watch:prune`) are
+  ported.
+
+  That port fixed a live bug: `watch:prune --hours lots` did `Number("lots")` → `NaN`,
+  so the retention cutoff became `NaN` and the prune silently misbehaved. A typed
+  `flag.number()` rejects it as a usage error.
+
+- **`@hono/node-server` is an optional peer dependency**, dynamically imported by
+  `serve`. It's only needed to *serve* on Node — a Workers app has no reason to
+  install it — and a missing one now says so instead of failing at import.
+
 ## [0.76.0] — 2026-07-11
 
 ### Added
