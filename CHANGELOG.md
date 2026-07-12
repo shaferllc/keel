@@ -4,6 +4,30 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **CI.** Every push and pull request now runs the checks that were, until now, only
+  ever run by hand in the right order by someone who remembered to:
+  - `typecheck` — **src and tests**. The suite went unchecked for a long time, so a
+    test asserting a type at compile time was asserting nothing.
+  - `test`.
+  - **`build`** — the check that matters most. A git install runs the build through
+    `prepare`, so a tree that doesn't build cannot be installed *at all* — and
+    neither the tests nor the typecheck can see it, because they run against the
+    working directory. CI's checkout **is** the committed tree, which is exactly
+    what shipped three uninstallable tags (v0.74.0–v0.74.2).
+  - `typecheck:docs` — the docs examples compile against `dist/`, i.e. the real
+    published surface. They have caught bugs the tests could not: inference that
+    worked in-repo but broke for a consumer.
+  - **The generated AI surface is in sync** — regenerating `llms.txt`,
+    `llms-full.txt` and `docs/ai-manifest.json` must be a no-op, or someone changed
+    a doc or an export and shipped a stale surface.
+  - **No control characters in source** — we have shipped both a NUL byte (a cache
+    key) and raw ANSI escapes (the console colors), each of which turns a text file
+    "binary" to grep, diff, and code review.
+
 ## [0.75.1] — 2026-07-11
 
 ### Changed

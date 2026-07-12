@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci --ignore-scripts` deliberately skips `prepare`, so the build below
+      # is a step we can see fail rather than an install that dies opaquely.
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # src AND tests. The suite went unchecked for a long time, and every
+      # "compile-time assertion" in a test was asserting nothing.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # This is the check that matters most. A git install runs the build through
+      # `prepare`, so a tree that doesn't build cannot be installed at all — and
+      # neither the tests nor the typecheck can see it, because they run against
+      # the working directory. CI's checkout *is* the committed tree, which is
+      # exactly the thing that shipped three uninstallable tags.
+      - name: Build (what a consumer's install runs)
+        run: npm run build
+
+      # The docs examples typecheck against dist/, i.e. the real published surface.
+      # They have caught bugs the tests could not — inference that worked in-repo
+      # but broke for a consumer.
+      - name: Typecheck the docs examples
+        run: npm run typecheck:docs
+
+      # llms.txt / llms-full.txt / docs/ai-manifest.json are generated from the
+      # docs and the exports. Regenerating them must be a no-op; if it isn't,
+      # someone changed a doc or an export and shipped a stale AI surface.
+      - name: The generated AI surface is in sync
+        run: |
+          npm run build:ai
+          if ! git diff --quiet -- llms.txt llms-full.txt docs/ai-manifest.json; then
+            echo "::error::The generated AI surface is stale. Run 'npm run build:ai' and commit the result."
+            git --no-pager diff --stat -- llms.txt llms-full.txt docs/ai-manifest.json
+            exit 1
+          fi
+          echo "in sync"
+
+      # No stray control characters in source. We have shipped both a NUL byte
+      # (in a cache key) and raw ANSI escapes (in the console colors) — each turns
+      # a text file "binary" to grep, diff, and code review.
+      - name: No control characters in source
+        run: |
+          if grep -rlP '[\x00\x1b]' --include='*.ts' --include='*.tsx' --include='*.md' --include='*.json' src docs tests 2>/dev/null | grep -v 'src/watch/ui/dist'; then
+            echo "::error::A source file contains a NUL or ESC byte. Use \\u0000 / \\u001b escapes."
+            exit 1
+          fi
+          echo "clean"
