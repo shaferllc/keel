@@ -67,20 +67,24 @@ jobs:
       - name: Publish
         run: npm publish --access public
 
-      # keeljs.com renders the guides out of the published package, so a release
-      # it doesn't hear about is a docs site that quietly lags the framework —
-      # which is exactly how the site sat on 0.78.2 while npm had 0.79.0.
+      # keeljs.com renders the guides out of the published package, so a release it
+      # doesn't hear about is a docs site that quietly lags the framework — which
+      # is how the site sat on 0.78.2 while npm had 0.79.0.
       #
-      # Needs a PAT with `contents: write` on shaferllc/keel-site, as
-      # SITE_DISPATCH_TOKEN: the automatic GITHUB_TOKEN cannot trigger a workflow
-      # in another repository. Without it, publishing still succeeds and the site
-      # stays a manual `npm run deploy`.
+      # This is only a shortcut. The site polls npm every 30 minutes and bumps
+      # itself, so the loop closes with or without this step; all a dispatch buys
+      # is deploying now instead of within the half hour. It needs a PAT with
+      # `contents: write` on shaferllc/keel-site (as SITE_DISPATCH_TOKEN), because
+      # the automatic GITHUB_TOKEN cannot trigger a workflow in another repo — and
+      # a long-lived cross-repo credential is a real cost for a 30-minute saving,
+      # so not setting one is a perfectly good answer.
       - name: Tell the site to deploy
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::No SITE_DISPATCH_TOKEN — deploy keeljs.com by hand."
+            echo "No SITE_DISPATCH_TOKEN — the site's npm poll will pick this up within 30m."
             exit 0
           fi
           version="$(node -p 'require("./package.json").version')"
