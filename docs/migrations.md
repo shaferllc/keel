@@ -285,17 +285,32 @@ already gone — the typical `down()` for a `createTable`.
 
 `raw(sql: string, bindings?: unknown[]): Promise<void>`
 
-Runs arbitrary SQL through the connection — the escape hatch for indexes, foreign
-keys, and `ALTER TABLE`.
+Runs arbitrary SQL through the connection — the escape hatch for anything the
+builders don't cover.
 
 ```ts
-await schema.raw("CREATE INDEX idx_posts_user ON posts (user_id)");
 await schema.raw("UPDATE users SET active = ? WHERE active IS NULL", [true]);
 ```
 
 **Notes:** `bindings` defaults to `[]`. Unlike the migrator's bookkeeping writes,
 `raw()` does **not** rewrite `?` to `$n`, so pass `$1, $2, …` yourself on the
 `postgres` dialect.
+
+#### `alterTable(name, build)`
+
+`alterTable(name: string, build: (table: AlterTableBuilder) => void): Promise<void>`
+
+Alter an existing table — the callback gets an [`AlterTableBuilder`](#altertablebuilder)
+for adding, renaming, and dropping columns and indexes. Emits one dialect-aware
+statement per operation, ordered so a dropped index precedes its column.
+
+```ts
+await schema.alterTable("users", (t) => {
+  t.string("phone").nullable();
+  t.renameColumn("name", "full_name");
+  t.dropColumn("legacy");
+});
+```
 
 ### `TableBuilder`
 
@@ -413,12 +428,48 @@ t.toCreateSql("users", "postgres");
 // CREATE TABLE users (id SERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL)
 ```
 
+#### `index(columns, name?)` / `uniqueIndex(columns, name?)`
+
+Add a (possibly composite) index or unique index; `columns` is a name or array.
+Emitted as `CREATE [UNIQUE] INDEX` after the table. Auto-named unless `name` is
+given.
+
+```ts
+t.index("email");
+t.uniqueIndex(["team_id", "slug"]);
+```
+
+#### `foreign(column)`
+
+`foreign(column: string): ForeignKeyBuilder`
+
+Add a foreign key, built fluently and emitted inline in the `CREATE TABLE`.
+
+```ts
+t.foreign("team_id").references("id").on("teams").onDelete("cascade");
+```
+
 #### `columns`
 
 `readonly columns: Column[]`
 
 The `Column` instances added so far, in declaration order. Read-only inspection
 seam; you rarely touch it.
+
+### `AlterTableBuilder`
+
+From the `alterTable` callback. Column methods (`string`, `integer`, …) **add**
+columns; plus:
+
+- `dropColumn(name)` — drop a column.
+- `renameColumn(from, to)` — rename a column.
+- `index(columns, name?)` / `uniqueIndex(columns, name?)` — add an index.
+- `dropIndex(name)` — drop an index (runs before column drops).
+
+### `ForeignKeyBuilder`
+
+From `TableBuilder.foreign(column)`. Chainable: `references(column)`, `on(table)`,
+`onDelete(action)`, `onUpdate(action)`.
 
 ### `Column`
 

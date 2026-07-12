@@ -8258,6 +8258,53 @@ await db("sessions").where("expires_at", "<", now).delete();
 **Notes:** with no `where`, empties the table. There's no soft-delete here — pair
 with a `deleted_at` column and `whereNull` if you want one.
 
+#### `whereColumn(first, operator?, second)` · `whereRaw(sql, bindings?)`
+
+Compare two columns (no binding) or add a raw WHERE fragment with its own
+bindings. `whereColumn("updated_at", ">", "created_at")`; `whereRaw("score >= ?", [10])`.
+
+#### `join(table, first, operator?, second)` · `leftJoin(...)`
+
+Add an `INNER JOIN` / `LEFT JOIN` on an equality (or the given operator).
+Included in `get`, `count`, and aggregates. Qualify ambiguous columns
+(`"posts.user_id"`).
+
+#### `groupBy(...columns)` · `having(column, operator?, value)` · `distinct()`
+
+`GROUP BY`, a bound `HAVING` predicate, and `SELECT DISTINCT`.
+
+#### `orderByRaw(sql)` · `when(condition, then, otherwise?)`
+
+A raw `ORDER BY` fragment; and conditional building — `then(query, value)` runs
+only when `condition` is truthy, else `otherwise`.
+
+#### `increment(column, amount?, extra?)` · `decrement(column, amount?, extra?)`
+
+`increment(column: string, amount = 1, extra: Row = {}): Promise<WriteResult>`
+
+Atomically `column = column ± amount` on matching rows, optionally setting other
+columns in the same statement. Scope with `where`.
+
+#### `upsert(rows, uniqueBy, update?)`
+
+`upsert(rows: Row | Row[], uniqueBy: string[], update?: string[]): Promise<WriteResult>`
+
+Insert rows, updating `update` columns (default: all non-unique) on a conflict
+against `uniqueBy`. Dialect-aware: `ON CONFLICT … DO UPDATE` (sqlite/postgres) or
+`ON DUPLICATE KEY UPDATE` (mysql).
+
+#### `insertOrIgnore(rows)`
+
+Insert one or more rows, skipping any that violate a unique constraint
+(`INSERT OR IGNORE` / `INSERT IGNORE` / `ON CONFLICT DO NOTHING`).
+
+#### `chunk(size, callback)`
+
+`chunk(size: number, callback: (rows: T[]) => void | boolean | Promise<void | boolean>): Promise<void>`
+
+Process results a page at a time so a large table never loads at once. Return
+`false` from the callback to stop early. Pair with `orderBy` for a stable order.
+
 ### Interfaces & types
 
 #### `Connection`
@@ -13211,17 +13258,32 @@ already gone — the typical `down()` for a `createTable`.
 
 `raw(sql: string, bindings?: unknown[]): Promise<void>`
 
-Runs arbitrary SQL through the connection — the escape hatch for indexes, foreign
-keys, and `ALTER TABLE`.
+Runs arbitrary SQL through the connection — the escape hatch for anything the
+builders don't cover.
 
 ```ts
-await schema.raw("CREATE INDEX idx_posts_user ON posts (user_id)");
 await schema.raw("UPDATE users SET active = ? WHERE active IS NULL", [true]);
 ```
 
 **Notes:** `bindings` defaults to `[]`. Unlike the migrator's bookkeeping writes,
 `raw()` does **not** rewrite `?` to `$n`, so pass `$1, $2, …` yourself on the
 `postgres` dialect.
+
+#### `alterTable(name, build)`
+
+`alterTable(name: string, build: (table: AlterTableBuilder) => void): Promise<void>`
+
+Alter an existing table — the callback gets an [`AlterTableBuilder`](#altertablebuilder)
+for adding, renaming, and dropping columns and indexes. Emits one dialect-aware
+statement per operation, ordered so a dropped index precedes its column.
+
+```ts
+await schema.alterTable("users", (t) => {
+  t.string("phone").nullable();
+  t.renameColumn("name", "full_name");
+  t.dropColumn("legacy");
+});
+```
 
 ### `TableBuilder`
 
@@ -13339,12 +13401,48 @@ t.toCreateSql("users", "postgres");
 // CREATE TABLE users (id SERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL)
 ```
 
+#### `index(columns, name?)` / `uniqueIndex(columns, name?)`
+
+Add a (possibly composite) index or unique index; `columns` is a name or array.
+Emitted as `CREATE [UNIQUE] INDEX` after the table. Auto-named unless `name` is
+given.
+
+```ts
+t.index("email");
+t.uniqueIndex(["team_id", "slug"]);
+```
+
+#### `foreign(column)`
+
+`foreign(column: string): ForeignKeyBuilder`
+
+Add a foreign key, built fluently and emitted inline in the `CREATE TABLE`.
+
+```ts
+t.foreign("team_id").references("id").on("teams").onDelete("cascade");
+```
+
 #### `columns`
 
 `readonly columns: Column[]`
 
 The `Column` instances added so far, in declaration order. Read-only inspection
 seam; you rarely touch it.
+
+### `AlterTableBuilder`
+
+From the `alterTable` callback. Column methods (`string`, `integer`, …) **add**
+columns; plus:
+
+- `dropColumn(name)` — drop a column.
+- `renameColumn(from, to)` — rename a column.
+- `index(columns, name?)` / `uniqueIndex(columns, name?)` — add an index.
+- `dropIndex(name)` — drop an index (runs before column drops).
+
+### `ForeignKeyBuilder`
+
+From `TableBuilder.foreign(column)`. Chainable: `references(column)`, `on(table)`,
+`onDelete(action)`, `onUpdate(action)`.
 
 ### `Column`
 
@@ -13995,6 +14093,55 @@ Rarely called directly — `create`/`save` use it internally.
 const storable = Post.toDatabase({ published: true }); // { published: 1 }
 ```
 
+#### `Model.with(...names)` · `Model.withCount(...names)`
+
+Start a [`ModelQuery`](#modelquery) that eager-loads the named relations (dotted
+paths nest: `"posts.comments"`) or counts them into `<relation>_count`.
+
+#### `Model.has(name)` · `Model.whereHas(name, constrain?)` · `Model.doesntHave(name, constrain?)`
+
+Start a `ModelQuery` filtered by relationship existence — has at least one
+related row, has one matching `constrain(query)`, or has none. `constrain`
+receives the related-table query builder.
+
+#### `Model.newQuery()`
+
+`static newQuery(): ModelQuery<T>`
+
+The model-aware query behind the sugar above — hydrates rows to models and adds
+`with`/`withCount`/`whereHas`.
+
+#### `Model.addGlobalScope(name, scope)`
+
+`static addGlobalScope(name: string, scope: (query: QueryBuilder) => void): void`
+
+Register a constraint applied to every query the model builds. Inherited by
+subclasses; a subclass re-using a name overrides it.
+
+#### `Model.withTrashed()` · `Model.onlyTrashed()` · `Model.withoutGlobalScope(...names)` · `Model.withoutGlobalScopes()`
+
+Escape hatches returning a `QueryBuilder`: include (or only) soft-deleted rows,
+or drop named / all global scopes. Deliberately explicit so an unscoped query is
+greppable at audit time.
+
+### `Model` — lifecycle events
+
+Register per-class hooks (keyed by the exact class). The `*ing` events are
+cancelable — a hook returning `false` aborts the operation.
+
+#### `Model.creating` · `created` · `updating` · `updated` · `saving` · `saved` · `deleting` · `deleted` · `restoring` · `restored` · `retrieved`
+
+`static <event>(hook: (model: T) => void | boolean | Promise<void | boolean>): void`
+
+Add a hook for that lifecycle event. `create()` fires `saving`→`creating`→write→
+`created`→`saved`; a save that updates fires the `updating`/`updated` pair.
+
+#### `Model.observe(observer)`
+
+`static observe(observer: Partial<Record<ModelEvent, ModelHook<T>>>): void`
+
+Attach an observer object — each method named after an event becomes a hook.
+
 ### `Model` — configuration statics
 
 Set these on the subclass to configure it. All have defaults.
@@ -14055,6 +14202,21 @@ class Post extends Model {
 }
 ```
 
+#### `static hidden` / `static visible` / `static appends`
+
+`static hidden: string[]` · `static visible: string[]` · `static appends: string[]`
+
+Shape `toJSON()`: `hidden` strips columns, `visible` is an allowlist that wins,
+`appends` adds computed attributes (a getter or zero-arg method). All default `[]`.
+
+#### `static softDeletes` / `static deletedAtColumn`
+
+`static softDeletes: boolean` (default `false`) · `static deletedAtColumn: string`
+(default `"deleted_at"`)
+
+Turn on soft deletes: `delete()` sets the timestamp and a global scope hides
+trashed rows.
+
 ### `Model` — instance methods
 
 #### `new Model(attributes?)`
@@ -14093,14 +14255,22 @@ still issues the query.
 
 `delete(): Promise<void>`
 
-Deletes the row matching this model's primary key.
+Deletes the row matching this model's primary key — or, with `static softDeletes`
+on, sets `deleted_at` instead. Fires `deleting`/`deleted`.
 
 ```ts
 await user.delete();
 ```
 
-**Notes:** keys off the current `primaryKey` value; on a model without one, the
-`where` binds `undefined`. Hard delete only — there's no soft-delete built in.
+**Notes:** keys off the current `primaryKey` value. See `forceDelete`/`restore`
+for the soft-delete variants.
+
+#### `forceDelete()` · `restore()` · `trashed()`
+
+`forceDelete(): Promise<void>` · `restore(): Promise<this>` · `trashed(): boolean`
+
+For soft-deletable models: permanently remove the row, clear `deleted_at`
+(fires `restoring`/`restored`), or test whether it's currently trashed.
 
 #### `fill(attributes)`
 
@@ -14229,6 +14399,52 @@ roles() { return this.belongsToMany(Role, "user_roles", "user_id", "role_id"); }
 joined with `_` (User + Role → `role_user`). The pivot keys default to
 `<model>_<primaryKey>`. Reads as two `whereIn` queries (no JOIN), so it stays
 edge-safe.
+
+#### `morphMany(related, name, localKey?)` · `morphOne(related, name, localKey?)`
+
+`morphMany<T>(related: ModelClass<T>, name: string, localKey?: string): MorphMany<T>`
+
+The parent side of a polymorphic relation. Related rows carry `<name>_id` +
+`<name>_type` (the type stored is this model's class name). `MorphMany` also has
+`.create(attributes)`, which fills the morph keys.
+
+```ts
+comments() { return this.morphMany(Comment, "commentable"); }
+```
+
+#### `morphTo(name, idColumn?, typeColumn?)`
+
+`morphTo(name: string, idColumn?: string, typeColumn?: string): MorphTo`
+
+The owning side — resolves the parent from the stored `<name>_type` (via
+[`registerMorphType`](#registermorphtypetype-model)) and `<name>_id`. Awaitable;
+returns the parent model or `null`.
+
+```ts
+commentable() { return this.morphTo("commentable"); }
+```
+
+#### `registerMorphType(type, model)`
+
+`registerMorphType(type: string, related: ModelClass<Model>): void`
+
+Register a model under a morph-type string (usually its class name) so `morphTo`
+can resolve it. Call once at boot for each owner type.
+
+### `ModelQuery`
+
+The model-aware builder returned by `Model.query()`, `Model.newQuery()`, and the
+`with`/`whereHas`/`withCount` shortcuts. It proxies the query-builder constraint
+methods (`where`, `orderBy`, `limit`, …) and hydrates results to models, adding:
+
+- `with(...names)` — eager-load relations; dotted paths nest (`"posts.comments"`).
+- `withCount(...names)` — add `<relation>_count` to each result.
+- `has(name)` / `whereHas(name, constrain?)` / `doesntHave(name, constrain?)` —
+  filter by relationship existence.
+- Terminals `get()`, `first()`, `count()`, `exists()`, `paginate(page?, perPage?)`.
+
+Existence filters and counts use the same driver-agnostic two-query strategy as
+the relations (no JOIN). `toBase()` returns the underlying `QueryBuilder`.
 
 ### Relations
 

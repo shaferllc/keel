@@ -557,6 +557,55 @@ Rarely called directly — `create`/`save` use it internally.
 const storable = Post.toDatabase({ published: true }); // { published: 1 }
 ```
 
+#### `Model.with(...names)` · `Model.withCount(...names)`
+
+Start a [`ModelQuery`](#modelquery) that eager-loads the named relations (dotted
+paths nest: `"posts.comments"`) or counts them into `<relation>_count`.
+
+#### `Model.has(name)` · `Model.whereHas(name, constrain?)` · `Model.doesntHave(name, constrain?)`
+
+Start a `ModelQuery` filtered by relationship existence — has at least one
+related row, has one matching `constrain(query)`, or has none. `constrain`
+receives the related-table query builder.
+
+#### `Model.newQuery()`
+
+`static newQuery(): ModelQuery<T>`
+
+The model-aware query behind the sugar above — hydrates rows to models and adds
+`with`/`withCount`/`whereHas`.
+
+#### `Model.addGlobalScope(name, scope)`
+
+`static addGlobalScope(name: string, scope: (query: QueryBuilder) => void): void`
+
+Register a constraint applied to every query the model builds. Inherited by
+subclasses; a subclass re-using a name overrides it.
+
+#### `Model.withTrashed()` · `Model.onlyTrashed()` · `Model.withoutGlobalScope(...names)` · `Model.withoutGlobalScopes()`
+
+Escape hatches returning a `QueryBuilder`: include (or only) soft-deleted rows,
+or drop named / all global scopes. Deliberately explicit so an unscoped query is
+greppable at audit time.
+
+### `Model` — lifecycle events
+
+Register per-class hooks (keyed by the exact class). The `*ing` events are
+cancelable — a hook returning `false` aborts the operation.
+
+#### `Model.creating` · `created` · `updating` · `updated` · `saving` · `saved` · `deleting` · `deleted` · `restoring` · `restored` · `retrieved`
+
+`static <event>(hook: (model: T) => void | boolean | Promise<void | boolean>): void`
+
+Add a hook for that lifecycle event. `create()` fires `saving`→`creating`→write→
+`created`→`saved`; a save that updates fires the `updating`/`updated` pair.
+
+#### `Model.observe(observer)`
+
+`static observe(observer: Partial<Record<ModelEvent, ModelHook<T>>>): void`
+
+Attach an observer object — each method named after an event becomes a hook.
+
 ### `Model` — configuration statics
 
 Set these on the subclass to configure it. All have defaults.
@@ -617,6 +666,21 @@ class Post extends Model {
 }
 ```
 
+#### `static hidden` / `static visible` / `static appends`
+
+`static hidden: string[]` · `static visible: string[]` · `static appends: string[]`
+
+Shape `toJSON()`: `hidden` strips columns, `visible` is an allowlist that wins,
+`appends` adds computed attributes (a getter or zero-arg method). All default `[]`.
+
+#### `static softDeletes` / `static deletedAtColumn`
+
+`static softDeletes: boolean` (default `false`) · `static deletedAtColumn: string`
+(default `"deleted_at"`)
+
+Turn on soft deletes: `delete()` sets the timestamp and a global scope hides
+trashed rows.
+
 ### `Model` — instance methods
 
 #### `new Model(attributes?)`
@@ -655,14 +719,22 @@ still issues the query.
 
 `delete(): Promise<void>`
 
-Deletes the row matching this model's primary key.
+Deletes the row matching this model's primary key — or, with `static softDeletes`
+on, sets `deleted_at` instead. Fires `deleting`/`deleted`.
 
 ```ts
 await user.delete();
 ```
 
-**Notes:** keys off the current `primaryKey` value; on a model without one, the
-`where` binds `undefined`. Hard delete only — there's no soft-delete built in.
+**Notes:** keys off the current `primaryKey` value. See `forceDelete`/`restore`
+for the soft-delete variants.
+
+#### `forceDelete()` · `restore()` · `trashed()`
+
+`forceDelete(): Promise<void>` · `restore(): Promise<this>` · `trashed(): boolean`
+
+For soft-deletable models: permanently remove the row, clear `deleted_at`
+(fires `restoring`/`restored`), or test whether it's currently trashed.
 
 #### `fill(attributes)`
 
@@ -791,6 +863,52 @@ roles() { return this.belongsToMany(Role, "user_roles", "user_id", "role_id"); }
 joined with `_` (User + Role → `role_user`). The pivot keys default to
 `<model>_<primaryKey>`. Reads as two `whereIn` queries (no JOIN), so it stays
 edge-safe.
+
+#### `morphMany(related, name, localKey?)` · `morphOne(related, name, localKey?)`
+
+`morphMany<T>(related: ModelClass<T>, name: string, localKey?: string): MorphMany<T>`
+
+The parent side of a polymorphic relation. Related rows carry `<name>_id` +
+`<name>_type` (the type stored is this model's class name). `MorphMany` also has
+`.create(attributes)`, which fills the morph keys.
+
+```ts
+comments() { return this.morphMany(Comment, "commentable"); }
+```
+
+#### `morphTo(name, idColumn?, typeColumn?)`
+
+`morphTo(name: string, idColumn?: string, typeColumn?: string): MorphTo`
+
+The owning side — resolves the parent from the stored `<name>_type` (via
+[`registerMorphType`](#registermorphtypetype-model)) and `<name>_id`. Awaitable;
+returns the parent model or `null`.
+
+```ts
+commentable() { return this.morphTo("commentable"); }
+```
+
+#### `registerMorphType(type, model)`
+
+`registerMorphType(type: string, related: ModelClass<Model>): void`
+
+Register a model under a morph-type string (usually its class name) so `morphTo`
+can resolve it. Call once at boot for each owner type.
+
+### `ModelQuery`
+
+The model-aware builder returned by `Model.query()`, `Model.newQuery()`, and the
+`with`/`whereHas`/`withCount` shortcuts. It proxies the query-builder constraint
+methods (`where`, `orderBy`, `limit`, …) and hydrates results to models, adding:
+
+- `with(...names)` — eager-load relations; dotted paths nest (`"posts.comments"`).
+- `withCount(...names)` — add `<relation>_count` to each result.
+- `has(name)` / `whereHas(name, constrain?)` / `doesntHave(name, constrain?)` —
+  filter by relationship existence.
+- Terminals `get()`, `first()`, `count()`, `exists()`, `paginate(page?, perPage?)`.
+
+Existence filters and counts use the same driver-agnostic two-query strategy as
+the relations (no JOIN). `toBase()` returns the underlying `QueryBuilder`.
 
 ### Relations
 

@@ -609,6 +609,53 @@ await db("sessions").where("expires_at", "<", now).delete();
 **Notes:** with no `where`, empties the table. There's no soft-delete here — pair
 with a `deleted_at` column and `whereNull` if you want one.
 
+#### `whereColumn(first, operator?, second)` · `whereRaw(sql, bindings?)`
+
+Compare two columns (no binding) or add a raw WHERE fragment with its own
+bindings. `whereColumn("updated_at", ">", "created_at")`; `whereRaw("score >= ?", [10])`.
+
+#### `join(table, first, operator?, second)` · `leftJoin(...)`
+
+Add an `INNER JOIN` / `LEFT JOIN` on an equality (or the given operator).
+Included in `get`, `count`, and aggregates. Qualify ambiguous columns
+(`"posts.user_id"`).
+
+#### `groupBy(...columns)` · `having(column, operator?, value)` · `distinct()`
+
+`GROUP BY`, a bound `HAVING` predicate, and `SELECT DISTINCT`.
+
+#### `orderByRaw(sql)` · `when(condition, then, otherwise?)`
+
+A raw `ORDER BY` fragment; and conditional building — `then(query, value)` runs
+only when `condition` is truthy, else `otherwise`.
+
+#### `increment(column, amount?, extra?)` · `decrement(column, amount?, extra?)`
+
+`increment(column: string, amount = 1, extra: Row = {}): Promise<WriteResult>`
+
+Atomically `column = column ± amount` on matching rows, optionally setting other
+columns in the same statement. Scope with `where`.
+
+#### `upsert(rows, uniqueBy, update?)`
+
+`upsert(rows: Row | Row[], uniqueBy: string[], update?: string[]): Promise<WriteResult>`
+
+Insert rows, updating `update` columns (default: all non-unique) on a conflict
+against `uniqueBy`. Dialect-aware: `ON CONFLICT … DO UPDATE` (sqlite/postgres) or
+`ON DUPLICATE KEY UPDATE` (mysql).
+
+#### `insertOrIgnore(rows)`
+
+Insert one or more rows, skipping any that violate a unique constraint
+(`INSERT OR IGNORE` / `INSERT IGNORE` / `ON CONFLICT DO NOTHING`).
+
+#### `chunk(size, callback)`
+
+`chunk(size: number, callback: (rows: T[]) => void | boolean | Promise<void | boolean>): Promise<void>`
+
+Process results a page at a time so a large table never loads at once. Return
+`false` from the callback to stop early. Pair with `orderBy` for a stable order.
+
 ### Interfaces & types
 
 #### `Connection`
