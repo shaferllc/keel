@@ -1,0 +1,33 @@
+import { env } from "@shaferllc/keel/core";
+
+/**
+ * Billing configuration — a Cashier-style port covering Stripe and Paddle.
+ * Published with `keel vendor:publish --tag billing-config`.
+ */
+export default {
+  // Which gateway is active: "stripe" | "paddle".
+  default: env("BILLING_GATEWAY", "stripe"),
+
+  // Default currency for one-off charges (ISO 4217, lowercase).
+  currency: env("BILLING_CURRENCY", "usd"),
+
+  // The model class stored in subscriptions.billable_type.
+  billableModel: "User",
+
+  // Webhook routes mount at `${path}/${gateway}` — e.g. /billing/webhook/stripe.
+  webhook: { path: "billing/webhook" },
+
+  gateways: {
+    stripe: {
+      key: env("STRIPE_SECRET_KEY", ""),
+      webhookSecret: env("STRIPE_WEBHOOK_SECRET", ""),
+      publishableKey: env("STRIPE_PUBLISHABLE_KEY", ""),
+    },
+    paddle: {
+      key: env("PADDLE_API_KEY", ""),
+      webhookSecret: env("PADDLE_WEBHOOK_SECRET", ""),
+      clientToken: env("PADDLE_CLIENT_TOKEN", ""),
+      sandbox: env("PADDLE_SANDBOX", false),
+    },
+  },
+};

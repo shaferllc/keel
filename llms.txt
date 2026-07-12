@@ -14,6 +14,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Architecture](https://github.com/shaferllc/keel/blob/main/docs/architecture.md): Keel is small on purpose. This page maps the pieces and traces a request from socket to response. Nothing here is magic — every layer is a short, readable file in src/core/, and this guide is mostly a reading order for it.
 - [Authentication](https://github.com/shaferllc/keel/blob/main/docs/authentication.md): Session-based auth built on the pieces you already have: sessions hold the login, hashing checks passwords.
 - [Authorization](https://github.com/shaferllc/keel/blob/main/docs/authorization.md): Where authentication answers who you are, authorization answers what you're allowed to do.
+- [Billing](https://github.com/shaferllc/keel/blob/main/docs/billing.md): Keel Billing is a subscription-billing layer — a port of Laravel Cashier — for charging customers, managing subscriptions, and reconciling gateway state through webhooks.
 - [Broadcasting](https://github.com/shaferllc/keel/blob/main/docs/broadcasting.md): Push events to clients in real time over named channels.
 - [Service Broker](https://github.com/shaferllc/keel/blob/main/docs/broker.md): Structure an application as services that talk to each other by name instead of by import.
 - [Cache](https://github.com/shaferllc/keel/blob/main/docs/cache.md): A small cache with TTLs and the remember pattern.
