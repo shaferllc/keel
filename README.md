@@ -221,13 +221,14 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
 | [Storage](./docs/storage.md) | Pluggable disks (local/S3/R2), signed URLs, direct uploads |
 | [Health Checks](./docs/health.md) | `/health/live` + `/health/ready`, pluggable checks |
+| [Telemetry](./docs/telemetry.md) | Tracing, W3C context, OTLP export — no SDK |
 | [Internationalization](./docs/i18n.md) | ICU messages, `Intl` formatters, locale detection |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Templates](./docs/templates.md) | `{{ }}` + `@`-tag templating engine, edge-safe |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Rate Limiting](./docs/rate-limiting.md) | rateLimiter() middleware, per-key buckets |
 | [Errors](./docs/errors.md) | HTTP exceptions, debug page, custom handlers |
-| [Testing](./docs/testing.md) | Inject requests, fluent response assertions |
+| [Testing](./docs/testing.md) | Inject requests, fakes, spies, time travel, db assertions |
 | [Debugging](./docs/debugging.md) | dump() and dd() (dump-and-die) |
 | [Validation](./docs/validation.md) | `validate()` with Zod, auto-422 field errors |
 | [Inertia](./docs/inertia.md) | Server-side Inertia.js adapter |

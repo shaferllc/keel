@@ -4,6 +4,66 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.0] — 2026-07-11
+
+### Added
+
+- **Telemetry — distributed tracing with no SDK.** Spans, W3C trace context, and an
+  OTLP exporter, in a module you can read. The OpenTelemetry Node SDK is a large
+  tree of packages that assumes a Node process; what a trace *is*, though, is
+  small — an id, a parent, a start and an end, some attributes, and a documented
+  JSON shape to POST them in. This speaks **OTLP/HTTP over `fetch`**, so it runs on
+  Workers as happily as on Node, and any collector takes it (Jaeger, Tempo,
+  Honeycomb, Grafana, Datadog). New [telemetry guide](https://keeljs.com/docs/telemetry).
+  - `trace(name, fn)` opens a span, ends it when `fn` settles, and records a throw
+    before rethrowing. Spans **nest automatically** across `await` boundaries — and
+    across *concurrent* traces, because the current span lives in
+    `AsyncLocalStorage`, not a global, so two in-flight requests can't get tangled.
+  - `tracing()` middleware: a server span per request, joined to the caller's trace
+    via their `traceparent`, with the trace id written back on the response so a
+    user reporting a slow page can be looked up. A 5xx fails the span; a 404
+    doesn't — that's a valid answer, not a fault.
+  - `injectTraceContext()` for outgoing calls, plus `parseTraceparent()` /
+    `traceparent()`. A malformed header starts a fresh trace rather than failing
+    the request.
+  - `traceIds()` to hang `trace_id` / `span_id` on a log line — the jump from a log
+    to the trace it came from.
+  - `sampleRatio`, decided **once at the root and inherited by every child**,
+    because half a trace is worse than none.
+  - `otlpExporter()`, `consoleExporter()`, and `MemoryExporter` for tests. Spans
+    batch; `flushTelemetry()` drains them before an isolate goes away.
+
+- **A real testing toolkit.** The test client injects requests without a server;
+  this fills in everything around it. See the
+  [testing guide](https://keeljs.com/docs/testing).
+  - **Request building:** `withToken()`, `withBasicAuth()`, `withHeader(s)`,
+    `withCookie(s)`, `acceptJson()` — each returning a **copy**, so a configured
+    client can't leak into another test — plus `form()` and `multipart()`.
+  - **Response assertions:** `assertJsonContains()` (a subset match — pins the
+    fields a test is about, so adding an unrelated field doesn't break twenty
+    tests), `assertSee()` / `assertDontSee()`, `assertValidationErrors(...fields)`,
+    `assertCookie()` / `assertCookieMissing()`, `assertHeaderMissing()`, status
+    shorthands (`assertCreated`, `assertNotFound`, `assertUnprocessable`, …), and
+    `dump()`.
+  - **Database assertions:** `assertDatabaseHas()` / `assertDatabaseMissing()` /
+    `assertDatabaseCount()` / `assertDatabaseEmpty()`, and `truncate()` — which
+    deletes rows rather than rolling back a transaction, so it works on every
+    driver rather than only the ones with savepoints.
+  - **Time control:** `freezeTime()` / `timeTravel()` / `restoreTime()`, so
+    "expires in an hour" doesn't take an hour to test. Mocks `Date` and `Date.now()`
+    — not timers, and not `new Date("2020-01-01")`; only "what time is it *now*".
+  - **Spies:** `spy()` and `spyOn()`, which **call through by default** — observing
+    rather than stubbing — until you tell them otherwise. `restoreSpies()` undoes
+    them.
+  - **State reset:** `resetState()` restores every fake, unfreezes the clock, drops
+    event listeners, empties the cache, and hands back a fresh lock store.
+  - **Console tests:** `runCommand(fn)` captures stdout, stderr, and the exit code,
+    with `assertSucceeded()` / `assertFailed()` / `assertOutputContains()` and
+    friends. You pass the command *in*, because the console entry point belongs to
+    your app, not the core.
+  - **Browser tests** are documented rather than wrapped: Playwright already does
+    this well, and a thinner API in front of it would only get in the way.
+
 ## [0.69.1] — 2026-07-11
 
 ### Fixed

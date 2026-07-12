@@ -16072,6 +16072,276 @@ Optional capabilities: `metadata` / `copy` / `move` / `signedUrl` /
 
 ---
 
+<!-- source: docs/telemetry.md -->
+
+# Telemetry
+
+Distributed tracing — spans, W3C trace context, and an OTLP exporter — with **no
+SDK**.
+
+```ts
+import { setTelemetry, Tracer, otlpExporter, tracing, trace } from "@shaferllc/keel/core";
+
+setTelemetry(
+  new Tracer({
+    serviceName: "api",
+    exporter: otlpExporter({ url: "http://localhost:4318/v1/traces" }),
+    sampleRatio: 0.1, // 10% of traces in production
+  }),
+);
+
+// in your HTTP kernel
+this.use(tracing()); // a server span per request
+```
+
+```ts
+// your own spans, anywhere
+await trace("charge", async (span) => {
+  span.setAttributes({ "order.id": order.id });
+  await stripe.charge(order);
+});
+```
+
+## Why there's no SDK here
+
+The OpenTelemetry Node SDK is a large tree of packages that assumes a Node
+process. What a trace actually **is**, though, is small: an id, a parent, a start
+and an end, some attributes — and a documented JSON shape to POST them in.
+
+That's what this is. It speaks **OTLP/HTTP over `fetch`**, so it runs on Workers as
+happily as on Node, and any OTLP collector accepts it — Jaeger, Tempo, Honeycomb,
+Grafana, Datadog. You don't get the SDK's auto-instrumentation of every library
+under the sun; you get the part that matters, in about 400 lines you can read.
+
+## Spans
+
+`trace(name, fn)` opens a span, runs your function inside it, and closes it — even
+if the function throws, in which case the error is recorded on the span and
+rethrown.
+
+```ts
+const receipt = await trace("charge", async (span) => {
+  span.setAttributes({ "order.id": id, currency: "USD" });
+  span.addEvent("calling stripe");
+
+  return stripe.charge(id); // a throw here marks the span failed, then propagates
+});
+```
+
+**Spans nest automatically.** A `trace()` inside another `trace()` becomes its
+child, sharing the trace id — you don't thread anything through:
+
+```ts
+await trace("checkout", async () => {
+  await trace("reserve-stock", async () => { … }); // child
+  await trace("charge", async () => { … }); // sibling of the above
+});
+```
+
+That works across `await` boundaries, and across **concurrent** traces, because
+the current span is tracked in `AsyncLocalStorage` rather than a global. Two
+requests in flight at once don't get tangled.
+
+From anywhere inside a span:
+
+```ts
+setAttributes({ tenant: "acme" }); // add to the current span
+addEvent("cache miss", { key }); // a timestamped annotation
+currentSpan(); // the Span itself, or undefined
+```
+
+All of these are **no-ops outside a span**, so instrumented code stays safe to call
+from a script or a test.
+
+## HTTP requests
+
+`tracing()` opens a **server span** per request, records the method, path, and
+status, and closes it when the response is sent.
+
+```ts
+this.use(tracing());
+```
+
+A 5xx marks the span failed; a 404 doesn't — that's a valid answer, not a fault.
+
+It also writes a `traceparent` header onto the **response**, so when a user says
+"this page was slow", you can look up their exact trace.
+
+`/health/*`, `/metrics`, and `/favicon.ico` are ignored by default — they're noise.
+Change that with `ignore`, and name spans yourself with `name`:
+
+```ts
+this.use(
+  tracing({
+    ignore: (path) => path.startsWith("/internal"),
+    name: (method, path) => `${method} ${path.replace(/\/\d+/, "/:id")}`,
+  }),
+);
+```
+
+## Following a trace between services
+
+This is the point of tracing: one id spanning every service a request touches.
+
+**Incoming.** `tracing()` reads the caller's `traceparent` header and makes your
+span a **child of theirs**, so both land in the same trace. A missing or malformed
+header just starts a fresh trace — never an error.
+
+**Outgoing.** `injectTraceContext()` puts the current context on your request
+headers, so the service you call joins this trace instead of starting its own:
+
+```ts
+await fetch(url, {
+  headers: injectTraceContext({ accept: "application/json" }),
+});
+```
+
+`parseTraceparent()` and `traceparent()` are the two halves on their own, if you
+need to carry the context somewhere odd — a queue payload, say.
+
+## Connecting logs to traces
+
+`traceIds()` returns the current `trace_id` and `span_id`. Bind them to your logger
+and every line becomes a jumping-off point into the trace it came from:
+
+```ts
+const log = logger().child(traceIds());
+log.info("charging card", { orderId }); // carries trace_id + span_id
+```
+
+## Sampling
+
+Recording every trace in production is expensive. `sampleRatio` records a fraction:
+
+```ts
+new Tracer({ sampleRatio: 0.1 }); // 10%
+```
+
+The decision is made **once, at the root span, and inherited by every child** —
+because half a trace is worse than no trace. An unsampled span still runs (your
+code is unaffected); it just isn't exported.
+
+## Exporters
+
+| Exporter | Use |
+|----------|-----|
+| `otlpExporter({ url, headers, resource })` | Any OTLP/HTTP collector. Production. |
+| `consoleExporter()` | Prints each span. Local development, no collector needed. |
+| `MemoryExporter` | Collects spans in memory. Tests. |
+
+```ts
+otlpExporter({
+  url: "https://api.honeycomb.io/v1/traces",
+  headers: { "x-honeycomb-team": env("HONEYCOMB_KEY") },
+  resource: { "service.name": "api", "deployment.environment": "prod" },
+});
+```
+
+Spans are **buffered** and sent in batches (100 by default, via `batchSize`).
+
+**Flush before the process — or the isolate — goes away**, or the last few spans
+die with it:
+
+```ts
+onShutdown(() => flushTelemetry());
+```
+
+On Workers, call it at the end of a request (ideally inside `waitUntil`).
+
+## Testing
+
+`MemoryExporter` collects spans so you can assert on them:
+
+```ts
+import { Tracer, MemoryExporter, setTelemetry, trace } from "@shaferllc/keel/core";
+
+const exporter = new MemoryExporter();
+setTelemetry(new Tracer({ exporter, batchSize: 1 })); // batchSize 1 = export immediately
+
+await trace("charge", async (span) => span.setAttributes({ "order.id": 1 }));
+
+const span = exporter.named("charge")[0];
+assert.equal(span.status, "unset");
+assert.equal(span.attributes["order.id"], 1);
+```
+
+`exporter.trace(traceId)` returns every span in one trace; `exporter.clear()`
+empties it between tests.
+
+---
+
+## API reference
+
+### `trace(name, fn, options?)`
+
+`trace<T>(name: string, fn: (span: Span) => Promise<T> | T, options?: SpanOptions): Promise<T>`
+
+Run `fn` inside a span. The span is current for the duration, ends when `fn`
+settles, and records a throw before rethrowing it.
+
+### `currentSpan()` / `setAttributes(attrs)` / `addEvent(name, attrs?)`
+
+Reach the span in scope. All no-ops outside one.
+
+### `traceIds()`
+
+`traceIds(): { trace_id?: string; span_id?: string }` — the ids to hang on a log
+line.
+
+### `tracing(options?)`
+
+`tracing(options?: TracingOptions): MiddlewareHandler`
+
+A server span per request. Options: `ignore(path)` (default: `/health`, `/metrics`,
+`/favicon.ico`), `name(method, path)`.
+
+### `Tracer`
+
+`new Tracer(options: TracerOptions)`
+
+| Option | Meaning |
+|--------|---------|
+| `serviceName` | Added to every span as `service.name` |
+| `exporter` | Where finished spans go. Omit and nothing is exported |
+| `sampleRatio` | 0–1, decided once at the root. Default 1 |
+| `enabled` | `false` turns tracing off |
+| `resource` | Attributes describing the service, sent with each batch |
+| `batchSize` | Export once this many spans are buffered. Default 100 |
+
+Methods: `startSpan(name, options?)`, `trace(name, fn, options?)`, `flush()`.
+
+### `Span`
+
+`setAttribute(k, v)` / `setAttributes(attrs)` / `addEvent(name, attrs?)` /
+`setStatus(status, message?)` / `recordException(error)` / `end()`, plus a
+`context` (`{ traceId, spanId, sampled }`).
+
+### `setTelemetry(tracer)` / `telemetry()` / `flushTelemetry()`
+
+Register the active tracer, read it, and drain its buffer.
+
+### Trace context
+
+`parseTraceparent(header)` → `SpanContext | null` (null on anything malformed).
+`traceparent(context)` → the header string.
+`injectTraceContext(headers?)` → headers with the current context added.
+
+### Exporters
+
+`otlpExporter({ url, headers?, resource? })`, `consoleExporter()`, and
+`MemoryExporter` (`.spans`, `.named(name)`, `.trace(traceId)`, `.clear()`).
+
+### Interfaces & types
+
+`SpanData`, `SpanContext`, `SpanEvent`, `SpanKind`
+(`internal | server | client | producer | consumer`), `SpanStatus`
+(`unset | ok | error`), `SpanAttributes`, `SpanExporter`, `TracerOptions`,
+`TracingOptions`, `OtlpOptions`.
+
+
+
+---
+
 <!-- source: docs/templates.md -->
 
 # Templates
@@ -16486,6 +16756,257 @@ kernel.use(sessionMiddleware());
 kernel.use(requestLogger());
 const client = testClient(kernel);
 ```
+
+## Authenticated requests
+
+The client's `withX` methods return a **copy**, so a client configured once can be
+reused without leaking into other tests:
+
+```ts
+const authed = client.withToken("tok_123"); // Authorization: Bearer tok_123
+
+await authed.get("/me");
+await client.get("/me"); // still anonymous
+```
+
+| Method | Sends |
+|--------|-------|
+| `withToken(token)` | `Authorization: Bearer <token>` |
+| `withBasicAuth(user, pass)` | `Authorization: Basic <base64>` |
+| `withHeader(name, value)` / `withHeaders({…})` | any header |
+| `withCookie(name, value)` / `withCookies({…})` | a `Cookie` header |
+| `acceptJson()` | `Accept: application/json` |
+
+## Forms and uploads
+
+```ts
+await client.form("/login", { email: "a@b.com", password: "s3cret" }); // url-encoded
+await client.multipart("/avatar", { file: new Blob([png]), name: "ada" }); // file upload
+```
+
+## More response assertions
+
+```ts
+res.assertOk(); // 2xx
+res.assertCreated(); // 201
+res.assertNoContent(); // 204
+res.assertUnauthorized(); // 401
+res.assertForbidden(); // 403
+res.assertNotFound(); // 404
+res.assertUnprocessable(); // 422
+res.assertServerError(); // 5xx
+```
+
+**`assertJsonContains` is a subset match** — the one you usually want. It pins the
+fields the test is about and ignores the rest, so adding a field to a response
+doesn't break twenty tests:
+
+```ts
+res.assertJsonContains({ user: { email: "a@b.com" } });
+```
+
+`assertJson` still deep-equals the whole body, when that's what you mean.
+
+```ts
+res.assertSee("Welcome back"); // body contains
+res.assertDontSee("Sign up");
+
+res.assertHeader("content-type", "application/json");
+res.assertHeaderMissing("x-debug");
+
+res.assertCookie("session"); // was set
+res.assertCookie("session", "abc123"); // ...with this value
+res.assertCookieMissing("admin");
+
+res.dump(); // print status, headers, body — when you're stuck
+```
+
+### Validation
+
+A failed `validate()` returns a 422 with per-field errors, so a test can assert on
+the field rather than the message:
+
+```ts
+const res = await client.post("/users", { email: "nope" });
+
+res.assertValidationErrors("email", "password");
+res.assertNoValidationError("name");
+```
+
+## Test doubles
+
+Keel's fakes swap out a real backend for a recording one, so a test can assert
+that something *would* have happened without it actually happening — no email
+sent, no card charged, no file uploaded.
+
+| Fake | Replaces | Assertions |
+|------|----------|------------|
+| [`fakeMail()`](./mail.md#in-tests) | the mailer | `assertSent`, `assertQueued`, … |
+| [`fakeQueue()`](./queues.md#in-tests) | the queue | `assertPushed`, `assertNothingPushed`, … |
+| [`fakeDisk()`](./storage.md#testing) | a storage disk | `assertExists`, `assertContents`, … |
+| [`events().fake()`](./events.md#testing) | the emitter | `assertEmitted`, `assertNotEmitted`, … |
+| [`hash.fake()`](./hashing.md) | PBKDF2 | — (just makes it fast) |
+
+```ts
+const mailer = fakeMail();
+const queue = fakeQueue();
+
+await registerUser({ email: "ada@example.com" });
+
+mailer.assertQueued((m) => m.subject === "Welcome");
+queue.assertPushed(SendWelcome);
+```
+
+For anything else, `swap()` replaces a container binding:
+
+```ts
+swap(PaymentGateway, () => new FakeGateway());
+```
+
+### Spies
+
+The smallest double: a function that records how it was called.
+
+```ts
+import { spy, spyOn, restoreSpies } from "@shaferllc/keel/core";
+
+const send = spy<[string], void>();
+notify(send);
+
+assert.equal(send.callCount, 1);
+assert.ok(send.calledWith("hello"));
+```
+
+`spyOn` replaces a method on an object. It **calls through** by default — so you're
+observing, not stubbing — until you tell it otherwise:
+
+```ts
+const charge = spyOn(gateway, "charge"); // still really charges
+charge.returns(receipt); // now it doesn't
+
+restoreSpies(); // put every spied method back
+```
+
+## Controlling time
+
+Testing "this token expires in an hour" shouldn't take an hour.
+
+```ts
+import { freezeTime, timeTravel, restoreTime } from "@shaferllc/keel/core";
+
+freezeTime("2026-07-11T12:00:00Z");
+
+const token = await jwt.sign({ sub: "1" }, { expiresIn: "1h" });
+assert.ok(await jwt.verify(token)); // valid now
+
+timeTravel(61 * 60 * 1000); // an hour and a minute later
+assert.equal(await jwt.verify(token), null); // expired
+
+restoreTime();
+```
+
+`freezeTime()` mocks `Date` and `Date.now()`. It does **not** mock timers — a
+`setTimeout` still fires on the real clock — and `new Date("2020-01-01")` still
+parses normally. Only "what time is it *now*" is frozen.
+
+## Resetting state between tests
+
+Keel's fakes, disks, queues, and cache are process-global, so one test can leak
+into the next. `resetState()` puts it all back:
+
+```ts
+import { resetState } from "@shaferllc/keel/core";
+
+afterEach(() => resetState());
+```
+
+It restores every fake (mail, queue, disk, hash), unfreezes the clock, drops event
+listeners, empties the cache, and gives you a fresh lock store. It does **not**
+touch the database.
+
+For that, `truncate()`:
+
+```ts
+afterEach(() => truncate("comments", "posts", "users")); // children before parents
+```
+
+It deletes rows rather than rolling back a transaction, so it works on every driver
+(D1, Postgres, libSQL) instead of only the ones with savepoints.
+
+## Database assertions
+
+Assert against the database directly, rather than through an endpoint:
+
+```ts
+import { assertDatabaseHas, assertDatabaseMissing, assertDatabaseCount } from "@shaferllc/keel/core";
+
+await client.post("/users", { email: "ada@example.com" });
+
+await assertDatabaseHas("users", { email: "ada@example.com" });
+await assertDatabaseHas("users", { active: 1 }, 1); // exactly one match
+await assertDatabaseMissing("users", { email: "deleted@example.com" });
+await assertDatabaseCount("users", 1);
+await assertDatabaseEmpty("sessions");
+```
+
+A failure tells you what it looked for and how many rows the table actually holds.
+
+## Console tests
+
+Run a command in-process — no subprocess, so it's fast and you can assert on it:
+
+```ts
+import { runCommand } from "@shaferllc/keel/core";
+import { run } from "../bin/keel"; // your app's console entry point
+
+const result = await runCommand(() => run(["node", "keel", "routes"]));
+
+result
+  .assertSucceeded() // exit code 0
+  .assertOutputContains("GET  /users")
+  .assertOutputMatches(/POST\s+\/users/);
+```
+
+You pass the command **in**, because the console entry point belongs to your app —
+it's the thing that knows how to build your application — not to the core. Anything
+that prints and sets an exit code works, so it's equally good for testing a
+function you wrote yourself.
+
+`console.log`/`warn` are captured as stdout and `console.error` as stderr; a
+command that *throws* is recorded as a failure rather than blowing up the test.
+
+`assertFailed()`, `assertExitCode(n)`, and `assertErrorContains(text)` cover the
+rest. `result.stdout`, `result.stderr`, and `result.exitCode` are there if you'd
+rather assert by hand.
+
+## Browser tests
+
+Keel doesn't ship a browser driver — that's [Playwright](https://playwright.dev)'s
+job, and wrapping it would only put a thinner API in front of a better one.
+
+The test client injects requests *without a server*, which is what makes it fast;
+a browser needs a real one. Start the app on a port, point Playwright at it, and
+tear it down:
+
+```ts
+import { serve } from "@hono/node-server";
+import { chromium } from "playwright";
+
+const server = serve({ fetch: new HttpKernel(app).build().fetch, port: 3001 });
+const browser = await chromium.launch();
+
+const page = await browser.newPage();
+await page.goto("http://localhost:3001/login");
+await page.fill("[name=email]", "ada@example.com");
+await page.click("button[type=submit]");
+await page.waitForURL("**/dashboard");
+
+await browser.close();
+server.close();
+```
+
+Everything else on this page — the fakes, `freezeTime`, `resetState`, the database
+assertions — works the same in a browser test, because it's the same process.
 
 ## API reference
 

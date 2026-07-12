@@ -271,7 +271,60 @@ export type {
 export { Inertia, inertia, inertiaPageAttr } from "./inertia.js";
 export type { InertiaPage, InertiaOptions } from "./inertia.js";
 export { HttpKernel } from "./http/kernel.js";
-export { TestClient, TestResponse, testClient } from "./testing.js";
+export {
+  TestClient,
+  TestResponse,
+  CommandResult,
+  testClient,
+  runCommand,
+  resetState,
+  freezeTime,
+  timeTravel,
+  restoreTime,
+  timeIsFrozen,
+  spy,
+  spyOn,
+  restoreSpies,
+  truncate,
+  assertDatabaseHas,
+  assertDatabaseMissing,
+  assertDatabaseCount,
+  assertDatabaseEmpty,
+} from "./testing.js";
+export type { Spy } from "./testing.js";
+export {
+  Tracer,
+  Span,
+  MemoryExporter,
+  otlpExporter,
+  consoleExporter,
+  telemetry,
+  setTelemetry,
+  trace,
+  currentSpan,
+  setAttributes,
+  addEvent,
+  traceIds,
+  flushTelemetry,
+  tracing,
+  parseTraceparent,
+  traceparent,
+  injectTraceContext,
+} from "./telemetry.js";
+export type {
+  SpanContext,
+  SpanData,
+  SpanEvent,
+  SpanKind,
+  SpanStatus,
+  SpanOptions,
+  SpanExporter,
+  SpanAttributes,
+  SpanAttributeValue,
+  TracerOptions,
+  TracingOptions,
+  OtlpOptions,
+} from "./telemetry.js";
 export {
   HttpException,
   BadRequestException,

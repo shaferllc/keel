@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.69.1",
+  "version": "0.70.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -321,6 +321,13 @@
       "example": "docs/examples/storage.ts"
     },
     {
+      "slug": "telemetry",
+      "title": "Telemetry",
+      "summary": "Distributed tracing — spans, W3C trace context, and an OTLP exporter — with no SDK.",
+      "path": "docs/telemetry.md",
+      "example": "docs/examples/telemetry.ts"
+    },
+    {
       "slug": "templates",
       "title": "Templates",
       "summary": "A string templating engine — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.",
@@ -407,6 +414,11 @@
       "module": "database"
     },
     {
+      "name": "addEvent",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
       "name": "AfterCallback",
       "kind": "type",
       "module": "authorization"
@@ -445,6 +457,26 @@
       "name": "ArrayTransport",
       "kind": "value",
       "module": "mail"
+    },
+    {
+      "name": "assertDatabaseCount",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "assertDatabaseEmpty",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "assertDatabaseHas",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "assertDatabaseMissing",
+      "kind": "value",
+      "module": "testing"
     },
     {
       "name": "Attachment",
@@ -702,6 +734,11 @@
       "module": "migrations"
     },
     {
+      "name": "CommandResult",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
       "name": "config",
       "kind": "value",
       "module": "helpers"
@@ -745,6 +782,11 @@
       "name": "connectionNames",
       "kind": "value",
       "module": "database"
+    },
+    {
+      "name": "consoleExporter",
+      "kind": "value",
+      "module": "telemetry"
     },
     {
       "name": "consoleSink",
@@ -835,6 +877,11 @@
       "name": "Ctx",
       "kind": "type",
       "module": "http/router"
+    },
+    {
+      "name": "currentSpan",
+      "kind": "value",
+      "module": "telemetry"
     },
     {
       "name": "DatabaseChannel",
@@ -1092,6 +1139,11 @@
       "module": "queue"
     },
     {
+      "name": "flushTelemetry",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
       "name": "ForbiddenException",
       "kind": "value",
       "module": "exceptions"
@@ -1100,6 +1152,11 @@
       "name": "formatMessage",
       "kind": "value",
       "module": "i18n"
+    },
+    {
+      "name": "freezeTime",
+      "kind": "value",
+      "module": "testing"
     },
     {
       "name": "gateAfter",
@@ -1275,6 +1332,11 @@
       "name": "inertiaPageAttr",
       "kind": "value",
       "module": "inertia"
+    },
+    {
+      "name": "injectTraceContext",
+      "kind": "value",
+      "module": "telemetry"
     },
     {
       "name": "instance",
@@ -1497,6 +1559,11 @@
       "module": "queue"
     },
     {
+      "name": "MemoryExporter",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
       "name": "MemoryLockStore",
       "kind": "value",
       "module": "lock"
@@ -1687,6 +1754,16 @@
       "module": "database"
     },
     {
+      "name": "otlpExporter",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "OtlpOptions",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
       "name": "Paginated",
       "kind": "type",
       "module": "database"
@@ -1695,6 +1772,11 @@
       "name": "param",
       "kind": "value",
       "module": "request"
+    },
+    {
+      "name": "parseTraceparent",
+      "kind": "value",
+      "module": "telemetry"
     },
     {
       "name": "PayloadOf",
@@ -1882,6 +1964,11 @@
       "module": "exceptions"
     },
     {
+      "name": "resetState",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
       "name": "response",
       "kind": "value",
       "module": "request"
@@ -1910,6 +1997,16 @@
       "name": "restoreQueue",
       "kind": "value",
       "module": "queue"
+    },
+    {
+      "name": "restoreSpies",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "restoreTime",
+      "kind": "value",
+      "module": "testing"
     },
     {
       "name": "Result",
@@ -1965,6 +2062,11 @@
       "name": "Row",
       "kind": "type",
       "module": "database"
+    },
+    {
+      "name": "runCommand",
+      "kind": "value",
+      "module": "testing"
     },
     {
       "name": "schedule",
@@ -2102,6 +2204,11 @@
       "module": "session"
     },
     {
+      "name": "setAttributes",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
       "name": "setBroadcaster",
       "kind": "value",
       "module": "broadcasting"
@@ -2177,6 +2284,11 @@
       "module": "scheduler"
     },
     {
+      "name": "setTelemetry",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
       "name": "setTemplateEngine",
       "kind": "value",
       "module": "template"
@@ -2242,6 +2354,71 @@
       "module": "social"
     },
     {
+      "name": "Span",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanAttributes",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanAttributeValue",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanContext",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanData",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanEvent",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanExporter",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanKind",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanOptions",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "SpanStatus",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "spy",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "Spy",
+      "kind": "type",
+      "module": "testing"
+    },
+    {
+      "name": "spyOn",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
       "name": "StaticOptions",
       "kind": "type",
       "module": "static"
@@ -2287,6 +2464,11 @@
       "module": "migrations"
     },
     {
+      "name": "telemetry",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
       "name": "TemplateEngine",
       "kind": "value",
       "module": "template"
@@ -2320,6 +2502,16 @@
       "name": "text",
       "kind": "value",
       "module": "request"
+    },
+    {
+      "name": "timeIsFrozen",
+      "kind": "value",
+      "module": "testing"
+    },
+    {
+      "name": "timeTravel",
+      "kind": "value",
+      "module": "testing"
     },
     {
       "name": "token",
@@ -2357,6 +2549,41 @@
       "module": "exceptions"
     },
     {
+      "name": "trace",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "traceIds",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "traceparent",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "Tracer",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "TracerOptions",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
+      "name": "tracing",
+      "kind": "value",
+      "module": "telemetry"
+    },
+    {
+      "name": "TracingOptions",
+      "kind": "type",
+      "module": "telemetry"
+    },
+    {
       "name": "Transformer",
       "kind": "value",
       "module": "transformer"
@@ -2385,6 +2612,11 @@
       "name": "Transporter",
       "kind": "type",
       "module": "broker"
+    },
+    {
+      "name": "truncate",
+      "kind": "value",
+      "module": "testing"
     },
     {
       "name": "twitter",
