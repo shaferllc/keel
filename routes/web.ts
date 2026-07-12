@@ -1,6 +1,10 @@
 import type { Router } from "@keel/core";
 import { json, text, param } from "@keel/core";
+import { apiDoc } from "@keel/openapi";
+import { z } from "zod";
 import { HomeController } from "../app/Controllers/HomeController.js";
+
+const NewUser = z.object({ email: z.string().email(), age: z.number().min(18) });
 
 /**
  * Register your routes here — closures, [Controller, method] tuples, or static
@@ -11,10 +15,25 @@ export default function routes(router: Router): void {
 
   router.get("/welcome", [HomeController, "welcome"]);
 
-  router.get("/users/:id", [HomeController, "show"]);
-  router.post("/users", [HomeController, "store"]);
+  router
+    .get("/users/:id", [HomeController, "show"])
+    .where("id", /\d+/)
+    .config(apiDoc({ summary: "Fetch a user by id", tags: ["users"] }));
 
-  router.get("/notes", [HomeController, "notes"]);
+  router
+    .post("/users", [HomeController, "store"])
+    .config(
+      apiDoc({
+        summary: "Create a user",
+        tags: ["users"],
+        request: { body: NewUser },
+        responses: { 201: { description: "The created user" } },
+      }),
+    );
+
+  router
+    .get("/notes", [HomeController, "notes"])
+    .config(apiDoc({ summary: "List recent notes", tags: ["notes"] }));
 
   router.get("/missing", [HomeController, "missing"]);
   router.get("/boom", [HomeController, "boom"]);

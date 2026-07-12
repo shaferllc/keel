@@ -301,6 +301,23 @@ export type {
 export { Inertia, inertia, inertiaPageAttr } from "./inertia.js";
 export type { InertiaPage, InertiaOptions } from "./inertia.js";
 export { HttpKernel } from "./http/kernel.js";
+export { defineCommand, arg, flag, ConsoleKernel, ConsoleError, parseArgv } from "./console.js";
+export type {
+  CommandDefinition,
+  CommandContext,
+  AnyCommand,
+  ArgSpec,
+  FlagSpec,
+  ArgsSpec,
+  FlagsSpec,
+  ConsoleKernelOptions,
+} from "./console.js";
+export { createUi, stripAnsi } from "./console-ui.js";
+export type { Ui, UiOptions, Colors, ColorName, Table, Tasks, TaskHandle } from "./console-ui.js";
+export { createPrompt } from "./console-prompt.js";
+export type { Prompt, PromptOptions, ChoiceOptions, Choice, Trap } from "./console-prompt.js";
+export { startRepl } from "./repl.js";
+export type { ReplHelper, ReplOptions } from "./repl.js";
 export { pages, definePages, routePattern, routeName } from "./pages.js";
 export type { PageProps, PageModule, PagesOptions, RegisteredPage, PageMiddleware } from "./pages.js";
 export {

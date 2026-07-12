@@ -109,6 +109,8 @@ npm run keel make:controller Post   # -> app/Controllers/PostController.ts
 npm run keel make:provider Billing  # -> app/Providers/BillingServiceProvider.ts
 npm run keel make:middleware Auth   # -> app/Http/Middleware/authMiddleware.ts
 npm run keel make:page users/[id]   # -> resources/pages/users/[id].tsx
+npm run keel make:command greet     # -> app/Commands/greet.ts
+npm run keel repl                   # a shell with the app booted
 npm run keel mcp                    # start the MCP server (docs + API for AI agents)
 ```
 
@@ -237,7 +239,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Validation](./docs/validation.md) | `validate()` with Zod, auto-422 field errors |
 | [Inertia](./docs/inertia.md) | Server-side Inertia.js adapter |
 | [Vite](./docs/vite.md) | Frontend build: HMR in dev, hashed manifest in prod |
-| [The Console](./docs/console.md) | `serve`, `routes`, `make:*` generators |
+| [The Console](./docs/console.md) | Typed commands, prompts, terminal UI, REPL, `make:*` |
 | [Architecture](./docs/architecture.md) | Container, kernel, request lifecycle |
 | [Built on Hono](./docs/hono.md) | The Hono layer underneath, and using it directly |
 | [Building with AI](./docs/ai.md) | MCP server, `AGENTS.md`, `llms.txt`, agent workflow |

@@ -17,6 +17,7 @@
     "paths": {
       "@keel/core": ["src/core/index.ts"],
       "@keel/watch": ["src/watch/index.ts"],
+      "@keel/openapi": ["src/openapi/index.ts"],
       "@keel/*": ["src/core/*"]
     },
     "noEmit": true

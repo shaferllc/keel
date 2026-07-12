@@ -22,6 +22,7 @@ import { serve } from "@hono/node-server";
 import { Command } from "commander";
 
 import { createApplication } from "../../../bootstrap/app.js";
+import { ConsoleKernel, type AnyCommand } from "../console.js";
 import type { Application } from "../application.js";
 import { HttpKernel } from "../http/kernel.js";
 import { Router } from "../http/router.js";
@@ -40,6 +41,7 @@ import {
   transformerStub,
   packageProviderStub,
   pageStub,
+  commandStub,
 } from "./stubs.js";
 
 const basePath = process.cwd();
@@ -150,6 +152,73 @@ export async function run(argv: string[]): Promise<void> {
     }
     return app;
   };
+
+  /**
+   * Commands your app defines with `defineCommand()`, discovered from
+   * `app/Commands`. They run on the console kernel — typed args and flags,
+   * prompts, and the terminal UI — rather than through the wrapper below.
+   */
+  async function appCommands(): Promise<AnyCommand[]> {
+    const dir = join(basePath, "app/Commands");
+    const found: AnyCommand[] = [];
+
+    const { readdir } = await import("node:fs/promises");
+    const { pathToFileURL } = await import("node:url");
+
+    // No app/Commands at all is fine — that's the only thing we swallow.
+    const files = await readdir(dir).catch(() => null);
+    if (!files) return found;
+
+    for (const file of files) {
+      if (!/\.(ts|js|mjs)$/.test(file)) continue;
+
+      let module: Record<string, unknown>;
+      try {
+        module = (await import(pathToFileURL(join(dir, file)).href)) as Record<string, unknown>;
+      } catch (error) {
+        // A command file that won't load is a bug you need to see, not a command
+        // that quietly doesn't exist.
+        console.error(`✗ Could not load app/Commands/${file}:`);
+        console.error(error instanceof Error ? error.message : error);
+        process.exitCode = 1;
+        continue;
+      }
+
+      // Any export that looks like a command counts, so one file can hold several.
+      for (const value of Object.values(module)) {
+        const candidate = value as Partial<AnyCommand>;
+        if (
+          candidate &&
+          typeof candidate === "object" &&
+          typeof candidate.name === "string" &&
+          typeof candidate.run === "function"
+        ) {
+          found.push(candidate as AnyCommand);
+        }
+      }
+    }
+
+    return found;
+  }
+
+  // An app command wins over the built-ins, so you can override one.
+  const commands = await appCommands();
+  const name = argv[2];
+
+  if (name && commands.some((c) => c.name === name || c.aliases?.includes(name))) {
+    const kernel = new ConsoleKernel({ binary: "keel" }).register(...commands);
+    process.exitCode = await kernel.run(argv.slice(2));
+    return;
+  }
+
+  program
+    .command("repl")
+    .description("An interactive shell with the application booted")
+    .action(async () => {
+      const app = requireApp();
+      const { startRepl } = await import("../repl.js");
+      await startRepl(app);
+    });
 
   program
     .command("serve")
@@ -276,6 +345,14 @@ export async function run(argv: string[]): Promise<void> {
       // The path IS the route, so it's used verbatim — no class-name munging.
       const file = path.replace(/^\/+/, "").replace(/\.(tsx|jsx)$/, "");
       await generate(`resources/pages/${file}.tsx`, pageStub(file), "Page");
+    });
+
+  program
+    .command("make:command <name>")
+    .description("Generate a console command (typed args + flags, prompts, UI)")
+    .action(async (name: string) => {
+      const file = name.replace(/[^a-zA-Z0-9:_-]/g, "");
+      await generate(`app/Commands/${file.replace(/:/g, "-")}.ts`, commandStub(file), "Command");
     });
 
   program

@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.71.0",
+  "version": "0.72.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -66,7 +66,7 @@
       "title": "The Console",
       "summary": "Keel ships with a console for running the server and generating code.",
       "path": "docs/console.md",
-      "example": null
+      "example": "docs/examples/console.ts"
     },
     {
       "slug": "container",
@@ -235,6 +235,13 @@
       "summary": "Send a message to a recipient over one or more channels — mail, database, or your own — inline or through the queue.",
       "path": "docs/notifications.md",
       "example": "docs/examples/notification.ts"
+    },
+    {
+      "slug": "openapi",
+      "title": "OpenAPI",
+      "summary": "Keel OpenAPI generates an OpenAPI 3 spec from your routes and serves Swagger UI to explore it.",
+      "path": "docs/openapi.md",
+      "example": null
     },
     {
       "slug": "packages",
@@ -455,6 +462,11 @@
       "module": "helpers"
     },
     {
+      "name": "AnyCommand",
+      "kind": "type",
+      "module": "console"
+    },
+    {
       "name": "AnyListener",
       "kind": "type",
       "module": "events"
@@ -468,6 +480,21 @@
       "name": "Application",
       "kind": "value",
       "module": "application"
+    },
+    {
+      "name": "arg",
+      "kind": "value",
+      "module": "console"
+    },
+    {
+      "name": "ArgSpec",
+      "kind": "type",
+      "module": "console"
+    },
+    {
+      "name": "ArgsSpec",
+      "kind": "type",
+      "module": "console"
     },
     {
       "name": "ArrayChannel",
@@ -735,6 +762,16 @@
       "module": "health"
     },
     {
+      "name": "Choice",
+      "kind": "type",
+      "module": "console-prompt"
+    },
+    {
+      "name": "ChoiceOptions",
+      "kind": "type",
+      "module": "console-prompt"
+    },
+    {
       "name": "clearAuthorization",
       "kind": "value",
       "module": "authorization"
@@ -755,9 +792,29 @@
       "module": "decorators"
     },
     {
+      "name": "ColorName",
+      "kind": "type",
+      "module": "console-ui"
+    },
+    {
+      "name": "Colors",
+      "kind": "type",
+      "module": "console-ui"
+    },
+    {
       "name": "Column",
       "kind": "value",
       "module": "migrations"
+    },
+    {
+      "name": "CommandContext",
+      "kind": "type",
+      "module": "console"
+    },
+    {
+      "name": "CommandDefinition",
+      "kind": "type",
+      "module": "console"
     },
     {
       "name": "CommandRegistry",
@@ -815,9 +872,24 @@
       "module": "database"
     },
     {
+      "name": "ConsoleError",
+      "kind": "value",
+      "module": "console"
+    },
+    {
       "name": "consoleExporter",
       "kind": "value",
       "module": "telemetry"
+    },
+    {
+      "name": "ConsoleKernel",
+      "kind": "value",
+      "module": "console"
+    },
+    {
+      "name": "ConsoleKernelOptions",
+      "kind": "type",
+      "module": "console"
     },
     {
       "name": "consoleSink",
@@ -865,6 +937,11 @@
       "module": "exceptions"
     },
     {
+      "name": "createPrompt",
+      "kind": "value",
+      "module": "console-prompt"
+    },
+    {
       "name": "createToken",
       "kind": "value",
       "module": "tokens"
@@ -873,6 +950,11 @@
       "name": "CreateTokenOptions",
       "kind": "type",
       "module": "tokens"
+    },
+    {
+      "name": "createUi",
+      "kind": "value",
+      "module": "console-ui"
     },
     {
       "name": "cronMatches",
@@ -953,6 +1035,11 @@
       "name": "define",
       "kind": "value",
       "module": "authorization"
+    },
+    {
+      "name": "defineCommand",
+      "kind": "value",
+      "module": "console"
     },
     {
       "name": "definePages",
@@ -1183,6 +1270,21 @@
       "name": "fixedBackoff",
       "kind": "value",
       "module": "queue"
+    },
+    {
+      "name": "flag",
+      "kind": "value",
+      "module": "console"
+    },
+    {
+      "name": "FlagSpec",
+      "kind": "type",
+      "module": "console"
+    },
+    {
+      "name": "FlagsSpec",
+      "kind": "type",
+      "module": "console"
     },
     {
       "name": "flushTelemetry",
@@ -1905,6 +2007,11 @@
       "module": "request"
     },
     {
+      "name": "parseArgv",
+      "kind": "value",
+      "module": "console"
+    },
+    {
       "name": "parseTraceparent",
       "kind": "value",
       "module": "telemetry"
@@ -1928,6 +2035,16 @@
       "name": "policy",
       "kind": "value",
       "module": "authorization"
+    },
+    {
+      "name": "Prompt",
+      "kind": "type",
+      "module": "console-prompt"
+    },
+    {
+      "name": "PromptOptions",
+      "kind": "type",
+      "module": "console-prompt"
     },
     {
       "name": "ProviderClass",
@@ -2073,6 +2190,16 @@
       "name": "RenderContext",
       "kind": "type",
       "module": "template"
+    },
+    {
+      "name": "ReplHelper",
+      "kind": "type",
+      "module": "repl"
+    },
+    {
+      "name": "ReplOptions",
+      "kind": "type",
+      "module": "repl"
     },
     {
       "name": "request",
@@ -2595,6 +2722,11 @@
       "module": "testing"
     },
     {
+      "name": "startRepl",
+      "kind": "value",
+      "module": "repl"
+    },
+    {
       "name": "StaticOptions",
       "kind": "type",
       "module": "static"
@@ -2613,6 +2745,11 @@
       "name": "Storage",
       "kind": "value",
       "module": "storage"
+    },
+    {
+      "name": "stripAnsi",
+      "kind": "value",
+      "module": "console-ui"
     },
     {
       "name": "Subscriber",
@@ -2635,6 +2772,11 @@
       "module": "i18n"
     },
     {
+      "name": "Table",
+      "kind": "type",
+      "module": "console-ui"
+    },
+    {
       "name": "TableBuilder",
       "kind": "value",
       "module": "migrations"
@@ -2643,6 +2785,16 @@
       "name": "tapLogs",
       "kind": "value",
       "module": "logger"
+    },
+    {
+      "name": "TaskHandle",
+      "kind": "type",
+      "module": "console-ui"
+    },
+    {
+      "name": "Tasks",
+      "kind": "type",
+      "module": "console-ui"
     },
     {
       "name": "telemetry",
@@ -2795,6 +2947,11 @@
       "module": "broker"
     },
     {
+      "name": "Trap",
+      "kind": "type",
+      "module": "console-prompt"
+    },
+    {
       "name": "truncate",
       "kind": "value",
       "module": "testing"
@@ -2803,6 +2960,16 @@
       "name": "twitter",
       "kind": "value",
       "module": "social"
+    },
+    {
+      "name": "Ui",
+      "kind": "type",
+      "module": "console-ui"
+    },
+    {
+      "name": "UiOptions",
+      "kind": "type",
+      "module": "console-ui"
     },
     {
       "name": "UnauthorizedException",

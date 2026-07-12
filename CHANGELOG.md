@@ -4,6 +4,52 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.72.0] — 2026-07-11
+
+### Added
+
+- **A real console.** Commands with **typed arguments and flags**, prompts, a
+  terminal UI, and a REPL. `keel make:command greet` scaffolds one; anything in
+  `app/Commands` is discovered automatically. See the
+  [console guide](https://keeljs.com/docs/console).
+  - **The types are inferred from the spec, not cast.** `arg.string()` gives you a
+    `string`; `arg.string({ required: false })` gives you `string | undefined`; add
+    a default and it's a `string` again. The parsing is generated from the same
+    declaration, so the two can't drift apart.
+  - `arg.string/number/spread` and `flag.boolean/string/number/array`, each with
+    `description`, `default`, `required`, `parse`, and (for flags) a single-letter
+    `alias`. The parser handles `--flag value`, `--flag=value`, `--no-flag`,
+    `-f value`, bundled shorthands (`-lt 5`), and `--` passthrough.
+  - **An unknown flag is an error, not a shrug** — a typo'd `--forse` should tell
+    you rather than silently doing nothing. `allowUnknownFlags` opts out.
+  - Usage errors print what's wrong **and the command's help**; a thrown error exits
+    1 with its message, not a stack trace. A console is a bad place to show someone
+    a stack because they mistyped a flag.
+  - **Terminal UI**: `info` / `success` / `warning` / `error`, `action()` for
+    aligned CREATE/SKIP lines, tables, stickers, numbered instructions, colors, and
+    a task runner that **stops at the first failure** (the tasks after it almost
+    certainly depended on it, and a cascade of red tells you nothing new). No
+    dependency — ANSI codes are a dozen escape sequences, not a package.
+  - **Prompts**: `ask`, `secure`, `confirm`, `toggle`, `choice`, `multiple`,
+    `autocomplete`, with `default` / `hint` / `validate` / `result`. A failed
+    `validate` re-asks rather than dying.
+  - **Prompts are testable**, which is the whole point: `createPrompt({ trap: true })`
+    lets a test script the answers, and `createUi({ raw: true })` buffers the output
+    colorlessly so you can assert on exactly what a command said. An **untrapped
+    prompt throws instead of hanging** — otherwise a test would block forever on
+    stdin it will never receive, and the suite would just stop, with no failure to
+    read. `assertAllTrapsUsed()` catches a question you scripted but never asked.
+  - **`keel repl`** — an interactive shell with the application booted: the
+    container is up, the providers have run, and `db`, `make`, `cache`, `router`
+    and friends are in scope. `.ls` lists them. Poking at a model in a REPL is the
+    fastest debugging loop there is, and it shouldn't cost you a throwaway script.
+
+  The built-in commands (`serve`, `routes`, `make:*`, `migrate:*`) and
+  package-contributed commands still run through the original console wrapper; your
+  commands run on the new system and take precedence over a built-in of the same
+  name. Migrating the built-ins across is mechanical and changes none of the API
+  above.
+
 ## [0.71.0] — 2026-07-11
 
 ### Added

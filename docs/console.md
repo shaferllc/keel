@@ -336,21 +336,201 @@ write the stub, confirming with:
 
 Delete the existing file first if you truly mean to regenerate it.
 
-## Adding your own commands
+## Writing your own commands
 
-Commands are defined with [commander](https://github.com/tj/commander.js) in
-[`src/core/cli/index.ts`](../src/core/cli/index.ts). Register a new one on the
-`program`:
+`keel make:command greet` scaffolds `app/Commands/greet.ts`. Everything in
+`app/Commands` is discovered automatically — no registration step.
 
 ```ts
-program
-  .command("cache:clear")
-  .description("Clear the application cache")
-  .action(async () => {
-    const app = await createApplication();
-    // ...your logic, with full access to the container
-  });
+import { defineCommand, arg, flag } from "@shaferllc/keel/core";
+
+export const greet = defineCommand({
+  name: "greet",
+  description: "Greet someone",
+
+  args: { name: arg.string({ description: "who to greet" }) },
+  flags: { loud: flag.boolean({ alias: "l", description: "SHOUT IT" }) },
+
+  async run({ args, flags, ui }) {
+    const message = `Hello, ${args.name}!`;
+    ui.success(flags.loud ? message.toUpperCase() : message);
+  },
+});
 ```
 
-Because commands boot the application, they get the same container, config, and
-providers your HTTP requests do.
+```bash
+keel greet Ada --loud     # ✔ HELLO, ADA!
+keel greet --help         # generated usage, args, and options
+```
+
+**`args.name` is a `string` and `flags.loud` is a `boolean` — inferred, not cast.**
+That's the point of declaring them: the parsing is generated from the types, so the
+two can't drift apart. Make an arg optional and its type becomes
+`string | undefined`; give it a default and it's a `string` again.
+
+Commands run with the application booted, so they get the same container, config,
+and providers your HTTP requests do.
+
+### Arguments
+
+Positional, in declaration order. Required by default.
+
+| Builder | Value |
+|---------|-------|
+| `arg.string()` | `string` |
+| `arg.number()` | `number` — rejected with a clear error if it isn't one |
+| `arg.spread()` | `string[]` — swallows the rest; must be last |
+
+Options: `description`, `required: false`, `default`, `parse`.
+
+### Flags
+
+| Builder | Value |
+|---------|-------|
+| `flag.boolean()` | `boolean` — defaults to `false`, so it's never `undefined` |
+| `flag.string()` | `string \| undefined` |
+| `flag.number()` | `number \| undefined` |
+| `flag.array()` | `string[]` — repeatable, defaults to `[]` |
+
+Options: `description`, `alias` (a single letter), `required`, `default`, `parse`.
+
+The parser understands `--flag value`, `--flag=value`, `--no-flag`, `-f value`,
+bundled shorthands (`-lt 5`), and `--`, after which everything is passed through
+untouched in `rest`.
+
+An **unknown flag is an error**, not a shrug — a typo'd `--forse` should tell you,
+not silently do nothing. Set `allowUnknownFlags: true` if a command genuinely needs
+to pass flags on to something else.
+
+### Exit codes
+
+Return a number to set the exit code; return nothing for `0`. A thrown error is
+caught, reported, and exits `1` — a console is a bad place to show a user a stack
+trace because they mistyped a flag. A **usage** error (missing arg, bad flag) prints
+what's wrong *and the command's help*.
+
+## Terminal UI
+
+Every command gets a `ui`:
+
+```ts
+ui.info("Checking…");
+ui.success("Migrated 3 tables");
+ui.warning("Nothing to do");
+ui.error("Failed"); // stderr
+ui.debug("verbose detail");
+
+ui.action("create", "app/Models/User.ts"); // CREATE  app/Models/User.ts
+ui.action("skip", "app/Models/Post.ts", "skipped");
+
+ui.table(["Name", "Rows"]).row(["users", "42"]).row(["orgs", "7"]).render();
+
+ui.sticker(["http://localhost:3000"], "Server running");
+ui.instructions(["cd my-app", "npm install", "keel serve"], "Next steps");
+
+ui.colors("green", "done"); // paint a string yourself
+```
+
+### Tasks
+
+For a command that does several things in a row:
+
+```ts
+await ui
+  .tasks()
+  .add("Install dependencies", async (task) => {
+    task.update("resolving…");
+    return "42 packages";
+  })
+  .add("Run migrations", async () => "3 tables")
+  .run();
+```
+
+It **stops at the first failure**, because the tasks after it almost certainly
+depended on it and a cascade of red tells you nothing new. `run()` resolves to
+`false` if anything failed.
+
+## Prompts
+
+```ts
+const name = await prompt.ask("Project name?", { default: "my-app" });
+const secret = await prompt.secure("API key?");
+const ok = await prompt.confirm("Delete everything?");
+const driver = await prompt.choice("Database?", ["sqlite", "postgres"]);
+const features = await prompt.multiple("Features?", ["auth", "queue", "mail"]);
+```
+
+`ask` re-asks on a failed `validate` rather than dying — a typo shouldn't cost
+someone the whole command. Every prompt takes `default`, `hint`, `validate`, and
+`result`.
+
+## Testing a command
+
+A command that asks questions is normally a command you can't test. So prompts can
+be **trapped**: script the answers up front, and nothing touches the terminal.
+
+```ts
+import { ConsoleKernel, createUi, createPrompt } from "@shaferllc/keel/core";
+
+const ui = createUi({ raw: true }); // buffer the output, drop the colors
+const prompt = createPrompt({ trap: true });
+const kernel = new ConsoleKernel({ ui, prompt }).register(setup);
+
+prompt.trap("Project name?").replyWith("keel-app");
+prompt.trap("Database?").chooseOption(1);
+prompt.trap("Write the config?").accept();
+
+const code = await kernel.run(["setup"]);
+
+assert.equal(code, 0);
+assert.match(ui.logs.join("\n"), /keel-app on postgres/);
+prompt.assertAllTrapsUsed(); // every scripted question was actually asked
+```
+
+An **untrapped prompt throws** instead of hanging. That matters more than it
+sounds: without it, the test would block forever on stdin no test will ever
+provide, and your suite would simply stop — with no failure to read.
+
+A trap can also assert the prompt's own validation:
+
+```ts
+prompt
+  .trap("Email?")
+  .assertFails("", "Email is required")
+  .assertPasses("ada@example.com")
+  .replyWith("ada@example.com");
+```
+
+`ui.logs` and `ui.errors` hold every line written, colorless, so you can assert on
+exactly what the command said.
+
+## The REPL
+
+```bash
+keel repl
+```
+
+An interactive shell with the **application booted** — the container is up, the
+providers have run, and the helpers are in scope:
+
+```
+keel > await db("users").where("active", 1).get()
+keel > make(Router).all()
+keel > await cache().get("stats")
+keel > .ls        # what's in scope
+keel > .exit
+```
+
+Poking at a model in a REPL is the fastest debugging loop there is, and it
+shouldn't cost you a throwaway script to get one. History persists in
+`.keel_repl_history`.
+
+---
+
+## A note on the built-ins
+
+The commands *above* (`serve`, `routes`, `make:*`, `migrate:*`) still run through
+Keel's original console wrapper, and package-contributed commands do too. Your
+commands — anything in `app/Commands` — run on the system documented here, and take
+precedence over a built-in of the same name. Migrating the built-ins across is
+mechanical and will happen; nothing about the API here changes when it does.

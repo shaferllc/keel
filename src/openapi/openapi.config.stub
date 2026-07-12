@@ -1,0 +1,29 @@
+import { env } from "@shaferllc/keel/core";
+
+/**
+ * Keel OpenAPI — spec + Swagger UI configuration.
+ * Published with `keel vendor:publish --tag openapi-config`.
+ */
+export default {
+  enabled: env("OPENAPI_ENABLED", true),
+
+  // Docs UI at http://localhost:3000/docs, spec at /docs/openapi.json
+  path: "docs",
+
+  // Shown in the spec's `info`. Title defaults to config("app.name").
+  title: "",
+  version: "1.0.0",
+  description: undefined,
+
+  // Where the API is served (OpenAPI `servers`), e.g. ["https://api.example.com"].
+  servers: [],
+
+  // Serve the docs in production too. Off by default — a spec advertises your API.
+  public: env("OPENAPI_PUBLIC", false),
+
+  // Swagger UI assets. Pin the version, or point at a copy you host.
+  cdn: "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14",
+
+  // Route path prefixes to leave out of the spec.
+  ignorePaths: ["/watch"],
+};

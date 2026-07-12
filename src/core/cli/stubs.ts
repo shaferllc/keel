@@ -207,3 +207,35 @@ export default function Page({ params, data }: PageProps<${propsType}, ${dataTyp
 }
 `;
 }
+
+/** A console command — `app/Commands/<name>.ts`. */
+export function commandStub(name: string): string {
+  const varName = name.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^./, (c) => c.toLowerCase());
+
+  return `import { defineCommand, arg, flag } from "@shaferllc/keel/core";
+
+export const ${varName} = defineCommand({
+  name: "${name}",
+  description: "Describe what this command does",
+
+  args: {
+    // \`args.target\` is a string, inferred from this spec.
+    target: arg.string({ description: "what to act on" }),
+  },
+
+  flags: {
+    // \`flags.force\` is a boolean.
+    force: flag.boolean({ alias: "f", description: "skip the confirmation" }),
+  },
+
+  async run({ args, flags, ui, prompt }) {
+    if (!flags.force && !(await prompt.confirm(\`Really do this to \${args.target}?\`))) {
+      ui.warning("Cancelled.");
+      return 1;
+    }
+
+    ui.success(\`Done: \${args.target}\`);
+  },
+});
+`;
+}

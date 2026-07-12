@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.71.0",
+  "version": "0.72.0",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -52,6 +52,10 @@
     "./watch": {
       "types": "./dist/watch/index.d.ts",
       "import": "./dist/watch/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi/index.d.ts",
+      "import": "./dist/openapi/index.js"
     }
   },
   "bin": {

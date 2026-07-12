@@ -42,6 +42,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Migrations](https://github.com/shaferllc/keel/blob/main/docs/migrations.md): Version your database schema. A migration is a { name, up, down } object; a fluent schema builder describes tables, and the migrator runs them against your connection, tracking what's applied. The SQL is dialect-aware (sqlite / mysql / postgres) and the core imports no driver.
 - [Models](https://github.com/shaferllc/keel/blob/main/docs/models.md): Model is a tiny active-record layer over the query builder.
 - [Notifications](https://github.com/shaferllc/keel/blob/main/docs/notifications.md): Send a message to a recipient over one or more channels — mail, database, or your own — inline or through the queue.
+- [OpenAPI](https://github.com/shaferllc/keel/blob/main/docs/openapi.md): Keel OpenAPI generates an OpenAPI 3 spec from your routes and serves Swagger UI to explore it.
 - [Packages](https://github.com/shaferllc/keel/blob/main/docs/packages.md): A package is a redistributable slice of a Keel app — routes, a UI, config, migrations, console commands — that installs with a single app.register(...).
 - [Pages](https://github.com/shaferllc/keel/blob/main/docs/pages.md): Page-based routing — a file is a route.
 - [Service Providers](https://github.com/shaferllc/keel/blob/main/docs/providers.md): Service providers are the central place to configure your application.
@@ -76,6 +77,7 @@ Every topic has a runnable, type-checked example:
 - [Service Broker example](https://github.com/shaferllc/keel/blob/main/docs/examples/broker.ts)
 - [Cache example](https://github.com/shaferllc/keel/blob/main/docs/examples/cache.ts)
 - [Configuration example](https://github.com/shaferllc/keel/blob/main/docs/examples/configuration.ts)
+- [The Console example](https://github.com/shaferllc/keel/blob/main/docs/examples/console.ts)
 - [The Service Container example](https://github.com/shaferllc/keel/blob/main/docs/examples/container.ts)
 - [Controllers example](https://github.com/shaferllc/keel/blob/main/docs/examples/controllers.ts)
 - [Database example](https://github.com/shaferllc/keel/blob/main/docs/examples/database.ts)
