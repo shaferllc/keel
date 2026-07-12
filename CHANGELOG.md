@@ -4,6 +4,15 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.75.1] — 2026-07-11
+
+### Changed
+
+- **Removed the Remult references** from the API-resources guide and source
+  comments. Keel isn't that, and the docs shouldn't read as a comparison to another
+  framework. The surrounding sentences are rewritten so they still say what the
+  feature does rather than leaving a hole. No behavior change.
+
 ## [0.75.0] — 2026-07-11
 
 ### Added

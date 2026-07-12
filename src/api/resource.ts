@@ -1,7 +1,7 @@
 /**
- * `apiResource(router, Model, options)` — a full CRUD REST API from a Keel model,
- * the Remult idea done the Keel way: explicit, server-side, and composed from
- * pieces you already have. It registers real routes (so the OpenAPI package
+ * `apiResource(router, Model, options)` — a full CRUD REST API from a Keel model:
+ * explicit, server-side, and composed from pieces you already have. It registers
+ * real routes (so the OpenAPI package
  * documents them for free), runs writes through the model's mass-assignment guard
  * and your Zod schema, paginates and allow-list-filters reads, and gates every
  * action.

@@ -4495,8 +4495,8 @@ output.
 # API Resources
 
 `apiResource(router, Model, options)` generates a full CRUD REST API from a Keel
-[model](./models.md) — the [Remult](https://remult.dev) idea done the Keel way:
-explicit, server-side, and composed from pieces you already have. It's imported
+[model](./models.md) — explicit, server-side, and composed from pieces you already
+have. It's imported
 from `@shaferllc/keel/api`.
 
 ```ts
@@ -4606,8 +4606,8 @@ Global pagination defaults live in `config/api.ts` (register the optional
 
 ## What this isn't
 
-Remult also ships an isomorphic, type-safe **frontend** client that shares the
-model with the server. Keel deliberately stops at the server boundary: this
+There's no isomorphic frontend client here — no shared model object that runs on
+both sides of the wire. Keel deliberately stops at the server boundary: this
 generates a plain REST API you call however you like (fetch, your Inertia pages,
 a mobile app). That keeps the model server-only and the wire contract explicit —
 and it's exactly the contract the OpenAPI docs describe.
