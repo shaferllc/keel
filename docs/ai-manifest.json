@@ -363,6 +363,13 @@
       "example": "docs/examples/storage.ts"
     },
     {
+      "slug": "teams",
+      "title": "Teams",
+      "summary": "Multi-tenancy, membership, roles, and invitations — where a row belongs to a team, and one team can never see another's.",
+      "path": "docs/teams.md",
+      "example": "docs/examples/teams.ts"
+    },
+    {
       "slug": "telemetry",
       "title": "Telemetry",
       "summary": "Distributed tracing — spans, W3C trace context, and an OTLP exporter — with no SDK.",

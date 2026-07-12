@@ -1,0 +1,24 @@
+import { env } from "@shaferllc/keel/core";
+
+/**
+ * Teams configuration — multi-tenancy, membership, roles, invitations.
+ * Published with `keel vendor:publish --tag teams-config`.
+ */
+export default {
+  // The users table. Teams adds `current_team_id` to it and touches nothing else.
+  userTable: "users",
+
+  // Give every new user a team of their own. Worth leaving on even if the app feels
+  // single-user: a personal workspace is a team of one, and adding tenancy LATER
+  // means backfilling every table and rewriting every query.
+  personalTeams: true,
+
+  invitations: {
+    expiresInHours: 72,
+    url: "/invitations/:token",
+  },
+
+  mail: {
+    from: env("MAIL_FROM", undefined),
+  },
+};

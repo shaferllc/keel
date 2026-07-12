@@ -32,8 +32,38 @@ import { ModelQuery } from "./model-query.js";
 /** A global scope: a constraint applied to every query a model builds. */
 export type GlobalScope = (query: QueryBuilder) => void;
 
-/** Registered global scopes, keyed by the model class. */
+/** Registered global scopes, keyed by the model class they were declared on. */
 const globalScopes = new WeakMap<object, Map<string, GlobalScope>>();
+
+/**
+ * Every scope that applies to `cls`, including ones declared on its ancestors.
+ *
+ * Inheritance is the whole point: a base class exists so its subclasses are
+ * constrained by it.
+ *
+ *   class TenantModel extends Model {}
+ *   TenantModel.addGlobalScope("tenant", (q) => q.where("teamId", currentTeam()));
+ *   class Post extends TenantModel {}     // Post must be scoped too
+ *
+ * Looking only at the concrete class would leave `Post.query()` completely
+ * unconstrained — and a scope that silently does nothing fails *open*, which for
+ * a tenancy scope means returning every customer's rows.
+ *
+ * Walked root-first so a subclass can override an ancestor's scope by reusing its
+ * name — the nearest declaration of a given name wins.
+ */
+function scopesFor(cls: object): Map<string, GlobalScope> {
+  const chain: object[] = [];
+  for (let c: object | null = cls; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    chain.unshift(c);
+  }
+
+  const merged = new Map<string, GlobalScope>();
+  for (const link of chain) {
+    for (const [name, scope] of globalScopes.get(link) ?? []) merged.set(name, scope);
+  }
+  return merged;
+}
 
 /** How a model query treats soft-deleted rows. */
 type TrashedMode = "exclude" | "with" | "only";
@@ -100,9 +130,14 @@ export class Model {
   }
 
   /** Build this model's base query, applying global scopes and the soft-delete filter. */
-  protected static baseQuery(trashed: TrashedMode = "exclude"): QueryBuilder {
+  protected static baseQuery(trashed: TrashedMode = "exclude", skip?: Set<string>): QueryBuilder {
     const query = db(this.table, this.connection);
-    for (const scope of globalScopes.get(this)?.values() ?? []) scope(query);
+
+    for (const [name, scope] of scopesFor(this)) {
+      if (skip?.has(name)) continue;
+      scope(query);
+    }
+
     if (this.softDeletes) {
       if (trashed === "exclude") query.whereNull(this.deletedAtColumn);
       else if (trashed === "only") query.whereNotNull(this.deletedAtColumn);
@@ -113,6 +148,22 @@ export class Model {
   /** A query builder scoped to this model's table (global scopes applied). */
   static query(): QueryBuilder {
     return this.baseQuery();
+  }
+
+  /**
+   * Drop named global scopes from this query.
+   *
+   * Deliberately explicit and greppable: a query that escapes a tenancy scope is
+   * exactly the thing you want to be able to find at audit time, so it has to be
+   * *typed out*, not arrived at by forgetting something.
+   */
+  static withoutGlobalScope(...names: string[]): QueryBuilder {
+    return this.baseQuery("exclude", new Set(names));
+  }
+
+  /** Drop every global scope. Same warning, louder. */
+  static withoutGlobalScopes(): QueryBuilder {
+    return this.baseQuery("exclude", new Set(scopesFor(this).keys()));
   }
 
   /** Include soft-deleted rows (bypasses the soft-delete scope). */

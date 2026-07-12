@@ -14,6 +14,8 @@ declare module "hono" {
     access_token?: import("./tokens.js").AccessToken;
     /** The request's locale, set by `detectLocale()`. */
     locale?: string;
+    /** The team the request is acting as, set by `teamContext()`. */
+    team_id?: string | number;
     /** Route-model-bound params, resolved before the handler by `bindModel()`. */
     bindings?: Record<string, unknown>;
   }

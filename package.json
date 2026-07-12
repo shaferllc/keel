@@ -65,6 +65,10 @@
       "types": "./dist/accounts/index.d.ts",
       "import": "./dist/accounts/index.js"
     },
+    "./teams": {
+      "types": "./dist/teams/index.d.ts",
+      "import": "./dist/teams/index.js"
+    },
     "./billing": {
       "types": "./dist/billing/index.d.ts",
       "import": "./dist/billing/index.js"
@@ -97,7 +101,7 @@
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-exclude='tests/**' tests/*.test.ts",
     "build:ai": "tsx scripts/build-ai.ts",
     "build:watch-ui": "vite build --config src/watch/ui/vite.config.ts",
-    "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/ && cp src/openapi/openapi.config.stub dist/openapi/ && cp src/api/api.config.stub dist/api/ && cp src/billing/billing.config.stub dist/billing/ && cp src/accounts/accounts.config.stub dist/accounts/",
+    "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/ && cp src/openapi/openapi.config.stub dist/openapi/ && cp src/api/api.config.stub dist/api/ && cp src/billing/billing.config.stub dist/billing/ && cp src/accounts/accounts.config.stub dist/accounts/ && cp src/teams/teams.config.stub dist/teams/",
     "build": "npm run build:ai && npm run build:watch-ui && rm -rf dist && tsc -p tsconfig.build.json && npm run build:watch-copy",
     "prepare": "npm run build",
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
