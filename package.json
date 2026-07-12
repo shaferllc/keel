@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.74.2",
+  "version": "0.74.3",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -83,7 +83,7 @@
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-exclude='tests/**' tests/*.test.ts",
     "build:ai": "tsx scripts/build-ai.ts",
     "build:watch-ui": "vite build --config src/watch/ui/vite.config.ts",
-    "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/ && cp src/openapi/openapi.config.stub dist/openapi/ && cp src/api/api.config.stub dist/api/",
+    "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/ && cp src/openapi/openapi.config.stub dist/openapi/",
     "build": "npm run build:ai && npm run build:watch-ui && rm -rf dist && tsc -p tsconfig.build.json && npm run build:watch-copy",
     "dev:client": "vite",
     "build:client": "vite build",

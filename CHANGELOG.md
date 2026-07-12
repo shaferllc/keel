@@ -4,14 +4,15 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.74.2] — 2026-07-11
+## [0.74.3] — 2026-07-11
 
 ### Fixed
 
-- **v0.74.0 and v0.74.1 did not build from a clean checkout**, which made them
-  unusable as a dependency (a git install runs `npm run build` through `prepare`).
-  An in-progress `src/api` feature was committed by accident, half-written, and it
-  didn't compile.
+- **v0.74.0–v0.74.2 did not build from a clean checkout**, which made them unusable
+  as a dependency (a git install runs `npm run build` through `prepare`). An
+  in-progress `src/api` feature was committed by accident, half-written, and it
+  didn't compile; a leftover `cp src/api/…` in the build script then failed once the
+  feature was untracked.
 
   It is now untracked again — the package exports and the build config no longer
   include it — so the released tree is back to what it was in 0.73.0 plus the
