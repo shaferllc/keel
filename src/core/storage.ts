@@ -483,11 +483,26 @@ export function serveStorage(options: ServeStorageOptions = {}): MiddlewareHandl
     const path = decodeURIComponent(url.pathname.slice(basePath.length + 1));
     if (!path || path.includes("..")) return next(); // path traversal guard
 
-    if (options.signed && !(await verifyStorageUrl(c.req.url))) {
-      return c.text("Forbidden", 403);
+    const store = storage(options.disk);
+
+    if (options.signed) {
+      // `signedUrl()` signs the path the *disk* reports. If the disk hands out
+      // `/storage/…` while this middleware is mounted at `/private`, no signature
+      // can ever match and every request would 403 — a misconfiguration that looks
+      // exactly like an expired link. Say so instead of failing quietly.
+      const diskPath = new URL(store.url(path), "http://keel.local").pathname;
+      if (diskPath !== url.pathname) {
+        throw new Error(
+          `serveStorage: the disk serves "${path}" at "${diskPath}", but this middleware is ` +
+            `mounted at "${url.pathname}". signedUrl() signs the disk's own URL, so no signature ` +
+            `can match here. Give the disk the matching base URL (e.g. new MemoryDisk("${basePath}")) ` +
+            `or set basePath to the disk's prefix.`,
+        );
+      }
+
+      if (!(await verifyStorageUrl(c.req.url))) return c.text("Forbidden", 403);
     }
 
-    const store = storage(options.disk);
     const bytes = await store.get(path);
     if (bytes == null) return next();
 

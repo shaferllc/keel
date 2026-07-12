@@ -445,7 +445,8 @@ test("serveStorage falls through for a path it doesn't own or a file it lacks", 
 
 test("serveStorage in signed mode rejects unsigned and expired URLs", async () => {
   await bootApp();
-  const disk = fakeDisk("private");
+  // The disk's url() prefix must line up with basePath — see the mismatch test below.
+  const disk = setDisk(new MemoryDisk("/private"), "private");
   await disk.put("invoices/42.pdf", "secret");
 
   const handler = serveStorage({ disk: "private", basePath: "/private", signed: true });
@@ -465,31 +466,57 @@ test("serveStorage in signed mode rejects unsigned and expired URLs", async () =
   restoreDisk();
 });
 
-test("a disk's url() prefix must match serveStorage's basePath", async () => {
+test("a basePath that doesn't match the disk's url() prefix fails loudly", async () => {
   await bootApp();
 
-  // The disk hands out /storage/… while serveStorage listens on /private, so the
-  // signed path never matches what's served. This is the documented footgun.
-  const mismatched = new Storage(new MemoryDisk("/storage"));
+  // The disk hands out /storage/… while serveStorage listens on /private, so no
+  // signature could ever match. That must not look like an expired link — it's a
+  // misconfiguration, and it says so.
+  const mismatched = setDisk(new MemoryDisk("/storage"), "mismatched");
+  await mismatched.put("a.txt", "secret");
   const url = await mismatched.signedUrl("a.txt", { expiresIn: 60 });
   assert.ok(url.startsWith("/storage/a.txt?"));
 
-  const handler = serveStorage({ basePath: "/private", signed: true });
-  const res = await runMiddleware(handler, `http://app.test/private/a.txt${url.slice(url.indexOf("?"))}`);
-  assert.equal(res.status, 403);
+  const handler = serveStorage({ disk: "mismatched", basePath: "/private", signed: true });
 
-  // Line the two up and it works.
+  const { Hono } = await import("hono");
+  const app = new Hono();
+  let thrown: unknown;
+  app.onError((err, c) => {
+    thrown = err;
+    return c.text("error", 500);
+  });
+  app.use("*", handler);
+  app.all("*", (c) => c.text("next"));
+
+  const res = await app.request(
+    new Request(`http://app.test/private/a.txt${url.slice(url.indexOf("?"))}`),
+  );
+
+  // A 500 with a real explanation — not a 403, which would read as "your link expired".
+  assert.equal(res.status, 500);
+  assert.match(
+    (thrown as Error).message,
+    /the disk serves "a\.txt" at "\/storage\/a\.txt", but this middleware is mounted at "\/private\/a\.txt"/,
+  );
+  assert.match((thrown as Error).message, /new MemoryDisk\("\/private"\)/);
+});
+
+test("a matching basePath and disk prefix serve a signed URL", async () => {
+  await bootApp();
+
   const aligned = setDisk(new MemoryDisk("/private"), "aligned");
   await aligned.put("a.txt", "ok");
+
   const good = await aligned.signedUrl("a.txt", { expiresIn: 60 });
   assert.ok(good.startsWith("/private/a.txt?"));
 
-  const ok = await runMiddleware(
+  const res = await runMiddleware(
     serveStorage({ disk: "aligned", basePath: "/private", signed: true }),
     `http://app.test${good}`,
   );
-  assert.equal(ok.status, 200);
-  assert.equal(await ok.text(), "ok");
+  assert.equal(res.status, 200);
+  assert.equal(await res.text(), "ok");
 });
 
 test("serveStorage guards against path traversal", async () => {

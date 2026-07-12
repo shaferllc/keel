@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.69.1] — 2026-07-11
+
+### Fixed
+
+- **`serveStorage({ signed: true })` now fails loudly on a `basePath` mismatch.**
+  `signedUrl()` signs the path the *disk* reports, so a disk handing out
+  `/storage/…` while the middleware is mounted at `/private` could never produce a
+  matching signature — and every request 403'd, which reads as "your link expired"
+  and sends you hunting in the wrong place. It now throws, naming both paths and
+  how to line them up.
+
 ## [0.69.0] — 2026-07-11
 
 ### Added

@@ -15727,9 +15727,11 @@ file.
 
 > **The disk's `url()` prefix and `basePath` must agree.** `signedUrl()` signs the
 > path the *disk* reports, so if the disk hands out `/storage/…` while
-> `serveStorage` listens on `/private`, every signed URL will 403. Give the disk
-> the matching base — `new MemoryDisk("/private")`, or `localDisk("./storage",
-> "/private")` — or keep both on the default `/storage`.
+> `serveStorage` listens on `/private`, no signature could ever match. Rather than
+> 403 every request — which reads as "your link expired" and sends you hunting in
+> the wrong place — `serveStorage` **throws** with the two paths and how to line
+> them up. Give the disk the matching base (`new MemoryDisk("/private")`, or
+> `localDisk("./storage", "/private")`), or keep both on the default `/storage`.
 
 ## Direct browser uploads
 
