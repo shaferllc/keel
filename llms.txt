@@ -72,6 +72,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 
 Every topic has a runnable, type-checked example:
 
+- [API Resources example](https://github.com/shaferllc/keel/blob/main/docs/examples/api-resources.ts)
 - [Authentication example](https://github.com/shaferllc/keel/blob/main/docs/examples/authentication.ts)
 - [Authorization example](https://github.com/shaferllc/keel/blob/main/docs/examples/authorization.ts)
 - [Broadcasting example](https://github.com/shaferllc/keel/blob/main/docs/examples/broadcasting.ts)

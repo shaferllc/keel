@@ -4,6 +4,49 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.75.0] — 2026-07-11
+
+### Added
+
+- **API resources — a full CRUD REST API from a model.** `@shaferllc/keel/api`.
+
+  ```ts
+  apiResource(router, Post, {
+    filter: ["status", "authorId"],
+    sort: ["createdAt", "title"],
+    body: PostSchema,
+    access: { read: true, write: (c) => isEditor(c) },
+    scope: (q, c) => q.where("authorId", currentUserId(c)),
+  });
+  ```
+
+  It registers **real routes** on the router — so `url()` finds them, `keel routes`
+  lists them, and `@shaferllc/keel/openapi` documents them for free — rather than
+  hiding a generic handler behind a wildcard.
+
+  - **Access is deny-by-default.** An action with no rule returns 403. For a
+    generated API that's the only safe default: you opt routes *open*, never shut,
+    so forgetting a rule fails closed rather than publishing your table.
+  - **Filtering and sorting are allow-listed.** A column not on the list is silently
+    ignored, never passed to SQL — which is what stops `?sort=password` or
+    `?secret_column=x` from doing anything. `perPage` is clamped to a ceiling, so
+    there's no "give me everything".
+  - **`scope` is row-level security, not decoration.** A row outside the scope 404s
+    for *read, update and delete* — not merely absent from the list — so it can't be
+    fetched, changed, or removed by guessing its id. There are tests for each of
+    those three, asserting against the database that the row really wasn't touched.
+  - Writes run through the model's mass-assignment guard *and* your Zod schema
+    (`body`, or `createBody`/`updateBody`), with `beforeWrite` to set fields the
+    client never sends (an owner id, timestamps).
+  - `transform` shapes the output (a function or a Keel `Transformer`); `only` /
+    `except` trim the action set; `ApiServiceProvider` publishes a `config/api.ts`
+    for the pagination defaults.
+
+  The api package **does not import openapi** — it writes its operation docs under a
+  known route-config key, so the two install independently. A test asserts that key
+  still matches the one openapi reads, because a silent drift there would stop
+  documenting every generated route and no comment would catch it.
+
 ## [0.74.4] — 2026-07-11
 
 ### Fixed
