@@ -2,7 +2,7 @@
   "name": "@shaferllc/keel",
   "version": "0.76.0",
   "type": "module",
-  "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
+  "description": "The house framework for Node.js \u2014 a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
   "author": "Tom Shafer",
   "homepage": "https://github.com/shaferllc/keel#readme",
@@ -97,7 +97,8 @@
     "build:client": "vite build",
     "prepare": "npm run build",
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
-    "verify:release": "bash scripts/verify-release.sh"
+    "verify:release": "bash scripts/verify-release.sh",
+    "version": "npm run build:ai && git add docs/ai-manifest.json llms.txt llms-full.txt"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
