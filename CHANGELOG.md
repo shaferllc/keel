@@ -4,6 +4,115 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.81.1] — 2026-07-12
+
+### Documentation
+
+- **Full API-reference entries for the new ORM surface.** `0.81.0` shipped the
+  guides; this fills in the per-method reference the docs maintain for everything
+  else — the query-builder additions (`join`/`leftJoin`, `groupBy`/`having`/
+  `distinct`, `whereColumn`/`whereRaw`/`orderByRaw`, `when`, `increment`/
+  `decrement`, `upsert`/`insertOrIgnore`, `chunk`), the migration builders
+  (`index`/`foreign`/`alterTable`, `AlterTableBuilder`, `ForeignKeyBuilder`), and
+  the model additions (`with`/`withCount`/`whereHas`/`has`/`doesntHave`,
+  `ModelQuery`, lifecycle events + `observe`, global scopes, soft deletes,
+  `hidden`/`visible`/`appends`, `morphMany`/`morphOne`/`morphTo`/
+  `registerMorphType`). Corrects two now-stale notes ("no soft-delete built in",
+  "nested eager loading isn't here yet"). `llms.txt` / `llms-full.txt` /
+  `ai-manifest.json` regenerated to match.
+
+## [0.81.0] — 2026-07-12
+
+### Added
+
+- **ORM: Eloquent-parity features.** The active-record `Model` grows most of the
+  Eloquent surface people reach for, all backward-compatible and still on the
+  driver-agnostic query builder (no JOINs, edge-safe):
+
+  - **Lifecycle events & observers** — `creating`/`created`, `updating`/
+    `updated`, `saving`/`saved`, `deleting`/`deleted`, `restoring`/`restored`,
+    `retrieved`. The `*ing` events are **cancelable** (a hook returning `false`
+    vetoes the write); `Model.observe({...})` attaches an observer object.
+
+    ```ts
+    User.creating((u) => { u.uuid = crypto.randomUUID(); });
+    User.deleting((u) => (u.isRoot ? false : undefined)); // veto
+    ```
+
+  - **Global scopes** (`addGlobalScope`) applied to every query the model builds
+    and **inherited by subclasses** — the base for tenancy and published-only
+    reads. `withoutGlobalScope(...)` opts out, explicitly and greppably. Local
+    scopes are just static methods returning `query()`.
+
+  - **Soft deletes** — `static softDeletes = true` + `deleted_at`; `delete()`
+    sets the timestamp, a scope hides trashed rows, and `withTrashed`/
+    `onlyTrashed`/`restore`/`forceDelete`/`trashed` round it out.
+
+  - **`with` / `withCount` / `whereHas` / `has` / `doesntHave`** — a model-aware
+    `ModelQuery` with **nested** eager loading (`"posts.comments"`) and
+    relationship-existence filters, via a two-query strategy (no JOIN).
+
+    ```ts
+    await User.query().with("posts.comments").withCount("posts")
+      .whereHas("posts", (q) => q.where("published", true)).get();
+    ```
+
+  - **Serialization control** — `static hidden` / `visible` / `appends` on
+    `toJSON()` (appends resolve getters or zero-arg methods).
+
+  - **Polymorphic relations** — `morphOne` / `morphMany` / `morphTo` with a
+    morph-type registry (`registerMorphType`), eager loading across mixed types,
+    and `whereHas`/`withCount` support.
+
+- **Query builder** grows `join`/`leftJoin`, `groupBy`/`having`, `distinct`,
+  `whereColumn`, `whereRaw`, `orderByRaw`, `when()`, `increment`/`decrement`,
+  dialect-aware `upsert`/`insertOrIgnore`, and `chunk()` for paged iteration over
+  large tables.
+
+- **Migrations** grow `index()`/`uniqueIndex()` and `foreign().references().on()`
+  in `createTable`, plus **`SchemaBuilder.alterTable`** (add/drop/rename column,
+  add/drop index) — so altering a table no longer needs hand-written `raw()` SQL.
+
+- **Accounts** — a new `@shaferllc/keel/accounts` package: password reset, email
+  verification, and two-factor auth (TOTP + single-use recovery codes), driven by
+  `attempt()` and an `AccountsServiceProvider`, with its own migration and
+  publishable config.
+
+- **Teams** — a new `@shaferllc/keel/teams` package: multi-tenancy with a
+  `TenantModel` (a `TENANT_SCOPE` global scope), request-scoped team context, and
+  invitations.
+
+### Changed
+
+- `Model.create()` now routes through `save()`, so mass-assignment, timestamps,
+  and the `saving`/`creating` events all apply in one place.
+
+## [0.80.0] — 2026-07-12
+
+### Added
+
+- **Billing** — a new `@shaferllc/keel/billing` package: a Cashier-style
+  subscription layer with **one gateway-neutral API over Stripe and Paddle**
+  (switching gateways is a config change). `class User extends Billable(Model)`
+  gives a gateway customer, subscriptions (create/swap/quantity/trials/cancel/
+  resume + status checks), single charges + refunds, invoices, hosted checkout,
+  and verified per-gateway webhooks that sync local state and emit typed events.
+
+  ```ts
+  class User extends Billable(Model) { static table = "users"; }
+  await user.newSubscription("default", "price_pro").trialDays(14).create(pmId);
+  if (await user.subscribed()) { /* … */ }
+  ```
+
+  Reaches the active gateway from model methods through a module-level singleton
+  (`setBilling`/`billing`), matching Keel's `setConnection`/`setLogger` pattern.
+  Ships `Subscription`/`SubscriptionItem` models, a gateway-neutral migration, a
+  publishable config stub, and an in-memory `FakeGateway` so billing flows test
+  without a network. Webhook signatures are verified with a vendored hex
+  HMAC-SHA256 (edge-safe Web Crypto). Paddle's merchant-of-record differences
+  (checkout-created subscriptions, no raw card handling) surface as clear
+  `BillingError`s rather than silent gaps.
+
 ## [0.79.0] — 2026-07-12
 
 ### Added
