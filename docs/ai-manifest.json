@@ -272,6 +272,13 @@
       "example": null
     },
     {
+      "slug": "orm",
+      "title": "ORM",
+      "summary": "Keel's ORM is a compact active record over the query builder: a model is a class pointed at a table, and its rows come back as typed objects with methods.",
+      "path": "docs/orm.md",
+      "example": null
+    },
+    {
       "slug": "packages",
       "title": "Packages",
       "summary": "A package is a redistributable slice of a Keel app — routes, a UI, config, migrations, console commands — that installs with a single app.register(...).",
@@ -291,6 +298,13 @@
       "summary": "Service providers are the central place to configure your application.",
       "path": "docs/providers.md",
       "example": "docs/examples/providers.ts"
+    },
+    {
+      "slug": "query-builder",
+      "title": "Query Builder",
+      "summary": "Keel's driver-agnostic query builder — build and run SQL by chaining methods off db(table).",
+      "path": "docs/query-builder.md",
+      "example": null
     },
     {
       "slug": "queues",
