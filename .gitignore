@@ -9,6 +9,10 @@ public/assets/
 
 # Local environment — copy .env.example to .env
 .env
+# ...but the boot test's fixture env IS part of the suite. The blanket `.env` rule
+# above was hiding it, so `tests/boot.test.ts` only passed on a machine that happened
+# to have the untracked file — and failed in CI, on a fresh checkout, immediately.
+!tests/fixtures/.env
 !.env.example
 
 # Example-app demo database
