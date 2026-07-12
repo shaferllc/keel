@@ -147,6 +147,17 @@ test("apiResource: access is deny-by-default", async () => {
   clearConnections();
 });
 
+test("apiResource: attaches OpenAPI metadata without importing the openapi package", () => {
+  const app = new Application();
+  const router = app.make(Router);
+  apiResource(router, Item, { ...open, tags: ["things"] });
+  const create = router.all().find((r) => r.name === "items.create")!;
+  const meta = create.config.openapi as { summary: string; tags: string[]; request?: { body: unknown } };
+  assert.equal(meta.summary, "Create a item");
+  assert.deepEqual(meta.tags, ["things"]);
+  assert.ok(meta.request?.body, "the create body schema is carried for docs");
+});
+
 test("apiResource: read/write shorthands and only/except", async () => {
   const client = await setup({ ...open, access: { read: true }, only: ["list", "read"] });
   (await client.get("/items")).assertOk(); // read allowed

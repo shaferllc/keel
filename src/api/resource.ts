@@ -118,6 +118,8 @@ export interface ApiResourceOptions {
   beforeWrite?: (data: Row, c: Ctx, action: "create" | "update") => Row | Promise<Row>;
   /** OpenAPI tags for these routes. Default: `[path]`. */
   tags?: string[];
+  /** Singular display name used in generated doc summaries. Default: the model's class name. */
+  label?: string;
 }
 
 const ALL_ACTIONS: ApiAction[] = ["list", "read", "create", "update", "delete"];
@@ -162,10 +164,6 @@ function transformMany(t: ApiTransform | undefined, models: Model[], c: Ctx): un
   return typeof t === "function" ? models.map((m) => t(m, c)) : t.collection(models);
 }
 
-function singular(word: string): string {
-  return word.endsWith("s") ? word.slice(0, -1) : word;
-}
-
 export function apiResource(
   router: Router,
   model: ModelStatic,
@@ -176,7 +174,7 @@ export function apiResource(
   const base = "/" + path.replace(/^\/|\/$/g, "");
   const name = options.name ?? path;
   const pk = model.primaryKey;
-  const one = singular(path);
+  const label = options.label ?? model.name;
   const tags = options.tags ?? [path];
   const perPage = options.perPage ?? defaults.perPage;
   const maxPerPage = options.maxPerPage ?? defaults.maxPerPage;
@@ -225,7 +223,7 @@ export function apiResource(
         });
       })
       .name(`${name}.list`)
-      .config(apiDoc({ summary: `List ${path}`, tags }));
+      .config(openApiConfig({ summary: `List ${path}`, tags }));
   }
 
   if (actions.has("read")) {
@@ -236,7 +234,7 @@ export function apiResource(
         return c.json({ data: transformOne(options.transform, found, c) });
       })
       .name(`${name}.read`)
-      .config(apiDoc({ summary: `Fetch a ${one}`, tags }));
+      .config(openApiConfig({ summary: `Fetch a ${one}`, tags }));
   }
 
   if (actions.has("create")) {
@@ -251,7 +249,7 @@ export function apiResource(
       })
       .name(`${name}.create`)
       .config(
-        apiDoc({
+        openApiConfig({
           summary: `Create a ${one}`,
           tags,
           ...(schema ? { request: { body: schema } } : {}),
@@ -272,7 +270,7 @@ export function apiResource(
         return c.json({ data: transformOne(options.transform, found, c) });
       })
       .name(`${name}.update`)
-      .config(apiDoc({ summary: `Update a ${one}`, tags, ...(schema ? { request: { body: schema } } : {}) }));
+      .config(openApiConfig({ summary: `Update a ${one}`, tags, ...(schema ? { request: { body: schema } } : {}) }));
   }
 
   if (actions.has("delete")) {
@@ -284,6 +282,6 @@ export function apiResource(
         return c.body(null, 204);
       })
       .name(`${name}.delete`)
-      .config(apiDoc({ summary: `Delete a ${one}`, tags, responses: { 204: { description: "Deleted" } } }));
+      .config(openApiConfig({ summary: `Delete a ${one}`, tags, responses: { 204: { description: "Deleted" } } }));
   }
 }

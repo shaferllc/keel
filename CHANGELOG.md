@@ -4,6 +4,15 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.1] — 2026-07-11
+
+### Fixed
+
+- **v0.74.0 did not build from a clean checkout.** `src/api/resource.ts` referenced
+  `apiDoc` without importing it, so `npm run build` — which any git install runs via
+  `prepare` — failed with `TS2304: Cannot find name 'apiDoc'`. The tag was
+  unusable as a dependency. Fixed and re-released; v0.74.0 is superseded.
+
 ## [0.74.0] — 2026-07-11
 
 ### Added
