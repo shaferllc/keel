@@ -1,0 +1,2 @@
+Git does not track empty directories, and wrangler needs this one to exist
+(assets.directory). Built CSS lands in ./assets/ and is gitignored.

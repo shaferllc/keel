@@ -7,6 +7,9 @@
   // current team in it. Without this flag they have nowhere to live.
   "compatibility_flags": ["nodejs_compat"],
 
+  // The compiled stylesheet. Cloudflare serves these; the Worker never sees them.
+  "assets": { "directory": "./public" },
+
   "d1_databases": [
     {
       "binding": "DB",
