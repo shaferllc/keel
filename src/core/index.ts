@@ -30,14 +30,60 @@ export { Logger } from "./logger.js";
 export type { LogLevel, LoggerOptions } from "./logger.js";
 export { requestLogger, requestLog } from "./request-logger.js";
 export type { RequestLoggerOptions } from "./request-logger.js";
-export { Events } from "./events.js";
-export type { Listener } from "./events.js";
+export { Events, EventBuffer } from "./events.js";
+export type {
+  Listener,
+  AnyListener,
+  ErrorHandler,
+  EventsList,
+  EventName,
+  PayloadOf,
+  RecordedEvent,
+} from "./events.js";
 export { Cache, MemoryStore } from "./cache.js";
-export type { CacheStore } from "./cache.js";
+export type { CacheStore, RememberOptions, PutOptions } from "./cache.js";
 export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
-export { Storage, MemoryDisk, storage, setDisk } from "./storage.js";
-export type { Disk, Contents } from "./storage.js";
+export {
+  health,
+  healthCheck,
+  check,
+  Result,
+  BaseCheck,
+  HealthChecks,
+  DatabaseCheck,
+  RedisCheck,
+  CacheCheck,
+} from "./health.js";
+export type {
+  HealthStatus,
+  HealthReport,
+  CheckReport,
+  HealthCheckOptions,
+} from "./health.js";
+export {
+  Storage,
+  FakeStorage,
+  MemoryDisk,
+  storage,
+  setDisk,
+  fakeDisk,
+  restoreDisk,
+  serveStorage,
+  signStorageUrl,
+  verifyStorageUrl,
+  contentTypeFor,
+} from "./storage.js";
+export type {
+  Disk,
+  Contents,
+  FileVisibility,
+  WriteOptions,
+  FileMetadata,
+  SignedFileOptions,
+  SignedUploadOptions,
+  ServeStorageOptions,
+} from "./storage.js";
 export { dump, dd } from "./debug.js";
 export { hash, encryption, jwt } from "./crypto.js";
 export type { JwtPayload, JwtSignOptions, JwtVerifyOptions, EncryptOptions } from "./crypto.js";

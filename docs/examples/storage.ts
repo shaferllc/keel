@@ -1,5 +1,20 @@
 // Type-check harness for docs/storage.md. Compile-only — never executed.
-import { storage, setDisk, MemoryDisk, Storage, type Disk } from "@shaferllc/keel/core";
+import {
+  storage,
+  setDisk,
+  fakeDisk,
+  restoreDisk,
+  serveStorage,
+  signStorageUrl,
+  verifyStorageUrl,
+  contentTypeFor,
+  MemoryDisk,
+  Storage,
+  HttpKernel,
+  type Application,
+  type Disk,
+  type FileMetadata,
+} from "@shaferllc/keel/core";
 
 declare const bytes: Uint8Array;
 declare const data: string;
@@ -17,10 +32,76 @@ export async function usage() {
   return { got, text, has, files, url };
 }
 
+export async function writing() {
+  // The content type is inferred from the extension — this is stored as image/png.
+  await storage().put("avatars/1.png", bytes);
+
+  // ...or set it, along with the rest of the object's metadata.
+  await storage().put("exports/report.csv", data, {
+    contentType: "text/csv",
+    cacheControl: "public, max-age=3600",
+    visibility: "private",
+    metadata: { uploadedBy: "42" },
+  });
+
+  return contentTypeFor("avatars/1.png"); // "image/png"
+}
+
+export async function inspecting() {
+  const meta: FileMetadata | null = await storage().metadata("avatars/1.png");
+  const size = await storage().size("avatars/1.png");
+
+  await storage().copy("avatars/1.png", "avatars/1-backup.png");
+  await storage().move("tmp/upload.png", "avatars/2.png");
+
+  return { meta, size };
+}
+
+export async function signing() {
+  // A temporary URL for a private file.
+  const url = await storage().signedUrl("invoices/42.pdf", { expiresIn: 300 });
+
+  // A URL the browser PUTs to directly — the bytes never transit the app.
+  const upload = await storage().signedUploadUrl("uploads/clip.mp4", {
+    expiresIn: 600,
+    contentType: "video/mp4",
+  });
+
+  // Sign and verify any URL yourself.
+  const signed = await signStorageUrl("/storage/invoices/42.pdf", 300);
+  const valid = await verifyStorageUrl(signed);
+
+  return { url, upload, valid };
+}
+
+export class Kernel extends HttpKernel {
+  constructor(app: Application) {
+    super(app);
+    this.use(serveStorage()); // public files under /storage
+    this.use(serveStorage({ disk: "r2", basePath: "/private", signed: true, maxAge: 60 }));
+  }
+}
+
+export async function testing() {
+  const disk = fakeDisk(); // swap the real disk for an in-memory one
+
+  await storage().put("avatars/1.png", bytes);
+
+  await disk.assertExists("avatars/1.png");
+  await disk.assertMissing("avatars/2.png");
+  await disk.assertContents("notes/todo.md", "buy milk");
+  await disk.assertCount(1, "avatars/");
+
+  restoreDisk();
+}
+
 export function named(local: Disk, r2: Disk) {
   setDisk(local, "local");
   setDisk(r2, "r2");
-  return Promise.all([storage("local").put("cache/x", data), storage("r2").put("public/logo.svg", svg)]);
+  return Promise.all([
+    storage("local").put("cache/x", data),
+    storage("r2").put("public/logo.svg", svg),
+  ]);
 }
 
 // A minimal custom disk (the shape of the local/R2 examples)

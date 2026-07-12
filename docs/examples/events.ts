@@ -6,8 +6,10 @@ import {
   listen,
   events,
   Events,
+  EventBuffer,
   ServiceProvider,
   type Listener,
+  type RecordedEvent,
 } from "@shaferllc/keel/core";
 
 declare const user: { id: number };
@@ -40,6 +42,32 @@ export async function typedPayloads() {
   });
 
   await emit<OrderPaid>("order.paid", { id: 1, total: 4200 });
+}
+
+// --- The typed event registry ---
+
+declare module "@shaferllc/keel/core" {
+  interface EventsList {
+    "invoice.settled": { id: number; cents: number };
+  }
+}
+
+export async function typedRegistry() {
+  // The payload type comes from the registry — no type argument needed.
+  listen("invoice.settled", (invoice) => {
+    invoice.cents; // number
+  });
+
+  await emit("invoice.settled", { id: 1, cents: 4200 });
+
+  // @ts-expect-error — `cents` must be a number, and the registry now enforces it.
+  await emit("invoice.settled", { id: 1, cents: "4200" });
+
+  // @ts-expect-error — a declared event can't be fired without its payload.
+  await emit("invoice.settled");
+
+  // @ts-expect-error — the listener's payload is checked against the registry too.
+  listen("invoice.settled", (invoice: { nope: boolean }) => invoice.nope);
 }
 
 export class EventServiceProvider extends ServiceProvider {
@@ -124,3 +152,53 @@ listen("order.paid", onPaid);
 
 // The Events class is resolved via events(); referenced here for completeness.
 export type EventsType = Events;
+
+// --- onError / onAny ---
+
+declare function log(event: string, payload: unknown): void;
+
+export function errorHandling() {
+  events().onError((event, error, payload) => {
+    void event;
+    void error;
+    void payload;
+  });
+}
+
+export function observeEveryEvent() {
+  const off = events().onAny((event, payload) => log(event, payload));
+  off();
+}
+
+export function clearEverything() {
+  events().clearAll();
+}
+
+// --- Faking ---
+
+export async function faking() {
+  const buffer = events().fake();
+
+  await emit("invoice.settled", { id: 1, cents: 4200 });
+
+  buffer.assertEmitted("invoice.settled");
+  buffer.assertEmitted("invoice.settled", (invoice) => invoice.cents === 4200);
+  buffer.assertEmittedCount("invoice.settled", 1);
+  buffer.assertNotEmitted("user.deleted");
+
+  const all: RecordedEvent[] = buffer.all();
+  const payloads = buffer.payloadsFor("invoice.settled"); // typed via the registry
+  payloads[0]?.cents;
+
+  events().restore();
+  return { all, payloads };
+}
+
+export function fakeSomeEvents() {
+  events().fake("invoice.settled");
+  events().fake(["invoice.settled", "tick"]);
+  events().fake().assertNoneEmitted();
+  events().restore();
+}
+
+export type BufferType = EventBuffer;

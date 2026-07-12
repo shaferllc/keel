@@ -191,7 +191,8 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Redis](./docs/redis.md) | Pluggable client, memory driver, cache adapter |
 | [Logger](./docs/logger.md) | Structured logging, per-request `reqId`, redaction |
 | [Static Files](./docs/static-files.md) | serveStatic(), caching, dot-file safety |
-| [Storage](./docs/storage.md) | Pluggable disks (local/S3/R2), edge-safe |
+| [Storage](./docs/storage.md) | Pluggable disks (local/S3/R2), signed URLs, direct uploads |
+| [Health Checks](./docs/health.md) | `/health/live` + `/health/ready`, pluggable checks |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Templates](./docs/templates.md) | `{{ }}` + `@`-tag templating engine, edge-safe |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |

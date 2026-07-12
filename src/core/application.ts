@@ -17,7 +17,7 @@ import { Cache } from "./cache.js";
 import { Logger } from "./logger.js";
 import { ServiceProvider, type ProviderClass } from "./provider.js";
 import { setApplication } from "./helpers.js";
-import type { Listener } from "./events.js";
+import type { Listener, EventName, EmitArgs, Resolve } from "./events.js";
 
 /** A configurator: a plain function that sets the app up and may return anything. */
 export type Configurator = (app: Application) => unknown;
@@ -112,24 +112,36 @@ export class Application extends Container {
    * `app.on(...)` and the global `listen()` helper reach the same emitter.
    * Returns an unsubscribe function.
    */
-  on<T = unknown>(event: string, listener: Listener<T>): () => void {
-    return this.make(Events).on(event, listener);
+  on<T = unknown, E extends EventName = EventName>(
+    event: E,
+    listener: Listener<Resolve<T, E>>,
+  ): () => void {
+    return this.make(Events).on<T, E>(event, listener);
   }
 
   /** Subscribe for a single emission. Returns an unsubscribe function. */
-  once<T = unknown>(event: string, listener: Listener<T>): () => void {
-    return this.make(Events).once(event, listener);
+  once<T = unknown, E extends EventName = EventName>(
+    event: E,
+    listener: Listener<Resolve<T, E>>,
+  ): () => void {
+    return this.make(Events).once<T, E>(event, listener);
   }
 
   /** Unsubscribe a listener registered with `on()`/`once()`. */
-  off<T = unknown>(event: string, listener: Listener<T>): this {
-    this.make(Events).off(event, listener);
+  off<T = unknown, E extends EventName = EventName>(
+    event: E,
+    listener: Listener<Resolve<T, E>>,
+  ): this {
+    this.make(Events).off<T, E>(event, listener);
     return this;
   }
 
   /** Emit an app event, awaiting every listener in registration order. */
-  async emit<T = unknown>(event: string, payload?: T): Promise<void> {
-    await this.make(Events).emit(event, payload);
+  async emit<T = unknown, E extends EventName = EventName>(
+    event: E,
+    ...args: EmitArgs<Resolve<T, E>>
+  ): Promise<void> {
+    await this.make(Events).emit<T, E>(event, ...args);
   }
 
   /** Merge a config object into the repository under its top-level keys. */

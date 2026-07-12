@@ -4,6 +4,82 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.68.0] — 2026-07-11
+
+### Added
+
+- **Storage: signed URLs, direct uploads, and metadata.** Closed the gaps against
+  the [AdonisJS Drive guide](https://docs.adonisjs.com/guides/digging-deeper/drive),
+  keeping keel's "core imports no SDK" rule — the `Disk` seam grew *optional*
+  capabilities, so existing disks keep working untouched:
+  - **Content types.** `put()` now infers the MIME type from the path's extension
+    (`.png` → `image/png`), so files stop landing in your bucket as
+    `application/octet-stream` — the difference between a browser *rendering* a
+    file and *downloading* it. New `WriteOptions` (`contentType`, `cacheControl`,
+    `visibility`, custom `metadata`) override it.
+  - **`signedUrl(path, { expiresIn })`** — a temporary URL for a private file. A
+    disk with backend presigning (S3/R2/GCS) returns the bucket's own; any other
+    disk gets one signed with `config('app.key')`. The signature covers the path
+    and query but **not the host**, so a signed URL survives a CDN hostname.
+  - **`signedUploadUrl(path, { contentType })`** — the browser `PUT`s straight to
+    the bucket, so a 50 MB upload never streams through a Worker. Requires a disk
+    that can presign; there's no generic fallback, and calling it on one that
+    can't throws rather than handing back a URL that won't work.
+  - **`serveStorage()`** — middleware that serves a disk's files over HTTP with
+    `ETag`/304 and stored `Cache-Control`, and (in `signed: true` mode) rejects
+    unsigned or expired requests with a 403. This is what makes app-signed URLs
+    real for disks without backend presigning.
+  - **`metadata()` / `size()` / `copy()` / `move()`** — using the backend's
+    server-side operation when the disk offers one, falling back to
+    read-then-write otherwise.
+  - **`fakeDisk()` / `restoreDisk()`** with `assertExists` / `assertMissing` /
+    `assertContents` / `assertCount`, so tests never touch a real bucket. Matches
+    the `hash.fake()` precedent from 0.66.0.
+  - Also `signStorageUrl` / `verifyStorageUrl` / `contentTypeFor` for signing any
+    URL yourself, and an S3/R2 presigning disk recipe in the
+    [storage guide](https://keeljs.com/docs/storage).
+
+- **Events: a typed registry, error isolation, and fakes.** Closed the gaps
+  against the [AdonisJS emitter guide](https://docs.adonisjs.com/guides/digging-deeper/emitter):
+  - **The `EventsList` registry.** Declare an event's payload once via module
+    augmentation and *both* sides are checked — the value you `emit` and the one
+    your listener receives can no longer drift apart. Opt-in and incremental: an
+    undeclared event behaves exactly as before.
+  - **`onError(handler)`** — route listener failures to one handler (with the
+    event name and payload) instead of letting them reject `emit`.
+  - **`onAny(listener)`** — observe every event, for logging and metrics.
+  - **`fake()` / `restore()`** returning an `EventBuffer` with `assertEmitted`
+    (optionally payload-matching), `assertNotEmitted`, `assertEmittedCount`,
+    `assertNoneEmitted`, `all()`, and `payloadsFor()` — assert an event fired
+    without triggering its side effects.
+  - **`clearAll()`** — drop listeners, any-listeners, and the error handler.
+
+- **Health checks.** New [health guide](https://keeljs.com/docs/health) and
+  `healthCheck()` middleware serving the two endpoints an orchestrator actually
+  asks about: `/health/live` (answers instantly, checks **nothing** — a liveness
+  probe that touched the database would get a healthy app restarted during a
+  database blip) and `/health/ready` (runs every registered check; **200** while
+  healthy, **503** when one fails, which evicts the instance without killing it).
+  `health().register([...])`, `Result.ok/warning/failed` (a warning is still
+  healthy), `withMeta()`, `cacheFor(seconds)` so a frequent probe doesn't hammer
+  what it's probing, `check(name, fn)` and `BaseCheck` for your own, and built-in
+  `DatabaseCheck` / `RedisCheck` / `CacheCheck`. A check that throws becomes a
+  failed result rather than taking down the report.
+
+  Deliberately **not** ported from AdonisJS: the disk-space, heap, and RSS checks.
+  They measure a Node process, and on Workers there isn't one.
+
+### Changed
+
+- **A throwing event listener no longer skips the listeners after it.** `emit()`
+  now runs *every* listener and reports failures afterwards — rejecting with the
+  error, or with an `AggregateError` if several failed, or handing them to
+  `onError()` if one is registered. Previously the first failure aborted the loop,
+  so an analytics listener blowing up could silently cancel the welcome email.
+  Failures are still never swallowed.
+
+[0.68.0]: https://github.com/shaferllc/keel/releases/tag/v0.68.0
+
 ## [0.67.0] — 2026-07-11
 
 ### Added

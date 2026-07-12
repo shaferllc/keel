@@ -40,9 +40,45 @@ listen<OrderPaid>("order.paid", (order) => {
 await emit<OrderPaid>("order.paid", { id: 1, total: 4200 });
 ```
 
-The type is a convenience for the caller — nothing validates the payload at
-runtime, and the emitter keys listeners only by the event string. Pass the same
-type on both sides and they stay in sync; the emitter won't enforce it for you.
+This is a convenience for the caller: you're passing the same type on both sides
+by hand, and nothing checks that you did. Get it wrong in one place and the two
+drift apart silently.
+
+## The event registry
+
+Declare an event once in `EventsList` and the emitter checks **both** sides of it
+for you — no type argument to remember, and no way for the emitter and the
+listener to disagree:
+
+```ts
+declare module "@shaferllc/keel/core" {
+  interface EventsList {
+    "order.paid": { id: number; total: number };
+    "user.registered": User;
+  }
+}
+```
+
+Put that in a `types/events.ts` (anywhere the compiler sees it). From then on:
+
+```ts
+listen("order.paid", (order) => {
+  order.total; // number — inferred from the registry
+});
+
+await emit("order.paid", { id: 1, total: 4200 }); // ✅
+
+await emit("order.paid", { id: 1, total: "4200" }); // ❌ total must be a number
+await emit("order.paid"); // ❌ this event requires a payload
+listen("order.paid", (o: { nope: boolean }) => {}); // ❌ wrong listener payload
+```
+
+Declaring events is **opt-in and incremental**. An event you haven't declared
+behaves exactly as it always has — the payload type comes from the listener or an
+explicit `listen<T>`, and falls back to `unknown` — so you can add entries to
+`EventsList` one at a time.
+
+Nothing validates the payload at *runtime*; this is a compile-time contract.
 
 ## Where to register listeners
 
@@ -93,21 +129,83 @@ runs this time around — the change takes effect on the next emission.
 
 ## Error behavior
 
-`emit()` awaits listeners in sequence with no `try/catch`, so if a listener
-throws (or rejects), the loop stops there: later listeners don't run and the
-`emit()` promise rejects with that error.
+**A listener that throws does not stop the others.** `emit()` runs every listener,
+then reports what broke. That's the whole point of an emitter: the analytics
+listener blowing up shouldn't silently cancel the welcome email.
 
 ```ts
+listen("user.registered", () => sendWelcomeEmail(user)); // runs
+listen("user.registered", () => { throw new Error("boom"); }); // throws
+listen("user.registered", () => trackSignup(user)); // still runs
+
 try {
   await emit("user.registered", user);
 } catch (err) {
-  // a listener threw — subsequent listeners were skipped
+  // every listener ran; err is the failure ("boom")
 }
 ```
 
-If a listener's failure shouldn't halt the chain, catch inside the listener
-itself. Firing an event that has no listeners is a no-op — `emit()` resolves
-immediately.
+Failures are never swallowed. With one failed listener `emit()` rejects with that
+error; with several it rejects with an `AggregateError` whose `.errors` holds them
+all.
+
+### Handling failures centrally
+
+Register an `onError` handler and `emit()` stops rejecting — each failure goes to
+your handler instead, with the event name and the payload that triggered it. This
+is how you keep a background listener's bug from taking down the request that
+happened to fire the event:
+
+```ts
+events().onError((event, error, payload) => {
+  logger().error("listener failed", { event, error, payload });
+});
+```
+
+Firing an event that has no listeners is a no-op — `emit()` resolves immediately.
+
+## Observing every event
+
+`onAny` subscribes to *all* events — for logging, metrics, and other
+cross-cutting concerns. It runs before the event's own listeners and returns an
+unsubscribe function:
+
+```ts
+const off = events().onAny((event, payload) => {
+  logger().debug(`event: ${event}`, { payload });
+});
+```
+
+## Testing
+
+`events().fake()` records emissions **instead of running listeners**, so a test
+can assert an event fired without triggering its side effects — no welcome email,
+no queued job. It returns a buffer to assert against; `restore()` puts the real
+emitter back.
+
+```ts
+const buffer = events().fake();
+
+await registerUser({ email: "a@b.com" });
+
+buffer.assertEmitted("user.registered");
+buffer.assertEmitted("order.paid", (o) => o.total === 4200); // with a predicate
+buffer.assertEmittedCount("user.registered", 1);
+buffer.assertNotEmitted("user.deleted");
+buffer.assertNoneEmitted(); // nothing at all fired
+
+events().restore();
+```
+
+Pass event names to fake only those — everything else dispatches for real:
+
+```ts
+const buffer = events().fake("user.registered"); // or ["a", "b"]
+```
+
+`buffer.all()` returns every recorded `{ event, payload }` in order, and
+`buffer.payloadsFor("order.paid")` returns just that event's payloads (typed, if
+the event is declared in `EventsList`).
 
 ## Notes
 
@@ -178,16 +276,70 @@ empty `Set` behind under that key; use `clear(event)` to drop the key entirely.
 `emit<T = unknown>(event: string, payload?: T): Promise<void>`
 
 Fires `event`, awaiting every listener in registration order with the given
-payload.
+payload. For an event declared in `EventsList`, the payload is required and
+type-checked against the registry.
 
 ```ts
 await events().emit("order.paid", { id: 1, total: 4200 });
 ```
 
-**Notes:** listeners run sequentially, each awaited before the next. If one
-throws/rejects, the remaining listeners are skipped and the promise rejects. No
-listeners means an immediate resolve. The listener set is snapshotted up front, so
-subscriptions made mid-emit apply only to later emissions.
+**Notes:** listeners run sequentially, each awaited before the next. A listener
+that throws or rejects **does not** skip the rest — they all run, and `emit`
+rejects afterwards with that error (or an `AggregateError` if more than one
+failed), unless an `onError` handler is registered. No listeners means an
+immediate resolve. Both listener sets are snapshotted up front, so subscriptions
+made mid-emit apply only to later emissions.
+
+#### `onAny(listener)`
+
+`onAny(listener: AnyListener): () => void`
+
+Subscribes to every event. The listener receives `(event, payload)`. Returns an
+unsubscribe function.
+
+```ts
+const off = events().onAny((event, payload) => log(event, payload));
+```
+
+**Notes:** any-listeners run *before* the event's own listeners, so a logger sees
+the event even if a listener later throws. They're subject to the same error
+handling as ordinary listeners.
+
+#### `onError(handler)`
+
+`onError(handler: ErrorHandler): void`
+
+Handles listener failures instead of letting `emit` reject. The handler receives
+`(event, error, payload)`.
+
+```ts
+events().onError((event, error) => logger().error("listener failed", { event, error }));
+```
+
+**Notes:** only one handler is active — registering again replaces it. Without
+one, failures surface by rejecting `emit`; they are never silently dropped.
+
+#### `fake(only?)` / `restore()`
+
+`fake(only?: EventName | EventName[]): EventBuffer` — record emissions instead of
+running listeners, and return a buffer to assert against. `restore()` undoes it.
+
+```ts
+const buffer = events().fake();
+await register(user);
+buffer.assertEmitted("user.registered");
+events().restore();
+```
+
+**Notes:** with no argument every event is faked; pass names to fake only those,
+leaving the rest to dispatch for real. Each `fake()` returns a **fresh** buffer.
+
+#### `clearAll()`
+
+`clearAll(): void`
+
+Drops every listener, every `onAny` listener, and the error handler. `clear()` only
+drops ordinary listeners.
 
 #### `listenerCount(event)`
 
@@ -284,4 +436,61 @@ listen("order.paid", onPaid);
 ```
 
 **Notes:** async listeners are fully awaited by `emit`. A listener that returns a
-rejected promise halts the current `emit` just like a synchronous throw.
+rejected promise is treated exactly like a synchronous throw — the other listeners
+still run, and the failure is reported afterwards.
+
+#### `EventsList`
+
+`interface EventsList {}`
+
+The registry of declared events, keyed by name. Empty by default; augment it from
+your app to type an event's payload (see [The event registry](#the-event-registry)).
+
+```ts
+declare module "@shaferllc/keel/core" {
+  interface EventsList {
+    "order.paid": { id: number; total: number };
+  }
+}
+```
+
+#### `EventBuffer`
+
+What `fake()` returns. Records every intercepted emission and asserts over them.
+
+| Method | Signature |
+|--------|-----------|
+| `assertEmitted` | `(event, predicate?) => void` |
+| `assertNotEmitted` | `(event) => void` |
+| `assertEmittedCount` | `(event, count) => void` |
+| `assertNoneEmitted` | `() => void` |
+| `all` | `() => RecordedEvent[]` |
+| `payloadsFor` | `(event) => PayloadOf<E>[]` |
+
+Failed assertions throw with what actually fired.
+
+#### `AnyListener`
+
+`type AnyListener = (event: string, payload: unknown) => void | Promise<void>`
+
+The shape of an `onAny` handler.
+
+#### `ErrorHandler`
+
+`type ErrorHandler = (event: string, error: unknown, payload: unknown) => void | Promise<void>`
+
+The shape of an `onError` handler.
+
+#### `RecordedEvent`
+
+`interface RecordedEvent { event: string; payload: unknown }`
+
+One emission captured by a fake.
+
+#### `EventName` / `PayloadOf`
+
+`type EventName = keyof EventsList | (string & {})` — a declared event name, or any
+other string.
+
+`type PayloadOf<E>` — the declared payload for an event, or `unknown` if it isn't in
+`EventsList`.

@@ -12,7 +12,13 @@ import type { Application } from "./application.js";
 import type { Token, Factory } from "./container.js";
 import { Config } from "./config.js";
 import { View, type Renderable } from "./view.js";
-import { Events, type Listener } from "./events.js";
+import {
+  Events,
+  type Listener,
+  type EventName,
+  type EmitArgs,
+  type Resolve,
+} from "./events.js";
 import { Cache } from "./cache.js";
 import { Logger } from "./logger.js";
 
@@ -107,13 +113,19 @@ export function events(): Events {
 }
 
 /** Emit an event, awaiting every listener. */
-export function emit<T = unknown>(event: string, payload?: T): Promise<void> {
-  return events().emit(event, payload);
+export function emit<T = unknown, E extends EventName = EventName>(
+  event: E,
+  ...args: EmitArgs<Resolve<T, E>>
+): Promise<void> {
+  return events().emit<T, E>(event, ...args);
 }
 
 /** Subscribe to an event; returns an unsubscribe function. */
-export function listen<T = unknown>(event: string, listener: Listener<T>): () => void {
-  return events().on(event, listener);
+export function listen<T = unknown, E extends EventName = EventName>(
+  event: E,
+  listener: Listener<Resolve<T, E>>,
+): () => void {
+  return events().on<T, E>(event, listener);
 }
 
 /** The application's cache. */
