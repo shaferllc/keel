@@ -4,6 +4,31 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.4] — 2026-07-11
+
+### Fixed
+
+- **`flag.string({ parse })` and friends now infer their parameter.** The `const`
+  generic on the option builders swallowed the contextual type in the emitted
+  declarations, so a consumer writing `parse: (raw) => raw.toUpperCase()` would have
+  had to annotate `raw` by hand even though it compiled fine inside this repo. Same
+  bug, same fix, as `envVar`'s `validate`.
+
+### Changed
+
+- **The test suite is type-checked.** `tests/` was not in any tsconfig's `include`,
+  and tests run through `tsx`, which strips types without checking them — so the
+  suite had **44 type errors nobody could see**, and a test asserting a type at
+  compile time was asserting nothing at all. All 44 are fixed, and
+  `npm run typecheck` now covers `src` *and* `tests`.
+
+- **`npm run verify:release` builds from what is committed**, not from the working
+  tree. `npm test` and `npm run typecheck` both run against your working directory,
+  so neither can see a file you forgot to commit or committed half-written — while a
+  git install runs the build through `prepare`, so a broken tree there means the
+  package cannot be installed at all. That is exactly how v0.74.0–v0.74.2 shipped
+  unusable. This exports `HEAD` and does the install a consumer would.
+
 ## [0.74.3] — 2026-07-11
 
 ### Fixed

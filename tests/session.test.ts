@@ -27,7 +27,7 @@ test("session round-trips non-Latin1 values (emoji) without crashing the respons
 
   const set = await hono.request("/set");
   assert.equal(set.status, 200); // previously threw (btoa on non-Latin1) → 500
-  const cookie = set.headers.get("set-cookie")!.split(";")[0];
+  const cookie = set.headers.get("set-cookie")!.split(";")[0]!;
   const got = await (await hono.request("/get", { headers: { cookie } })).json();
   assert.deepEqual(got, { greeting: "こんにちは 👋 café" });
 });
@@ -42,7 +42,7 @@ test("session persists across requests via its cookie", async () => {
   });
 
   const set = await hono.request("/set");
-  const cookie = set.headers.get("set-cookie")!.split(";")[0];
+  const cookie = set.headers.get("set-cookie")!.split(";")[0]!;
   assert.ok(cookie.startsWith("keel_session="));
 
   assert.deepEqual(await (await hono.request("/get")).json(), { count: 0 });

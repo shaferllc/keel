@@ -45,7 +45,7 @@ test("user(code) exchanges the code then normalizes the profile", async () => {
       });
     }
     if (url === "https://api.github.com/user") {
-      assert.match((init?.headers as Record<string, string>).authorization, /^Bearer gho_abc$/);
+      assert.match((init?.headers as Record<string, string>).authorization!, /^Bearer gho_abc$/);
       return new Response(
         JSON.stringify({ id: 583231, login: "octocat", name: "The Octocat", email: "octo@github.com", avatar_url: "https://x/y.png" }),
         { status: 200, headers: { "content-type": "application/json" } },

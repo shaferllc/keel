@@ -59,7 +59,7 @@ test("hash.dummy is a valid hash that never verifies — for timing-safe login",
 
 test("gateAfter overrides a decision; pairs with gateBefore", async () => {
   clearAuthorization();
-  define("edit", (_user, ok: boolean) => ok);
+  define("edit", (_user, ok) => Boolean(ok));
 
   // Base decision passes through untouched.
   assert.equal(await canFor({ id: 1 }, "edit", true), true);
@@ -71,7 +71,7 @@ test("gateAfter overrides a decision; pairs with gateBefore", async () => {
 
   // after-hook returning undefined keeps the original result.
   clearAuthorization();
-  define("edit", (_u, ok: boolean) => ok);
+  define("edit", (_u, ok) => Boolean(ok));
   gateAfter(() => undefined);
   assert.equal(await canFor({ id: 1 }, "edit", true), true);
 

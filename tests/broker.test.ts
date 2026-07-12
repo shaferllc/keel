@@ -371,10 +371,10 @@ test("mcall with settled reports per-call status", async () => {
     [{ action: "svc.ok" }, { action: "svc.boom" }],
     { settled: true },
   )) as Array<{ status: string; value?: unknown; reason?: Error }>;
-  assert.equal(res[0].status, "fulfilled");
-  assert.equal(res[0].value, "yes");
-  assert.equal(res[1].status, "rejected");
-  assert.match((res[1].reason as Error).message, /no/);
+  assert.equal(res[0]!.status, "fulfilled");
+  assert.equal(res[0]!.value, "yes");
+  assert.equal(res[1]!.status, "rejected");
+  assert.match((res[1]!.reason as Error).message, /no/);
 });
 
 /* ------------------------- metadata & dependencies ------------------------ */
@@ -514,7 +514,7 @@ test("event context carries eventName, eventType, and groups", async () => {
   await b.emit("user.created");
   await b.broadcast("user.created");
   assert.deepEqual(seen[0], { name: "user.created", type: "emit", groups: ["log"] });
-  assert.equal(seen[1].type, "broadcast");
+  assert.equal(seen[1]!.type, "broadcast");
 });
 
 test("internal lifecycle events fire on start/stop and service changes", async () => {
@@ -562,9 +562,9 @@ test("nested calls track parentID, level, and caller", async () => {
   const depth = await b.call("mid.go");
   assert.equal(depth, 2);
   assert.deepEqual(frames[0], { level: 1, parentID: null, caller: null });
-  assert.equal(frames[1].level, 2);
-  assert.equal(frames[1].caller, "mid");
-  assert.equal(typeof frames[1].parentID, "string");
+  assert.equal(frames[1]!.level, 2);
+  assert.equal(frames[1]!.caller, "mid");
+  assert.equal(typeof frames[1]!.parentID, "string");
 });
 
 test("ctx.toJSON returns a serializable snapshot without live refs", async () => {

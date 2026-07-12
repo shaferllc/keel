@@ -15,7 +15,6 @@ import {
 import { ForbiddenException } from "../src/core/exceptions.js";
 
 type User = { id: number; admin?: boolean };
-type Post = { authorId: number };
 
 class Post {
   constructor(public authorId: number) {}

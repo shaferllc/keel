@@ -378,7 +378,9 @@ test("an error that escapes the app is recorded on the span and rethrown", async
     throw new Error("handler exploded");
   });
 
-  await assert.rejects(() => app.request(new Request("http://app.test/boom")), /handler exploded/);
+  await assert.rejects(async () => {
+    await app.request("http://app.test/boom");
+  }, /handler exploded/);
 
   const span = exporter.spans[0]!;
   assert.equal(span.status, "error");

@@ -158,7 +158,7 @@ test("arg and flag types are inferred from the spec", () => {
       const i: number = flags.times;
       const j: string[] = flags.tags;
 
-      assert.ok([a, b, c, d, e, f, g, h, i, j] !== undefined);
+      assert.equal([a, b, c, d, e, f, g, h, i, j].length, 10);
     },
   });
 });

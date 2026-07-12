@@ -110,8 +110,8 @@ test("global onReady / onShutdown / terminate delegate to the active app", async
   const { onReady, onShutdown, terminate } = await import("../src/core/helpers.js");
   const app = new Application(); // constructor sets it as the active app
   const order: string[] = [];
-  onReady(() => order.push("ready"));
-  onShutdown(() => order.push("bye"));
+  onReady(() => void order.push("ready"));
+  onShutdown(() => void order.push("bye"));
   await app.boot([], { discoverConfig: false, config: { app: {} } });
   await terminate();
   assert.deepEqual(order, ["ready", "bye"]);

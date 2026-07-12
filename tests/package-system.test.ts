@@ -36,7 +36,7 @@ test("instrumentation: db.query fires with sql, connection, kind, requestId", as
   setConnection(conn, "sqlite");
 
   const seen: QueryEvent[] = [];
-  listen<QueryEvent>("db.query", (e) => seen.push(e));
+  listen<QueryEvent>("db.query", (e) => void seen.push(e));
 
   await runRequest("req-123", async () => {
     await db("users").where("id", 1).get();

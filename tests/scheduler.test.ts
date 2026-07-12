@@ -41,9 +41,9 @@ test("cronMatches: day-of-week (Monday = 1)", () => {
 test("runDue runs exactly the due tasks and returns the count", async () => {
   const s = new Scheduler();
   const ran: string[] = [];
-  s.schedule(() => ran.push("minutely")).everyMinute();
-  s.schedule(() => ran.push("hourly")).hourly();
-  s.schedule(() => ran.push("daily")).daily();
+  s.schedule(() => void ran.push("minutely")).everyMinute();
+  s.schedule(() => void ran.push("hourly")).hourly();
+  s.schedule(() => void ran.push("daily")).daily();
 
   // 09:05 → only everyMinute is due
   let count = await s.runDue(at(2026, 7, 13, 9, 5));

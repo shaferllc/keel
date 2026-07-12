@@ -104,7 +104,7 @@ test("csrf: rejects unsafe requests without a token, accepts with one", async ()
 
   // GET issues a token + session cookie.
   const form = await hono.request("/form");
-  const token = (await form.json()).token as string;
+  const token = ((await form.json()) as { token: string }).token;
   const setCookies = form.headers.getSetCookie();
   const cookie = setCookies.find((x) => x.startsWith("keel_session"))!.split(";")[0];
   assert.ok(setCookies.some((x) => x.startsWith("XSRF-TOKEN=")));

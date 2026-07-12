@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { Container } from "../src/core/container.js";
 import { Router, matchers } from "../src/core/http/router.js";
+import type { MiddlewareHandler } from "hono";
 
 function router() {
   return new Router(new Container());
@@ -37,7 +38,9 @@ test("router: named routes and URL generation", () => {
 
 test("router: groups apply prefix, middleware, and name prefix", () => {
   const r = router();
-  const mw = async (_c: never, next: () => Promise<void>) => next();
+  const mw: MiddlewareHandler = async (_c, next) => {
+    await next();
+  };
   r.group(() => {
     r.get("/status", () => new Response("s")).name("status");
   })
@@ -83,7 +86,9 @@ test("router: resource nesting, as, params, and use", () => {
   assert.ok(reparam.all().some((x) => x.path === "/posts/:post"));
 
   const guarded = router();
-  const mw = async (_c: never, next: () => Promise<void>) => next();
+  const mw: MiddlewareHandler = async (_c, next) => {
+    await next();
+  };
   guarded.resource("posts", Ctrl).use(["store", "update"], mw);
   assert.equal(guarded.all().find((x) => x.name === "posts.store")!.middleware.length, 1);
   assert.equal(guarded.all().find((x) => x.name === "posts.index")!.middleware.length, 0);
@@ -110,7 +115,9 @@ test("router: matchers, use alias, where forms, domain, global where, redirects"
   assert.ok(matchers.slug().source.length > 0);
   assert.ok(matchers.alpha().source.includes("a-zA-Z"));
 
-  const mw = async (_c: never, next: () => Promise<void>) => next();
+  const mw: MiddlewareHandler = async (_c, next) => {
+    await next();
+  };
 
   const r = router();
   r.get("/a/:id", () => new Response("a"))

@@ -139,5 +139,5 @@ test("a thrown coded error renders its code in the JSON body", async () => {
 
   const missing = await hono.request("/missing");
   assert.equal(missing.status, 404);
-  assert.equal((await missing.json()).code, "E_NOT_FOUND");
+  assert.equal(((await missing.json()) as { code: string }).code, "E_NOT_FOUND");
 });

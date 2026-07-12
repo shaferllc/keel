@@ -93,20 +93,20 @@ type FlagValue<O, T> = Present<O, false> extends true ? T : T | undefined;
 /** Positional arguments: `keel greet <name>`. */
 export const arg = {
   string<const O extends ArgOptions<string> = Record<never, never>>(
-    options?: O,
+    options?: O & ArgOptions<string>,
   ): ArgSpec<ArgValue<O, string>> {
     return { kind: "arg", type: "string", required: true, ...options } as ArgSpec<ArgValue<O, string>>;
   },
 
   number<const O extends ArgOptions<number> = Record<never, never>>(
-    options?: O,
+    options?: O & ArgOptions<number>,
   ): ArgSpec<ArgValue<O, number>> {
     return { kind: "arg", type: "number", required: true, ...options } as ArgSpec<ArgValue<O, number>>;
   },
 
   /** Swallows every remaining value. Must be the last argument. */
   spread<const O extends ArgOptions<string[]> = Record<never, never>>(
-    options?: O,
+    options?: O & ArgOptions<string[]>,
   ): ArgSpec<ArgValue<O, string[]>> {
     return { kind: "arg", type: "spread", required: true, ...options } as ArgSpec<ArgValue<O, string[]>>;
   },
@@ -116,26 +116,26 @@ export const arg = {
 export const flag = {
   /** `--force` / `-f`, and `--no-force`. Defaults to `false`, so it's never undefined. */
   boolean<const O extends FlagOptions<boolean> = Record<never, never>>(
-    options?: O,
+    options?: O & FlagOptions<boolean>,
   ): FlagSpec<boolean> {
     return { kind: "flag", type: "boolean", required: false, default: false, ...options } as FlagSpec<boolean>;
   },
 
   string<const O extends FlagOptions<string> = Record<never, never>>(
-    options?: O,
+    options?: O & FlagOptions<string>,
   ): FlagSpec<FlagValue<O, string>> {
     return { kind: "flag", type: "string", required: false, ...options } as FlagSpec<FlagValue<O, string>>;
   },
 
   number<const O extends FlagOptions<number> = Record<never, never>>(
-    options?: O,
+    options?: O & FlagOptions<number>,
   ): FlagSpec<FlagValue<O, number>> {
     return { kind: "flag", type: "number", required: false, ...options } as FlagSpec<FlagValue<O, number>>;
   },
 
   /** Repeatable: `--tag a --tag b` gives `["a", "b"]`. Defaults to `[]`. */
   array<const O extends FlagOptions<string[]> = Record<never, never>>(
-    options?: O,
+    options?: O & FlagOptions<string[]>,
   ): FlagSpec<string[]> {
     return { kind: "flag", type: "array", required: false, default: [], ...options } as FlagSpec<string[]>;
   },

@@ -21,7 +21,7 @@ test("Events: on/emit/off/once/listenerCount/clear", async () => {
   assert.deepEqual(seen, [1, 2]); // unsubscribed
 
   const onceSeen: number[] = [];
-  e.once<number>("y", (p) => onceSeen.push(p));
+  e.once<number>("y", (p) => void onceSeen.push(p));
   await e.emit("y", 1);
   await e.emit("y", 2);
   assert.deepEqual(onceSeen, [1]); // only the first
@@ -211,8 +211,8 @@ test("fake records emissions instead of running listeners", async () => {
 test("fake can target only some events; the rest dispatch for real", async () => {
   const e = new Events();
   const ran: string[] = [];
-  e.on("faked", () => ran.push("faked"));
-  e.on("real", () => ran.push("real"));
+  e.on("faked", () => void ran.push("faked"));
+  e.on("real", () => void ran.push("real"));
 
   const buffer = e.fake("faked");
   await e.emit("faked");
@@ -226,9 +226,9 @@ test("fake can target only some events; the rest dispatch for real", async () =>
 test("fake accepts a list of events", async () => {
   const e = new Events();
   const ran: string[] = [];
-  e.on("a", () => ran.push("a"));
-  e.on("b", () => ran.push("b"));
-  e.on("c", () => ran.push("c"));
+  e.on("a", () => void ran.push("a"));
+  e.on("b", () => void ran.push("b"));
+  e.on("c", () => void ran.push("c"));
 
   const buffer = e.fake(["a", "b"]);
   await e.emit("a");
