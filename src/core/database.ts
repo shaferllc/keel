@@ -13,6 +13,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { instrument, currentRequestId } from "./instrumentation.js";
+import { NotFoundException } from "./exceptions.js";
 
 export type Row = Record<string, unknown>;
 
@@ -28,6 +29,14 @@ export interface Paginated<T> {
   perPage: number;
   currentPage: number;
   lastPage: number;
+}
+
+/** A page without a total, returned by `simplePaginate()`. */
+export interface SimplePaginated<T> {
+  data: T[];
+  perPage: number;
+  currentPage: number;
+  hasMore: boolean;
 }
 
 /** The bridge to your database driver. */
@@ -219,6 +228,8 @@ export class QueryBuilder<T extends Row = Row> {
   private groups: string[] = [];
   private havings: Where[] = [];
   private _distinct = false;
+  private _randomOrder = false;
+  private _lock?: "update" | "share";
 
   // The connection is resolved lazily, when a query actually runs — so building
   // a query never throws, and an unregistered connection surfaces as a rejected
@@ -239,19 +250,53 @@ export class QueryBuilder<T extends Row = Row> {
     return this;
   }
 
+  /** Append columns to the SELECT list without replacing it. */
+  addSelect(...columns: string[]): this {
+    if (!columns.length) return this;
+    this.columns = this.columns === "*" ? columns.join(", ") : `${this.columns}, ${columns.join(", ")}`;
+    return this;
+  }
+
+  /** A raw SELECT expression, e.g. `selectRaw("COUNT(*) AS n")`. */
+  selectRaw(sql: string): this {
+    return this.addSelect(sql);
+  }
+
+  /** Wrap a callback's conditions in parentheses, joined to the rest with `boolean`. */
+  private whereGroup(fn: (query: QueryBuilder) => void, boolean: "AND" | "OR"): this {
+    const sub = new QueryBuilder<T>(this.table, this.getSource);
+    fn(sub);
+    if (sub.wheres.length) {
+      const inner = sub.wheres.map((w, i) => (i === 0 ? "" : `${w.boolean} `) + w.sql).join(" ");
+      this.wheres.push({ boolean, sql: `(${inner})`, bindings: sub.wheres.flatMap((w) => w.bindings) });
+    }
+    return this;
+  }
+
+  where(group: (query: QueryBuilder) => void): this;
   where(column: string, value: unknown): this;
   where(column: string, operator: Operator, value: unknown): this;
-  where(column: string, opOrValue: unknown, value?: unknown): this {
+  where(column: string | ((query: QueryBuilder) => void), opOrValue?: unknown, value?: unknown): this {
+    if (typeof column === "function") return this.whereGroup(column, "AND");
     const [op, val] = value === undefined ? ["=", opOrValue] : [opOrValue, value];
     this.wheres.push({ boolean: "AND", sql: `${column} ${op} ?`, bindings: [val] });
     return this;
   }
 
+  orWhere(group: (query: QueryBuilder) => void): this;
   orWhere(column: string, value: unknown): this;
   orWhere(column: string, operator: Operator, value: unknown): this;
-  orWhere(column: string, opOrValue: unknown, value?: unknown): this {
+  orWhere(column: string | ((query: QueryBuilder) => void), opOrValue?: unknown, value?: unknown): this {
+    if (typeof column === "function") return this.whereGroup(column, "OR");
     const [op, val] = value === undefined ? ["=", opOrValue] : [opOrValue, value];
     this.wheres.push({ boolean: "OR", sql: `${column} ${op} ?`, bindings: [val] });
+    return this;
+  }
+
+  /** Negate a simple comparison: `whereNot("status", "active")`. */
+  whereNot(column: string, opOrValue: unknown, value?: unknown): this {
+    const [op, val] = value === undefined ? ["=", opOrValue] : [opOrValue, value];
+    this.wheres.push({ boolean: "AND", sql: `NOT (${column} ${op} ?)`, bindings: [val] });
     return this;
   }
 
@@ -293,9 +338,52 @@ export class QueryBuilder<T extends Row = Row> {
     return this;
   }
 
+  whereNotBetween(column: string, [min, max]: [unknown, unknown]): this {
+    this.wheres.push({ boolean: "AND", sql: `${column} NOT BETWEEN ? AND ?`, bindings: [min, max] });
+    return this;
+  }
+
   /** A raw WHERE fragment with its own bindings. */
   whereRaw(sql: string, bindings: unknown[] = []): this {
     this.wheres.push({ boolean: "AND", sql, bindings });
+    return this;
+  }
+
+  /* --------------------------- OR variants --------------------------- */
+
+  orWhereIn(column: string, values: unknown[]): this {
+    const marks = values.map(() => "?").join(", ");
+    this.wheres.push({ boolean: "OR", sql: `${column} IN (${marks})`, bindings: values });
+    return this;
+  }
+  orWhereNotIn(column: string, values: unknown[]): this {
+    const marks = values.map(() => "?").join(", ");
+    this.wheres.push({ boolean: "OR", sql: `${column} NOT IN (${marks})`, bindings: values });
+    return this;
+  }
+  orWhereNull(column: string): this {
+    this.wheres.push({ boolean: "OR", sql: `${column} IS NULL`, bindings: [] });
+    return this;
+  }
+  orWhereNotNull(column: string): this {
+    this.wheres.push({ boolean: "OR", sql: `${column} IS NOT NULL`, bindings: [] });
+    return this;
+  }
+  orWhereBetween(column: string, [min, max]: [unknown, unknown]): this {
+    this.wheres.push({ boolean: "OR", sql: `${column} BETWEEN ? AND ?`, bindings: [min, max] });
+    return this;
+  }
+  orWhereColumn(first: string, opOrSecond: string, second?: string): this {
+    const [op, col] = second === undefined ? ["=", opOrSecond] : [opOrSecond, second];
+    this.wheres.push({ boolean: "OR", sql: `${first} ${op} ${col}`, bindings: [] });
+    return this;
+  }
+  orWhereLike(column: string, pattern: string): this {
+    this.wheres.push({ boolean: "OR", sql: `${column} LIKE ?`, bindings: [pattern] });
+    return this;
+  }
+  orWhereRaw(sql: string, bindings: unknown[] = []): this {
+    this.wheres.push({ boolean: "OR", sql, bindings });
     return this;
   }
 
@@ -309,15 +397,36 @@ export class QueryBuilder<T extends Row = Row> {
     this.joins.push(`LEFT JOIN ${table} ON ${first} ${op} ${col}`);
     return this;
   }
+  rightJoin(table: string, first: string, opOrSecond: string, second?: string): this {
+    const [op, col] = second === undefined ? ["=", opOrSecond] : [opOrSecond, second];
+    this.joins.push(`RIGHT JOIN ${table} ON ${first} ${op} ${col}`);
+    return this;
+  }
+  crossJoin(table: string): this {
+    this.joins.push(`CROSS JOIN ${table}`);
+    return this;
+  }
 
   groupBy(...columns: string[]): this {
     this.groups.push(...columns);
+    return this;
+  }
+  groupByRaw(sql: string): this {
+    this.groups.push(sql);
     return this;
   }
 
   having(column: string, opOrValue: unknown, value?: unknown): this {
     const [op, val] = value === undefined ? ["=", opOrValue] : [opOrValue, value];
     this.havings.push({ boolean: "AND", sql: `${column} ${op} ?`, bindings: [val] });
+    return this;
+  }
+  havingRaw(sql: string, bindings: unknown[] = []): this {
+    this.havings.push({ boolean: "AND", sql, bindings });
+    return this;
+  }
+  havingBetween(column: string, [min, max]: [unknown, unknown]): this {
+    this.havings.push({ boolean: "AND", sql: `${column} BETWEEN ? AND ?`, bindings: [min, max] });
     return this;
   }
 
@@ -337,14 +446,42 @@ export class QueryBuilder<T extends Row = Row> {
     return this;
   }
 
+  /** The inverse of `when` — apply `then` only when `condition` is falsy. */
+  unless(
+    condition: unknown,
+    then: (query: this, value: unknown) => void,
+    otherwise?: (query: this, value: unknown) => void,
+  ): this {
+    if (!condition) then(this, condition);
+    else otherwise?.(this, condition);
+    return this;
+  }
+
   orderBy(column: string, direction: "asc" | "desc" = "asc"): this {
     this.orders.push(`${column} ${direction.toUpperCase()}`);
     return this;
+  }
+  orderByDesc(column: string): this {
+    return this.orderBy(column, "desc");
   }
 
   /** A raw ORDER BY fragment, e.g. `orderByRaw("LENGTH(name) DESC")`. */
   orderByRaw(sql: string): this {
     this.orders.push(sql);
+    return this;
+  }
+
+  /** Drop existing ordering, optionally setting a new one. */
+  reorder(column?: string, direction: "asc" | "desc" = "asc"): this {
+    this.orders = [];
+    this._randomOrder = false;
+    if (column) this.orderBy(column, direction);
+    return this;
+  }
+
+  /** Order rows randomly (dialect-aware `RANDOM()` / `RAND()`). */
+  inRandomOrder(): this {
+    this._randomOrder = true;
     return this;
   }
 
@@ -362,6 +499,29 @@ export class QueryBuilder<T extends Row = Row> {
   }
   offset(n: number): this {
     this._offset = n;
+    return this;
+  }
+  /** Alias of `limit`. */
+  take(n: number): this {
+    return this.limit(n);
+  }
+  /** Alias of `offset`. */
+  skip(n: number): this {
+    return this.offset(n);
+  }
+  /** Limit/offset for a given page (1-based). */
+  forPage(page: number, perPage = 15): this {
+    return this.offset((Math.max(1, page) - 1) * perPage).limit(perPage);
+  }
+
+  /** Add `FOR UPDATE` (write lock) to the SELECT; ignored on sqlite. */
+  lockForUpdate(): this {
+    this._lock = "update";
+    return this;
+  }
+  /** Add `FOR SHARE` (read lock) to the SELECT; ignored on sqlite. */
+  sharedLock(): this {
+    this._lock = "share";
     return this;
   }
 
@@ -387,23 +547,75 @@ export class QueryBuilder<T extends Row = Row> {
 
   /* ------------------------------- reads ------------------------------- */
 
-  async get(): Promise<T[]> {
+  /** Compile the SELECT into `?`-placeholder SQL plus its bindings. */
+  private compileSelect(dialect?: Dialect): { sql: string; bindings: unknown[] } {
     const where = this.whereClause();
     const having = this.havingClause();
     let sql = `SELECT ${this._distinct ? "DISTINCT " : ""}${this.columns} FROM ${this.table}`;
     sql += this.joinSql() + where.sql;
     if (this.groups.length) sql += ` GROUP BY ${this.groups.join(", ")}`;
     sql += having.sql;
-    if (this.orders.length) sql += ` ORDER BY ${this.orders.join(", ")}`;
+    const orders = [...this.orders];
+    if (this._randomOrder) orders.push(dialect === "mysql" ? "RAND()" : "RANDOM()");
+    if (orders.length) sql += ` ORDER BY ${orders.join(", ")}`;
     if (this._limit != null) sql += ` LIMIT ${this._limit}`;
     if (this._offset != null) sql += ` OFFSET ${this._offset}`;
-    return (await this.runSelect(sql, [...where.bindings, ...having.bindings])) as T[];
+    if (this._lock && dialect && dialect !== "sqlite") {
+      sql += this._lock === "update" ? " FOR UPDATE" : " FOR SHARE";
+    }
+    return { sql, bindings: [...where.bindings, ...having.bindings] };
+  }
+
+  async get(): Promise<T[]> {
+    const source = this.getSource();
+    const { sql, bindings } = this.compileSelect(source.dialect);
+    return (await selectOn(source, sql, bindings)) as T[];
   }
 
   async first(): Promise<T | null> {
     this._limit = 1;
     const rows = await this.get();
     return rows[0] ?? null;
+  }
+
+  /** The first row, or throw `NotFoundException` when there is none. */
+  async firstOrFail(): Promise<T> {
+    const row = await this.first();
+    if (!row) throw new NotFoundException(`No row found in ${this.table}`);
+    return row;
+  }
+
+  /** Find by primary key (default `id`), or null. */
+  async find(id: unknown, key = "id"): Promise<T | null> {
+    return this.where(key, id).first();
+  }
+
+  /** Exactly one row: throws if none, or if more than one matches. */
+  async sole(): Promise<T> {
+    this._limit = 2;
+    const rows = await this.get();
+    if (rows.length === 0) throw new NotFoundException(`No row found in ${this.table}`);
+    if (rows.length > 1) throw new Error(`Multiple rows found in ${this.table}`);
+    return rows[0]!;
+  }
+
+  /** The SQL this query would run, with `?` placeholders (does not execute). */
+  toSql(): string {
+    return this.compileSelect().sql;
+  }
+  /** The bindings this query would run with. */
+  getBindings(): unknown[] {
+    return this.compileSelect().bindings;
+  }
+  /** Log the compiled SQL + bindings, then return the builder for chaining. */
+  dump(): this {
+    console.log(this.toSql(), this.getBindings());
+    return this;
+  }
+  /** Dump the compiled SQL + bindings and throw, halting execution. */
+  dd(): never {
+    console.log(this.toSql(), this.getBindings());
+    throw new Error("dd(): query dumped");
   }
 
   async count(): Promise<number> {
@@ -417,6 +629,10 @@ export class QueryBuilder<T extends Row = Row> {
 
   async exists(): Promise<boolean> {
     return (await this.count()) > 0;
+  }
+
+  async doesntExist(): Promise<boolean> {
+    return !(await this.exists());
   }
 
   private async aggregate(fn: string, column: string): Promise<number> {
@@ -455,6 +671,11 @@ export class QueryBuilder<T extends Row = Row> {
     return rows.map((row) => (row as Row)[column] as V);
   }
 
+  /** Join a single column's values into a string. */
+  async implode(column: string, glue = ""): Promise<string> {
+    return (await this.pluck(column)).join(glue);
+  }
+
   /** A page of results plus pagination metadata. */
   async paginate(page = 1, perPage = 15): Promise<Paginated<T>> {
     const total = await this.count();
@@ -468,6 +689,18 @@ export class QueryBuilder<T extends Row = Row> {
       currentPage: page,
       lastPage: Math.max(1, Math.ceil(total / perPage)),
     };
+  }
+
+  /**
+   * A lighter page: no `COUNT` query. Fetches one extra row to know whether a
+   * next page exists — cheaper for "load more" UIs that don't need a total.
+   */
+  async simplePaginate(page = 1, perPage = 15): Promise<SimplePaginated<T>> {
+    this._limit = perPage + 1;
+    this._offset = (Math.max(1, page) - 1) * perPage;
+    const rows = await this.get();
+    const hasMore = rows.length > perPage;
+    return { data: hasMore ? rows.slice(0, perPage) : rows, perPage, currentPage: page, hasMore };
   }
 
   /* ------------------------------- writes ------------------------------ */
@@ -499,6 +732,21 @@ export class QueryBuilder<T extends Row = Row> {
     return this.runWrite(`DELETE FROM ${this.table}${where.sql}`, where.bindings);
   }
 
+  /** Empty the table. */
+  async truncate(): Promise<WriteResult> {
+    const dialect = this.getSource().dialect;
+    // sqlite has no TRUNCATE; a bare DELETE is the portable equivalent.
+    if (dialect === "sqlite") return this.runWrite(`DELETE FROM ${this.table}`, []);
+    return this.runWrite(`TRUNCATE TABLE ${this.table}`, []);
+  }
+
+  /** Update the first matching row, or insert `{ ...match, ...values }` if none. */
+  async updateOrInsert(match: Row, values: Row = {}): Promise<WriteResult> {
+    for (const [column, value] of Object.entries(match)) this.where(column, value);
+    if (await this.exists()) return this.update(values);
+    return this.insert({ ...match, ...values });
+  }
+
   /** Atomically add to a numeric column (optionally setting other columns too). */
   increment(column: string, amount = 1, extra: Row = {}): Promise<WriteResult> {
     const where = this.whereClause();
@@ -512,6 +760,25 @@ export class QueryBuilder<T extends Row = Row> {
     const where = this.whereClause();
     const sets = [`${column} = ${column} - ?`, ...Object.keys(extra).map((k) => `${k} = ?`)];
     const bindings = [amount, ...Object.values(extra), ...where.bindings];
+    return this.runWrite(`UPDATE ${this.table} SET ${sets.join(", ")}${where.sql}`, bindings);
+  }
+
+  /** Increment several columns by 1 (or per-column amounts) in one statement. */
+  incrementEach(columns: string[] | Record<string, number>, extra: Row = {}): Promise<WriteResult> {
+    return this.stepEach("+", columns, extra);
+  }
+  /** Decrement several columns by 1 (or per-column amounts) in one statement. */
+  decrementEach(columns: string[] | Record<string, number>, extra: Row = {}): Promise<WriteResult> {
+    return this.stepEach("-", columns, extra);
+  }
+  private stepEach(op: "+" | "-", columns: string[] | Record<string, number>, extra: Row): Promise<WriteResult> {
+    const entries = Array.isArray(columns) ? columns.map((c) => [c, 1] as const) : Object.entries(columns);
+    const where = this.whereClause();
+    const sets = [
+      ...entries.map(([c]) => `${c} = ${c} ${op} ?`),
+      ...Object.keys(extra).map((k) => `${k} = ?`),
+    ];
+    const bindings = [...entries.map(([, n]) => n), ...Object.values(extra), ...where.bindings];
     return this.runWrite(`UPDATE ${this.table} SET ${sets.join(", ")}${where.sql}`, bindings);
   }
 

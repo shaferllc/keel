@@ -7759,106 +7759,218 @@ An unregistered connection name doesn't fail when you *build* a query, only when
 it runs — so a misconfigured name surfaces as a rejected read/write, not a
 construction-time throw.
 
-## Querying
+## Query builder
 
-Start a query with `db(table)`, chain constraints, and finish with a terminal
-method (`get`, `first`, `count`, `exists`):
+Start a query with `db(table)`, chain constraints (they return the builder, so
+order doesn't matter), and finish with a terminal method. Nothing hits the
+database until a terminal runs. Every value becomes a **binding**, never
+string-interpolated SQL — the builder is injection-safe by construction. It's
+driver-agnostic and edge-safe: the same chain compiles for sqlite, MySQL, and
+Postgres.
 
 ```ts
 import { db } from "@shaferllc/keel/core";
 
-await db("users").where("active", true).orderBy("name").get();
-await db("users").where("id", 1).first();          // row | null
-await db("users").where("age", ">", 18).count();
-await db("posts").whereIn("id", [1, 2, 3]).get();
-await db("posts").whereNull("deleted_at").limit(20).offset(40).get();
-
-await db("orders")
-  .select("id", "total")
-  .where("status", "paid")
-  .orWhere("status", "shipped")
+const active = await db("users")
+  .where("active", true)
+  .where("age", ">", 18)
+  .orderBy("name")
+  .limit(20)
   .get();
 ```
 
-Constraint methods return the builder, so they chain in any order; the query
-isn't sent until you call a terminal method. Multiple `where` calls combine with
-`AND`; `orWhere` joins with `OR`.
-
-More `where` clauses and ordering shortcuts:
+### Retrieving results
 
 ```ts
-await db("posts").whereBetween("views", [10, 100]).get();
-await db("posts").whereNotIn("id", [4, 5]).get();
-await db("posts").whereLike("title", "%keel%").get();
-await db("posts").latest().get();          // ORDER BY created_at DESC
-await db("posts").oldest("published_at").get();
+await db("users").get();                     // Row[]
+await db("users").where("id", 1).first();    // Row | null
+await db("users").where("id", 1).firstOrFail(); // Row, or throws NotFoundException
+await db("users").find(1);                   // by primary key (default "id")
+await db("users").where("email", e).sole();  // exactly one, else throws
+await db("users").where("id", 1).value("email"); // one column of the first row
+await db("posts").pluck("title");            // string[] of one column
+await db("tags").orderBy("name").implode("name", ", "); // "a, b, c"
 ```
 
-Joins, grouping, and conditional/raw clauses:
+For large sets, `chunk` pages through without loading everything (return `false`
+to stop early):
 
 ```ts
-await db("posts")
-  .join("users", "posts.user_id", "users.id")   // also leftJoin(...)
-  .select("posts.title", "users.name")
-  .get();
-
-await db("posts").select("user_id").groupBy("user_id").having("COUNT(*)", ">", 5).get();
-await db("users").distinct().select("country").pluck("country");
-
-await db("events").whereColumn("updated_at", ">", "created_at").get();
-await db("users").whereRaw("score >= ?", [10]).orderByRaw("LENGTH(name) DESC").get();
-
-await db("users").when(search, (q, term) => q.whereLike("name", `%${term}%`)).get();
-```
-
-## Aggregates, single values, and pagination
-
-```ts
-await db("orders").where("paid", true).sum("total");   // number
-await db("orders").avg("total");
-await db("orders").min("total");
-await db("orders").max("total");
-
-await db("users").where("id", 1).value("email");        // one column, first row
-await db("posts").pluck("title");                        // string[] of one column
-
-const page = await db("posts").latest().paginate(2, 15); // { data, total, perPage, currentPage, lastPage }
-```
-
-`paginate(page, perPage)` runs a `COUNT` then a `LIMIT`/`OFFSET` query and returns
-a `Paginated<T>` with the page and the metadata to render pager controls.
-
-## Writing
-
-```ts
-const id = await db("users").insertGetId({ email, name });
-await db("users").where("id", id).update({ name: "Grace" });
-await db("users").where("id", id).delete();
-```
-
-Everything is parameterized — values become bindings, never string-interpolated
-SQL — so it's injection-safe by construction. Writes return a `WriteResult`;
-`insertGetId` unwraps it to just the new id.
-
-Counters, bulk upserts, and paged iteration:
-
-```ts
-await db("posts").where("id", id).increment("views");        // += 1
-await db("posts").where("id", id).decrement("stock", 3, { updated_at: now });
-
-// Insert, updating the listed columns on a unique-key conflict (dialect-aware).
-await db("users").upsert([{ id: 1, name: "Ada" }], ["id"], ["name"]);
-await db("logs").insertOrIgnore({ key, value });             // skip duplicates
-
-// Process a large table a page at a time (return false to stop early).
 await db("users").orderBy("id").chunk(500, async (rows) => {
   for (const row of rows) await process(row);
 });
 ```
 
-> **Guard your writes.** `update()` and `delete()` apply to every row that
-> matches the current `where` clause — with no `where`, that's the whole table.
-> Always scope a write with `where` unless you truly mean to touch every row.
+### Aggregates
+
+```ts
+await db("orders").count();
+await db("orders").where("paid", true).sum("total");
+await db("orders").avg("total");   // also min(col), max(col)
+await db("users").where("email", e).exists();       // boolean
+await db("users").where("banned", true).doesntExist();
+```
+
+### Selects
+
+```ts
+db("users").select("id", "email");
+db("users").select("id").addSelect("email");        // append, don't replace
+db("orders").selectRaw("SUM(total) AS revenue");
+db("users").distinct().select("country");
+```
+
+### Where clauses
+
+```ts
+db("users").where("votes", 100);                    // = is the default operator
+db("users").where("votes", ">=", 100);
+db("users").where("name", "like", "T%");
+
+db("users").where("votes", 100).orWhere("name", "John");
+db("users").whereNot("status", "cancelled");
+
+db("users").whereIn("id", [1, 2, 3]).whereNotIn("id", [4]);
+db("users").whereNull("deleted_at").whereNotNull("email_verified_at");
+db("products").whereBetween("price", [10, 100]).whereNotBetween("stock", [0, 5]);
+db("posts").whereLike("title", "%keel%");
+db("events").whereColumn("updated_at", ">", "created_at");  // column vs column
+db("users").whereRaw("score >= ? AND score <= ?", [10, 90]);
+```
+
+Every clause has an `orWhere…` twin — `orWhereIn`, `orWhereNull`,
+`orWhereNotNull`, `orWhereBetween`, `orWhereColumn`, `orWhereLike`, `orWhereRaw`,
+`orWhereNotIn`.
+
+**Grouped clauses.** Pass a callback to `where`/`orWhere` to parenthesize a set
+of conditions — the way to express `A AND (B OR C)`:
+
+```ts
+await db("users")
+  .where("active", true)
+  .where((q) => q.where("role", "admin").orWhere("role", "owner"))
+  .get();
+// … WHERE active = ? AND (role = ? OR role = ?)
+```
+
+### Ordering, grouping, limit & offset
+
+```ts
+db("users").orderBy("name").orderByDesc("created_at");
+db("posts").latest();                 // ORDER BY created_at DESC (oldest() for ASC)
+db("posts").orderByRaw("LENGTH(title) DESC");
+db("users").inRandomOrder();          // dialect-aware RANDOM()/RAND()
+db("users").reorder("name");          // clear existing ordering, then set
+
+db("orders")
+  .select("user_id")
+  .selectRaw("SUM(total) AS spent")
+  .groupBy("user_id")
+  .having("spent", ">", 1000)         // also havingRaw(...), havingBetween(...)
+  .get();
+
+db("users").limit(10).offset(20);     // take(10)/skip(20) are aliases
+db("users").forPage(3, 15);           // page 3, 15 per page
+```
+
+### Joins
+
+```ts
+await db("posts")
+  .join("users", "posts.user_id", "users.id")   // INNER JOIN on equality
+  .leftJoin("images", "images.post_id", "posts.id")
+  .select("posts.title", "users.name")
+  .get();
+```
+
+`rightJoin` and `crossJoin` round out the set. Joins with several `ON`
+conditions aren't modelled — use `whereRaw` or a view.
+
+### Conditional clauses
+
+`when` / `unless` apply a callback based on a runtime value, so you build a query
+without breaking the chain into `if`s. The callback receives the value:
+
+```ts
+await db("users")
+  .when(search, (q, term) => q.whereLike("name", `%${term}%`))
+  .unless(includeArchived, (q) => q.whereNull("archived_at"))
+  .get();
+```
+
+### Inserts
+
+```ts
+await db("users").insert({ email, name });
+const id = await db("users").insertGetId({ email, name });   // new primary key
+await db("logs").insertOrIgnore({ key, value });             // skip unique conflicts
+await db("users").upsert([{ id: 1, name: "Ada" }], ["id"], ["name"]); // insert/update
+```
+
+`upsert(rows, uniqueBy, update?)` inserts, updating the `update` columns (default:
+everything not in `uniqueBy`) on a conflict — dialect-aware (`ON CONFLICT` /
+`ON DUPLICATE KEY UPDATE`).
+
+### Updates
+
+```ts
+await db("users").where("id", id).update({ name: "Grace" });
+await db("users").updateOrInsert({ email }, { name });        // update match, else insert
+await db("posts").where("id", id).increment("views");         // += 1
+await db("posts").where("id", id).decrement("stock", 3, { updated_at: now });
+await db("counters").incrementEach({ hits: 1, misses: 2 });   // several columns at once
+```
+
+### Deletes
+
+```ts
+await db("sessions").where("expires_at", "<", now).delete();
+await db("cache").truncate();          // empty the table (DELETE on sqlite)
+```
+
+> **Guard your writes.** `update()`, `delete()`, and the increments apply to
+> every row matching the current `where` clause — with none, that's the whole
+> table. Scope every write unless you truly mean to touch every row.
+
+### Pagination
+
+```ts
+const page = await db("posts").latest().paginate(2, 15);
+// { data, total, perPage, currentPage, lastPage } — a COUNT plus a page query
+
+const feed = await db("posts").latest().simplePaginate(2, 15);
+// { data, perPage, currentPage, hasMore } — no COUNT; one extra row tells hasMore
+```
+
+### Pessimistic locking
+
+Inside a [transaction](#transactions), lock the selected rows against concurrent
+writes. No-ops on sqlite (which locks the whole database anyway):
+
+```ts
+await transaction(async () => {
+  const row = await db("accounts").where("id", id).lockForUpdate().first(); // FOR UPDATE
+  await db("accounts").where("id", id).update({ balance: row.balance - 10 });
+});
+// sharedLock() takes a read lock (FOR SHARE) instead.
+```
+
+### Debugging
+
+```ts
+db("users").where("active", true).toSql();       // "SELECT * FROM users WHERE active = ?"
+db("users").where("active", true).getBindings(); // [true]
+db("users").where("active", true).dump();        // logs SQL + bindings, returns the builder
+db("users").where("active", true).dd();          // logs and throws (dump-and-die)
+```
+
+### Not (yet) modelled
+
+Kept out on purpose, to stay driver-agnostic and honest about what compiles
+everywhere: unions, subquery `where`/join builders (`whereExists`, `joinSub`),
+the `whereDate`/`whereMonth`/… date-function family (no portable form across
+dialects), and `cursor`/`lazy` streaming. Reach for `whereRaw`, a raw
+`connection().select(sql)`, or a database view when you need them.
 
 ## Transactions
 
@@ -8304,6 +8416,68 @@ Insert one or more rows, skipping any that violate a unique constraint
 
 Process results a page at a time so a large table never loads at once. Return
 `false` from the callback to stop early. Pair with `orderBy` for a stable order.
+
+#### `addSelect(...columns)` · `selectRaw(sql)`
+
+Append columns to the SELECT list without replacing it; `selectRaw` appends a raw
+expression (`selectRaw("SUM(total) AS revenue")`).
+
+#### `orWhere` family · `whereNot(...)` · `whereNotBetween(column, [min, max])`
+
+Every `where…` clause has an `orWhere…` twin joined with `OR` — `orWhereIn`,
+`orWhereNotIn`, `orWhereNull`, `orWhereNotNull`, `orWhereBetween`,
+`orWhereColumn`, `orWhereLike`, `orWhereRaw`. `whereNot` negates a comparison;
+`whereNotBetween` is the inverse of `whereBetween`. Passing a **callback** to
+`where`/`orWhere` groups its conditions in parentheses.
+
+#### `orderByDesc(column)` · `reorder(column?, direction?)` · `inRandomOrder()`
+
+Descending order; clear existing ordering (optionally setting a new one); random
+order (dialect-aware `RANDOM()`/`RAND()`).
+
+#### `groupByRaw(sql)` · `havingRaw(sql, bindings?)` · `havingBetween(column, [min, max])`
+
+Raw `GROUP BY`, a raw/bound `HAVING`, and a `HAVING … BETWEEN`.
+
+#### `take(n)` · `skip(n)` · `forPage(page, perPage?)`
+
+Aliases for `limit`/`offset`, and limit+offset for a 1-based page.
+
+#### `rightJoin(...)` · `crossJoin(table)`
+
+`RIGHT JOIN` on an equality; `CROSS JOIN`.
+
+#### `unless(condition, then, otherwise?)`
+
+The inverse of `when` — runs `then` only when `condition` is falsy.
+
+#### `find(id, key?)` · `firstOrFail()` · `sole()` · `doesntExist()` · `implode(column, glue?)`
+
+Find by key (default `"id"`); first-or-throw; exactly-one-or-throw; the negation
+of `exists`; and join one column's values into a string.
+
+#### `simplePaginate(page?, perPage?)`
+
+`simplePaginate(page = 1, perPage = 15): Promise<SimplePaginated<T>>`
+
+A page without a `COUNT` — fetches one extra row to set `hasMore`. Cheaper than
+`paginate` for "load more" UIs.
+
+#### `lockForUpdate()` · `sharedLock()`
+
+Add `FOR UPDATE` / `FOR SHARE` to the SELECT (inside a transaction). Ignored on
+sqlite.
+
+#### `updateOrInsert(match, values?)` · `truncate()` · `incrementEach(cols, extra?)` · `decrementEach(cols, extra?)`
+
+Update the first match or insert `{ ...match, ...values }`; empty the table
+(`DELETE` on sqlite); and step several numeric columns in one statement (`cols` is
+an array — each by 1 — or a `{ column: amount }` map).
+
+#### `toSql()` · `getBindings()` · `dump()` · `dd()`
+
+The compiled `?`-placeholder SQL and its bindings, without executing; `dump` logs
+them and returns the builder; `dd` logs and throws.
 
 ### Interfaces & types
 

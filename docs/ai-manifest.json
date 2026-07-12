@@ -2812,6 +2812,11 @@
       "module": "storage"
     },
     {
+      "name": "SimplePaginated",
+      "kind": "type",
+      "module": "database"
+    },
+    {
       "name": "singleton",
       "kind": "value",
       "module": "helpers"

@@ -151,6 +151,7 @@ export type {
   Dialect,
   Operator,
   Paginated,
+  SimplePaginated,
 } from "./database.js";
 export { Model } from "./model.js";
 export type { GlobalScope } from "./model.js";
