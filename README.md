@@ -160,11 +160,12 @@ src/core/            The framework
 src/db/              Database adapters (D1, Postgres, libSQL)
 src/api/             CRUD REST resources from a model
 src/openapi/         Generates an OpenAPI spec from the routes
+src/billing/         Subscription billing — Stripe + Paddle (Cashier port)
 src/watch/           The debug dashboard
 src/mcp/             The MCP server (docs + API for AI agents)
 src/vite/            The Vite plugin
 
-tests/               740 tests
+tests/               767 tests
 docs/                Every guide, plus type-checked examples of each
 scripts/             build-ai (llms.txt, the MCP manifest), verify-release
 ```
@@ -227,6 +228,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Internationalization](./docs/i18n.md) | ICU messages, `Intl` formatters, locale detection |
 | [Pages](./docs/pages.md) | Page-based routing — a file is a route |
 | [Packages](./docs/packages.md) | Redistributable slices of an app: routes, migrations, commands |
+| [Billing](./docs/billing.md) | Subscriptions, charges & webhooks — Stripe + Paddle (Cashier port) |
 | [Watch](./docs/watch.md) | Debug dashboard — requests, queries, jobs, logs at `/watch` |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
 | [Templates](./docs/templates.md) | `{{ }}` + `@`-tag templating engine, edge-safe |
