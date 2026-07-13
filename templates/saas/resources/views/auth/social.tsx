@@ -1,4 +1,5 @@
-import { btnGhost, muted } from "../ui.js";
+import { Button, Muted } from "@shaferllc/keel/ui";
+
 import { configuredProviders } from "../../../app/Controllers/SocialAuthController.js";
 
 const LABELS: Record<string, string> = {
@@ -22,15 +23,17 @@ export function SocialButtons() {
     <>
       <div class="mt-6 flex items-center gap-3">
         <span class="h-px flex-1 bg-line" />
-        <span class={`${muted} text-xs uppercase tracking-wider`}>or</span>
+        <Muted as="span" class="text-xs uppercase tracking-wider">
+          or
+        </Muted>
         <span class="h-px flex-1 bg-line" />
       </div>
 
       <div class="mt-4 flex flex-col gap-2">
         {providers.map((provider) => (
-          <a class={btnGhost} href={`/auth/${provider}`}>
+          <Button variant="ghost" href={`/auth/${provider}`}>
             {LABELS[provider] ?? provider}
-          </a>
+          </Button>
         ))}
       </div>
     </>

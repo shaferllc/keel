@@ -1,7 +1,6 @@
 import { Alert, Button, Field, Muted } from "@shaferllc/keel/ui";
 import { AuthShell } from "./shell.js";
 import { SocialButtons } from "./social.js";
-import { alert, btnPrimary, field, muted } from "../ui.js";
 
 export default function Login({ error }: { error: string | null }) {
   return (
@@ -21,7 +20,7 @@ export default function Login({ error }: { error: string | null }) {
 
       <SocialButtons />
 
-      <p class={`${muted} mt-6 text-sm`}>
+      <Muted class="mt-6 text-sm">
         <a class="underline underline-offset-2" href="/register">
           Register
         </a>
