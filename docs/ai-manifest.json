@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.2",
+  "version": "0.83.3",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -158,6 +158,13 @@
       "summary": "Populate the database with realistic fixtures for tests and demos.",
       "path": "docs/factories.md",
       "example": "docs/examples/factories.ts"
+    },
+    {
+      "slug": "gates",
+      "title": "Gates",
+      "summary": "Keel Gates is a signup gate for private alpha / waitlist apps: an email allowlist, invite codes with use limits and expiry, and a single check that answers \"may this person register?\".",
+      "path": "docs/gates.md",
+      "example": "docs/examples/gates.ts"
     },
     {
       "slug": "getting-started",

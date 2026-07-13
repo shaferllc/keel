@@ -15,7 +15,9 @@
       "@shaferllc/keel/api": ["dist/api/index.d.ts"],
       "@shaferllc/keel/openapi": ["dist/openapi/index.d.ts"],
       "@shaferllc/keel/billing": ["dist/billing/index.d.ts"],
-      "@shaferllc/keel/watch": ["dist/watch/index.d.ts"]
+      "@shaferllc/keel/watch": ["dist/watch/index.d.ts"],
+      "@shaferllc/keel/gates": ["dist/gates/index.d.ts"],
+      "@shaferllc/keel/hosting": ["dist/hosting/index.d.ts"]
     }
   },
   "include": ["docs/examples"]

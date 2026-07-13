@@ -161,6 +161,8 @@ src/db/              Database adapters (D1, Postgres, libSQL)
 src/api/             CRUD REST resources from a model
 src/openapi/         Generates an OpenAPI spec from the routes
 src/billing/         Subscription billing — Stripe + Paddle
+src/gates/           Signup gates — invite codes & email allowlist
+src/hosting/         Cloudflare / dump / secrets helpers for hosted apps
 src/watch/           The debug dashboard
 src/mcp/             The MCP server (docs + API for AI agents)
 src/vite/            The Vite plugin
@@ -203,7 +205,8 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Lifecycle Hooks](./docs/hooks.md) | onReady/onShutdown, graceful shutdown, onRoute |
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
-| [Authorization](./docs/authorization.md) | Gates & policies, `can`/`authorize` |
+| [Gates](./docs/gates.md) | Signup gating — invite codes & email allowlist |
+| [Authorization](./docs/authorization.md) | Ability gates & policies, `can`/`authorize` |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
 | [Models](./docs/models.md) | Active-record: find/create/save, casts, relations |
 | [Migrations](./docs/migrations.md) | Schema builder + migrator, dialect-aware |

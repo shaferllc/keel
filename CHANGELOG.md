@@ -4,6 +4,19 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.3] — 2026-07-12
+
+### Added
+
+- **`@shaferllc/keel/gates`** — signup gating for private alpha / waitlist:
+  email allowlist + invite codes (`canRegister` / `redeemInvite`), shipped as a
+  package with a migration. Used by Keel Cloud; not the same as team invitations
+  or authorization gates.
+- **`@shaferllc/keel/hosting`** — Cloudflare client, hostname helpers, SQL dump,
+  and secrets encryption helpers for hosted Workers/D1 apps.
+
+[0.83.3]: https://github.com/shaferllc/keel/releases/tag/v0.83.3
+
 ## [0.83.2] — 2026-07-12
 
 ### Added
