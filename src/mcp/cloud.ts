@@ -2,7 +2,8 @@
  * Keel Cloud MCP tools — registered only when KEEL_CLOUD_TOKEN is set.
  *
  * Talks to a Keel Cloud control plane over HTTP (Bearer token). Agents use these
- * to create sites, preview/publish, and manage secrets without leaving the IDE.
+ * to create sites, preview/publish, manage secrets/domains/billing, and export
+ * without leaving the IDE.
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -51,6 +52,16 @@ function jsonText(data: unknown, isError = false) {
   };
 }
 
+function requireConfirm(confirm: boolean, action: string) {
+  if (confirm) return null;
+  return jsonText(
+    {
+      error: `${action} requires confirm=true. Ask the user to confirm before calling again.`,
+    },
+    true,
+  );
+}
+
 /** Register Cloud tools on an existing MCP server when a Cloud token is present. */
 export function registerCloudTools(server: McpServer): boolean {
   if (!cloudConfig()) return false;
@@ -59,11 +70,54 @@ export function registerCloudTools(server: McpServer): boolean {
     "keel_cloud_me",
     {
       title: "Keel Cloud — who am I",
-      description: "Return the Keel Cloud user authenticated by KEEL_CLOUD_TOKEN.",
+      description:
+        "Return the Keel Cloud user authenticated by KEEL_CLOUD_TOKEN (plan, site_limit, team_id). Token binds to the user's first team.",
       inputSchema: {},
     },
     async () => {
       const res = await cloudFetch("/api/v1/me");
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_billing",
+    {
+      title: "Keel Cloud — billing status",
+      description:
+        "Current team plan (free|pro), site limits, custom-domain eligibility, and whether the caller is the owner.",
+      inputSchema: {},
+    },
+    async () => {
+      const res = await cloudFetch("/api/v1/billing");
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_billing_checkout",
+    {
+      title: "Keel Cloud — Stripe checkout URL",
+      description:
+        "Create a Stripe Checkout session for Keel Cloud Pro (owner only). Return the url for the user to open — do not scrape cards.",
+      inputSchema: {},
+    },
+    async () => {
+      const res = await cloudFetch("/api/v1/billing/checkout", { method: "POST", body: "{}" });
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_billing_portal",
+    {
+      title: "Keel Cloud — Stripe customer portal URL",
+      description:
+        "Open the Stripe customer portal URL for the team (owner only) to update card / cancel. Return the url for the user.",
+      inputSchema: {},
+    },
+    async () => {
+      const res = await cloudFetch("/api/v1/billing/portal", { method: "POST", body: "{}" });
       return jsonText(res.body, !res.ok);
     },
   );
@@ -86,7 +140,7 @@ export function registerCloudTools(server: McpServer): boolean {
     "keel_cloud_get_site",
     {
       title: "Keel Cloud — get site",
-      description: "Fetch one Keel Cloud site by id (paths, hostnames, status).",
+      description: "Fetch one Keel Cloud site by id (paths, hostnames, status, git).",
       inputSchema: {
         site_id: z.number().int().describe("Site id from keel_cloud_list_sites"),
       },
@@ -112,6 +166,46 @@ export function registerCloudTools(server: McpServer): boolean {
       const res = await cloudFetch("/api/v1/sites", {
         method: "POST",
         body: JSON.stringify({ name, preset: preset ?? "minimal" }),
+      });
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_delete_site",
+    {
+      title: "Keel Cloud — soft-delete site",
+      description:
+        "Soft-delete a site (detaches hostnames; recoverable within retention). Requires confirm=true.",
+      inputSchema: {
+        site_id: z.number().int().describe("Site id"),
+        confirm: z.boolean().describe("Must be true — ask the user before setting this"),
+      },
+    },
+    async ({ site_id, confirm }) => {
+      const blocked = requireConfirm(confirm, "Delete");
+      if (blocked) return blocked;
+      const res = await cloudFetch(`/api/v1/sites/${site_id}/delete`, {
+        method: "POST",
+        body: JSON.stringify({ confirm: true }),
+      });
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_restore_site",
+    {
+      title: "Keel Cloud — restore soft-deleted site",
+      description: "Restore a soft-deleted site within the retention window. Redeploy to reattach hostnames.",
+      inputSchema: {
+        site_id: z.number().int().describe("Site id"),
+      },
+    },
+    async ({ site_id }) => {
+      const res = await cloudFetch(`/api/v1/sites/${site_id}/restore`, {
+        method: "POST",
+        body: "{}",
       });
       return jsonText(res.body, !res.ok);
     },
@@ -147,14 +241,8 @@ export function registerCloudTools(server: McpServer): boolean {
       },
     },
     async ({ site_id, confirm }) => {
-      if (!confirm) {
-        return jsonText(
-          {
-            error: "Publish requires confirm=true. Ask the user to confirm before calling again.",
-          },
-          true,
-        );
-      }
+      const blocked = requireConfirm(confirm, "Publish");
+      if (blocked) return blocked;
       const res = await cloudFetch(`/api/v1/sites/${site_id}/publish`, {
         method: "POST",
         body: JSON.stringify({ confirm: true }),
@@ -179,6 +267,21 @@ export function registerCloudTools(server: McpServer): boolean {
   );
 
   server.registerTool(
+    "keel_cloud_list_secrets",
+    {
+      title: "Keel Cloud — list secret keys",
+      description: "List vault key names for a site (values are never returned).",
+      inputSchema: {
+        site_id: z.number().int().describe("Site id"),
+      },
+    },
+    async ({ site_id }) => {
+      const res = await cloudFetch(`/api/v1/sites/${site_id}/secrets`);
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
     "keel_cloud_set_secret",
     {
       title: "Keel Cloud — set secret",
@@ -195,6 +298,64 @@ export function registerCloudTools(server: McpServer): boolean {
         method: "PUT",
         body: JSON.stringify({ key, value }),
       });
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_delete_secret",
+    {
+      title: "Keel Cloud — delete secret",
+      description: "Remove a secret key from the site vault.",
+      inputSchema: {
+        site_id: z.number().int().describe("Site id"),
+        key: z.string().min(1).describe("Secret key to remove"),
+      },
+    },
+    async ({ site_id, key }) => {
+      const res = await cloudFetch(
+        `/api/v1/sites/${site_id}/secrets?key=${encodeURIComponent(key)}`,
+        { method: "DELETE" },
+      );
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_set_custom_domain",
+    {
+      title: "Keel Cloud — set custom domain",
+      description:
+        "Set a Pro custom hostname (CNAME instructions returned). Optionally attach=true to verify DNS and attach to the production Worker.",
+      inputSchema: {
+        site_id: z.number().int().describe("Site id"),
+        hostname: z.string().min(1).describe("Customer hostname, e.g. app.example.com"),
+        attach: z
+          .boolean()
+          .optional()
+          .describe("If true, verify DNS and attach Workers Custom Domain now"),
+      },
+    },
+    async ({ site_id, hostname, attach }) => {
+      const res = await cloudFetch(`/api/v1/sites/${site_id}/custom-domain`, {
+        method: "PUT",
+        body: JSON.stringify({ hostname, attach: Boolean(attach) }),
+      });
+      return jsonText(res.body, !res.ok);
+    },
+  );
+
+  server.registerTool(
+    "keel_cloud_clear_custom_domain",
+    {
+      title: "Keel Cloud — clear custom domain",
+      description: "Detach and clear the site's custom hostname (Pro).",
+      inputSchema: {
+        site_id: z.number().int().describe("Site id"),
+      },
+    },
+    async ({ site_id }) => {
+      const res = await cloudFetch(`/api/v1/sites/${site_id}/custom-domain`, { method: "DELETE" });
       return jsonText(res.body, !res.ok);
     },
   );

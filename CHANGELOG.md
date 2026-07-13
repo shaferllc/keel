@@ -4,6 +4,17 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.5] — 2026-07-13
+
+### Added
+
+- **Full Keel Cloud MCP surface** — billing status/checkout/portal, soft-delete
+  and restore sites, list/delete secrets, set/clear custom domains. Documented in
+  [Building with AI](./docs/ai.md). Pairs with expanded `/api/v1` routes on Keel
+  Cloud.
+
+[0.83.5]: https://github.com/shaferllc/keel/releases/tag/v0.83.5
+
 ## [0.83.4] — 2026-07-13
 
 ### Added

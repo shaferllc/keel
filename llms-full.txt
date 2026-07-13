@@ -4726,18 +4726,23 @@ package, so it always matches your installed version.
 | `keel_scaffold` | Generate a controller/provider/middleware/factory/seeder/job/notification/transformer stub. Returns code + target path — it does **not** write to disk. |
 
 When `KEEL_CLOUD_TOKEN` (and optional `KEEL_CLOUD_URL`) is set, Cloud tools are
-also registered:
+also registered. Create a token at `/tokens` on the control plane — the plaintext
+looks like `keel_<selector>.<verifier>`.
 
 | Tool | What it does |
 |------|--------------|
-| `keel_cloud_me` | Authenticated Cloud user |
-| `keel_cloud_list_sites` / `keel_cloud_get_site` | List or fetch a site (includes `storage_path`) |
+| `keel_cloud_me` | Authenticated Cloud user (plan, site limit, team) |
+| `keel_cloud_billing` | Team plan / limits / owner flag |
+| `keel_cloud_billing_checkout` / `_portal` | Stripe Checkout or Customer Portal URL (owner) |
+| `keel_cloud_list_sites` / `keel_cloud_get_site` | List or fetch a site (`storage_path`, hostnames, git) |
 | `keel_cloud_create_site` | Create from preset (`minimal` \| `api` \| `app` \| `saas`) |
+| `keel_cloud_delete_site` / `keel_cloud_restore_site` | Soft-delete (confirm) / restore |
 | `keel_cloud_preview` | Deploy preview Worker |
 | `keel_cloud_publish` | Publish production — requires `confirm: true` |
-| `keel_cloud_set_secret` | Vault a secret (injected on next deploy) |
-| `keel_cloud_deploys` / `keel_cloud_export` | Deploy history and export manifest |
-| `keel_cloud_export_sql` | Portable `.sql` dump (`local` \| `preview` \| `production`) |
+| `keel_cloud_deploys` | Deploy history + logs |
+| `keel_cloud_list_secrets` / `keel_cloud_set_secret` / `keel_cloud_delete_secret` | Vault keys (values never returned) |
+| `keel_cloud_set_custom_domain` / `keel_cloud_clear_custom_domain` | Pro custom hostname (+ optional attach) |
+| `keel_cloud_export` / `keel_cloud_export_sql` | Export manifest / portable `.sql` dump |
 
 ```json
 {
@@ -4746,7 +4751,7 @@ also registered:
       "command": "npx",
       "args": ["-y", "keel-mcp"],
       "env": {
-        "KEEL_CLOUD_TOKEN": "kc_…",
+        "KEEL_CLOUD_TOKEN": "keel_….…",
         "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
       }
     }
@@ -4754,6 +4759,8 @@ also registered:
 }
 ```
 
+The token binds to the user's **first team**. Switch teams in the dashboard before
+minting a token if you need a different team context.
 ### Resources
 
 - `keel://overview` — the same orientation text as `keel_overview`
@@ -4772,8 +4779,11 @@ also registered:
 
 1. `keel_cloud_create_site { name: "Acme", preset: "app" }`
 2. Edit the returned `storage_path` (real Keel app + git)
-3. `keel_cloud_preview { site_id }`
-4. `keel_cloud_publish { site_id, confirm: true }` after the user approves
+3. `keel_cloud_set_secret` for env the Worker needs
+4. `keel_cloud_preview { site_id }`
+5. `keel_cloud_publish { site_id, confirm: true }` after the user approves
+6. Optional Pro: `keel_cloud_set_custom_domain { hostname, attach: true }`
+7. Escape hatch anytime: `keel_cloud_export` + `keel_cloud_export_sql`
 
 ## `llms.txt` and `llms-full.txt`
 

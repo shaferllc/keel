@@ -238,12 +238,14 @@ export async function createServer(): Promise<McpServer> {
         ? [
             "",
             "## Keel Cloud (token detected)",
-            "Cloud tools are enabled. Typical loop:",
+            "Cloud tools are enabled. Token binds to the user's first team.",
+            "Typical loop:",
             "1. keel_cloud_create_site { name, preset }",
             "2. Edit files at the returned storage_path (real Keel app)",
             "3. keel_cloud_preview { site_id }",
             "4. keel_cloud_publish { site_id, confirm: true } after user approval",
-            "Also: keel_cloud_list_sites, keel_cloud_get_site, keel_cloud_set_secret, keel_cloud_deploys, keel_cloud_export.",
+            "Also: me, billing(+checkout/portal), list/get/delete/restore sites,",
+            "secrets (list/set/delete), custom domain (set/clear), deploys, export(+sql).",
           ]
         : []),
     ].join("\n");
