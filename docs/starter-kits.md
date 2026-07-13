@@ -13,7 +13,7 @@ see [From install to deploy](./from-install-to-deploy.md).
 | `minimal` | Routes, a controller, JSX + [Keel UI](./ui.md) + Tailwind, `/health`. No database. |
 | `api` | JSON API via `apiResource`, OpenAPI at `/docs`, Watch at `/watch`, migrations, tests. |
 | `app` *(default)* | Full-stack auth: register/login, password reset form, email verification, 2FA setup + confirm, Watch. |
-| `saas` | `app` plus teams, role gates, invitation revoke, Stripe-ready **team** billing (pricing / checkout / portal), FakeGateway when Stripe keys are absent. |
+| `saas` | `app` plus teams, role gates, invitation revoke, Stripe-ready **team** billing (pricing / checkout / portal, FakeGateway when Stripe keys are absent), social login, a background queue + scheduler, and a team-scoped REST API with OpenAPI at `/docs`. |
 
 UI chrome (buttons, fields, panels, hero) comes from `@shaferllc/keel/ui` — see
 [UI](./ui.md). Kits import the stylesheet in `resources/css/app.css` and use the
@@ -118,6 +118,54 @@ await Project.create({ name: "Hi" }); // stamped with the current team
 Another team's project isn't merely hidden from a list — `Project.find(id)` returns
 `null`. You never write `.where("team_id", …)`, which is what makes it impossible to
 forget.
+
+### The REST API is the same tenancy, for free
+
+`saas` also generates a REST API over that model — `GET/POST /api/projects`,
+`GET/PUT/DELETE /api/projects/:id` — documented at `/docs`:
+
+```ts
+apiResource(router, Project, {
+  body: ProjectBody,
+  access: { read: () => !auth().guest(), /* … */ },
+});
+```
+
+There is no `scope:` option and no `where` clause, because `Project` is a
+`TenantModel`: the generated queries are *already* constrained to the caller's team.
+`GET /api/projects/1` on another team's project is a **404**, not a leak. Access is
+deny-by-default, so a guest gets a 403 rather than a 500 — they have no team, and a
+tenant query without one throws, by design.
+
+It lives under `/api/projects` because the HTML form owns `POST /projects`; two
+handlers on one method+path is a silent shadowing bug.
+
+### Background work
+
+Registration doesn't wait on SMTP. The verification email is a
+[queued job](./queues.md):
+
+```ts
+await dispatch(new SendVerificationEmailJob(user.id));
+```
+
+Under Node, `BackgroundServiceProvider` runs a `MemoryDriver` and drains it on an
+interval. On Cloudflare it stays `SyncDriver` — a Worker may not hold a timer between
+requests — and the cron trigger in `wrangler.jsonc` drives the
+[scheduler](./scheduling.md) through the Worker's `scheduled` handler. Recurring work
+(`prune-invitations`, daily) is declared in `ScheduleServiceProvider`, so one trigger
+serves any number of tasks.
+
+### Social login
+
+"Sign in with GitHub / Google", off by default. Leave the client id blank and the
+provider simply isn't offered — no button, and its route 403s — the same bargain
+billing makes with Stripe. Set `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` in `.env`
+to turn it on.
+
+Accounts are matched on the **provider's id first, email second**, and email only
+links an account when the provider says the address is verified. The reverse order is
+an account-takeover bug: anyone can put your address on their GitHub profile.
 
 ## Why a generator, and not a template repo
 

@@ -78,7 +78,10 @@ test("enabling two-factor requires a confirmation code", async () => {
   const html = await setup.text();
   assert.match(html, /Confirm and enable/);
 
-  const secretMatch = html.match(/class="block break-all[^"]*"[^>]*>([A-Z2-7]+)</);
+  // Match the element, not an exact class string. The old pattern anchored on
+  // `class="block break-all` and silently stopped matching the day a `mt-2` was added
+  // in front of it — a passing test turned into a failing one for a spacing tweak.
+  const secretMatch = html.match(/<code[^>]*break-all[^>]*>\s*([A-Z2-7]+)\s*</);
   assert.ok(secretMatch, "setup page shows the secret");
   const secret = secretMatch[1]!;
 

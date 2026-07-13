@@ -49,7 +49,11 @@ test("teams page bootstraps a personal team for users who have none", async () =
 
   const page = await client.get("/teams");
   page.assertOk();
-  assert.match(await page.text(), /Solo's team/);
+
+  // The team is named "Solo's team", but JSX escapes the apostrophe on the way out, so
+  // the HTML reads `Solo&#39;s team`. Match either form — the assertion is about the
+  // team having been created, not about how an entity happens to be encoded.
+  assert.match(await page.text(), /Solo(&#39;|&#x27;|')s team/);
 
   hash.restore();
 });
