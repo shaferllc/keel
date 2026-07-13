@@ -38,6 +38,7 @@ function fakeConfig(): BillingConfig {
     default: "fake",
     currency: "usd",
     billableModel: "User",
+    billableTable: "users",
     webhook: { path: "billing/webhook" },
     gateways: {
       stripe: { key: "", webhookSecret: "" },

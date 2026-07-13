@@ -46,8 +46,9 @@ export class BillingServiceProvider extends PackageProvider {
     setBilling(this.manager);
     this.app.instance(BillingManager, this.manager);
 
-    // Default billable table is `users`.
-    this.migrations([billingMigration("users")]);
+    // Table comes from config so apps can charge teams (or any other model)
+    // without forking the provider — saas sets `billableTable: "teams"`.
+    this.migrations([billingMigration(this.config.billableTable)]);
     this.publishes({ [join(packageDir(), "billing.config.stub")]: "config/billing.ts" }, "billing-config");
   }
 

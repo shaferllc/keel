@@ -663,10 +663,13 @@ see [From install to deploy](./from-install-to-deploy.md).
 
 | Preset | What you get |
 | --- | --- |
-| `minimal` | Routes, a controller, a JSX view, Tailwind. No database. |
-| `api` | JSON only — models, migrations, validation, tests. No views. |
-| `app` *(default)* | Full-stack: views, sessions, register/login, password reset, two-factor. |
-| `saas` | `app` plus teams, roles, invitations, billing, and multi-tenancy. |
+| `minimal` | Routes, a controller, JSX + Tailwind, `/health`. No database. |
+| `api` | JSON API via `apiResource`, OpenAPI at `/docs`, Watch at `/watch`, migrations, tests. |
+| `app` *(default)* | Full-stack auth: register/login, password reset form, email verification, 2FA setup + confirm, Watch. |
+| `saas` | `app` plus teams, role gates, invitation revoke, Stripe-ready **team** billing (pricing / checkout / portal), FakeGateway when Stripe keys are absent. |
+
+Edge deploy is **cross-cutting** — every DB kit ships `worker.ts` + Wrangler. There is
+no separate `edge` preset.
 
 ## Pick a kit
 
@@ -679,13 +682,36 @@ cd my-app && npm install && npm run dev
 ```
 
 Then open `http://localhost:3000`. The SaaS kit already has a team switcher,
-invites, and a billing stub wired through [teams](./teams.md) and
-[billing](./billing.md) — start by editing `app/Models` and `routes/web.ts`.
+invites, role-gated admin actions, and team billing wired through [teams](./teams.md)
+and [billing](./billing.md) — start by editing `app/Models` and `routes/web.ts`.
+
+## Refreshing an existing kit
+
+`create-keeljs` writes `.keel/kit.json` with content hashes of every stock file.
+After you bump `@shaferllc/keel`, pull new kit files without clobbering your edits:
+
+```bash
+npm install @shaferllc/keel@latest
+npx keel kit:sync                 # uses preset from .keel/kit.json
+# npx keel kit:sync --preset saas # if you have no lockfile yet
+# npx keel kit:sync --force       # overwrite customized kit files too
+# npx keel kit:sync --dry-run     # preview
+```
+
+- **Missing** kit files are always added (new views, configs, …).
+- **Untouched** files (hash still matches the lockfile) are updated in place.
+- **Customized** files are skipped unless you pass `--force`.
+- `.env` is never overwritten.
+
+Apps generated before kit lockfiles existed: pass `--preset` once; sync writes
+`.keel/kit.json` so later runs are smart. Without `--force`, only missing files
+are added until the lockfile knows what "stock" looked like.
 
 ## Every database, Cloudflare first
 
-Each kit ships with all four drivers wired. Switching is `DB_CONNECTION` and nothing
-else — no model or query changes, because they talk to a `Connection`, not a driver.
+Each kit with a database ships with all four drivers wired. Switching is
+`DB_CONNECTION` and nothing else — no model or query changes, because they talk to
+a `Connection`, not a driver.
 
 | | |
 | --- | --- |
@@ -714,8 +740,16 @@ npm run deploy
 
 `app` and `saas` mount [accounts](./accounts.md), so password reset, email
 verification, and two-factor already work — the flows live in the framework, tested
-once, rather than being copy-pasted into each new app. `saas` also mounts
-[teams](./teams.md) and [billing](./billing.md).
+once, rather than being copy-pasted into each new app. HTML controllers own the UI;
+JSON `/auth/*` routes are disabled via `config/accounts.ts`.
+
+`api` mounts [`apiResource`](./api-resources.md) and [OpenAPI](./openapi.md) so the
+posts demo is declarative CRUD with a live `/docs` UI. `api`, `app`, and `saas` also
+mount [Watch](./watch.md) at `/watch` for local debugging.
+
+`saas` also mounts [teams](./teams.md) and [billing](./billing.md). The **team** is
+the Stripe customer (`billableTable: "teams"`). Without Stripe keys, FakeGateway
+runs so subscribe still redirects to a checkout URL in development and tests.
 
 In `saas`, a tenant-owned model is one word:
 
@@ -6085,6 +6119,9 @@ export class User extends Billable(Model) {
 }
 ```
 
+To charge **teams** instead, set `billableModel: "Team"` and `billableTable: "teams"`
+in `config/billing.ts` (the provider's migration adds billing columns to that table).
+The saas starter kit does this.
 ## Install
 
 ```ts
@@ -6305,6 +6342,7 @@ const manager = new BillingManager({
   default: "fake",
   currency: "usd",
   billableModel: "User",
+  billableTable: "users",
   webhook: { path: "billing/webhook" },
   gateways: { stripe: { key: "", webhookSecret: "" }, paddle: { key: "", webhookSecret: "" }, fake: {} },
 });

@@ -1,6 +1,6 @@
 {
   "name": "create-keeljs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create a Keel application.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@shaferllc/keel": "^0.83.0"
+    "@shaferllc/keel": "^0.83.9"
   },
   "publishConfig": {
     "access": "public"

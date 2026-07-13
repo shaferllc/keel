@@ -28,8 +28,14 @@ export default function routes(router: Router): void {
 
   router.get("/forgot-password", [AuthController, "showForgot"]);
   router.post("/forgot-password", [AuthController, "forgot"]);
+  router.get("/reset-password", [AuthController, "showReset"]);
   router.post("/reset-password", [AuthController, "reset"]);
+
+  router.get("/verify-email", [AuthController, "verify"]);
+  router.post("/verify-email/resend", [AuthController, "resendVerification"]).middleware(authenticated);
 
   router.get("/dashboard", [DashboardController, "index"]).middleware(authenticated).name("dashboard");
   router.post("/two-factor/enable", [DashboardController, "startTwoFactor"]).middleware(authenticated);
+  router.post("/two-factor/confirm", [DashboardController, "confirmTwoFactor"]).middleware(authenticated);
+  router.post("/two-factor/disable", [DashboardController, "disableTwoFactor"]).middleware(authenticated);
 }

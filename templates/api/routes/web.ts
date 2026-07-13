@@ -1,12 +1,24 @@
 import type { Router, Ctx } from "@shaferllc/keel/core";
+import { apiResource } from "@shaferllc/keel/api";
+import { z } from "zod";
 
-import { PostController } from "../app/Controllers/PostController.js";
+import { Post } from "../app/Models/Post.js";
+
+const PostBody = z.object({
+  title: z.string().min(1),
+  body: z.string().default(""),
+});
 
 export default function routes(router: Router): void {
   router.get("/health", (c: Ctx) => c.json({ ok: true }));
 
-  router.get("/posts", [PostController, "index"]).name("posts.index");
-  router.post("/posts", [PostController, "store"]).name("posts.store");
-  router.get("/posts/:post", [PostController, "show"]).name("posts.show");
-  router.delete("/posts/:post", [PostController, "destroy"]).name("posts.destroy");
+  // Deny-by-default access: reads are open for the demo; writes need an explicit
+  // allow. Swap `write: true` for a real check (API key, session, …) in production.
+  apiResource(router, Post, {
+    filter: ["title"],
+    sort: ["title", "created_at", "id"],
+    body: PostBody,
+    access: { read: true, write: true },
+    tags: ["posts"],
+  });
 }

@@ -5,7 +5,7 @@ import Welcome from "../../resources/views/welcome.js";
 
 export class HomeController {
   index(c: Ctx) {
-    return c.json({ message: "Keel is running." });
+    return c.json({ framework: "Keel", kit: "minimal", ok: true });
   }
 
   async welcome(c: Ctx) {

@@ -1,15 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { HttpKernel, testClient } from "@shaferllc/keel/core";
+import { HttpKernel, testClient, hash } from "@shaferllc/keel/core";
 
 import { createApplication } from "../bootstrap/app.js";
 
-/**
- * These hit the real routes through the real kernel. A starter that ships no tests
- * teaches that tests are optional — and auth is the last place you want that.
- */
 test("a visitor can register and land in their personal team", async () => {
+  hash.fake();
   const app = await createApplication();
   const client = testClient(app.make(HttpKernel));
 
@@ -21,8 +18,8 @@ test("a visitor can register and land in their personal team", async () => {
     password: "correct horse battery",
   });
 
-  // A redirect means the session was set and the personal team exists.
   assert.equal(registered.status, 302);
+  hash.restore();
 });
 
 test("the dashboard turns guests away", async () => {
@@ -35,6 +32,7 @@ test("the dashboard turns guests away", async () => {
 });
 
 test("a wrong password says nothing about whether the account exists", async () => {
+  hash.fake();
   const app = await createApplication();
   const client = testClient(app.make(HttpKernel));
 
@@ -44,4 +42,5 @@ test("a wrong password says nothing about whether the account exists", async () 
   });
 
   assert.equal(response.status, 401);
+  hash.restore();
 });

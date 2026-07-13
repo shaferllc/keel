@@ -32,6 +32,11 @@ export interface BillingConfig {
   currency: string;
   /** The class name stored in `subscriptions.billable_type`. */
   billableModel: string;
+  /**
+   * Table the billable columns (customer id, etc.) are added to.
+   * Defaults to `users`; saas kits that charge teams set this to `teams`.
+   */
+  billableTable: string;
   /** Base URL path the webhook routes mount under; the gateway name is appended. */
   webhook: { path: string };
   gateways: {
@@ -46,6 +51,7 @@ export const defaultConfig: BillingConfig = {
   default: "stripe",
   currency: "usd",
   billableModel: "User",
+  billableTable: "users",
   webhook: { path: "billing/webhook" },
   gateways: {
     stripe: { key: "", webhookSecret: "" },

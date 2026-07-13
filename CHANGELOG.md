@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.9] — 2026-07-13
+
+### Added
+
+- **Starter kits deepened** — `api` uses `apiResource` + OpenAPI + Watch; `app` /
+  `saas` finish password-reset form, email verification, and 2FA confirm UI;
+  `saas` adds role-gated invites, invitation revoke, and Stripe-ready **team**
+  billing (pricing / checkout / portal, FakeGateway without keys). Billing
+  config gains `billableTable` so migrations target `teams` when the team is
+  the customer.
+- **`keel kit:sync`** — refresh untouched starter-kit files from the package
+  templates. `create-keeljs` writes `.keel/kit.json` hashes so customized files
+  are skipped unless `--force`.
+
+[0.83.9]: https://github.com/shaferllc/keel/releases/tag/v0.83.9
+
 ## [0.83.8] — 2026-07-13
 
 ### Fixed

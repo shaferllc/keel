@@ -105,23 +105,22 @@ third party and break the edge preset's CSP.
 2FA is **opt-in per user**, mounted by `saas`. Mandatory 2FA is the app owner's policy
 call, not a starter kit's.
 
-## The five presets
+## The presets
 
 | Preset | Shape | Mounts |
 | --- | --- | --- |
 | `minimal` | routes, a controller, a JSX view, Tailwind. No database. | — |
-| `api` | no views at all. Model + migration, token auth, OpenAPI, tests. | — |
-| `app` *(default)* | full-stack: views, session auth, login/register | `accounts` |
-| `saas` | `app` + teams, invitations, roles, billing, 2FA | `accounts`, `teams`, `billing` |
-| `edge` | Workers + D1 + wrangler, no Node server | — |
+| `api` | `apiResource` + OpenAPI + Watch. No HTML views. | `api`, `openapi`, `watch` |
+| `app` *(default)* | full-stack: views, session auth, login/register, verify, 2FA | `accounts`, `watch` |
+| `saas` | `app` + teams, invitations, roles, team billing | `accounts`, `teams`, `billing`, `watch` |
 
-Runtime is **folded in, not crossed**. Shape (minimal/api/app/saas) × runtime
-(node/edge) would be ten trees — the 2^n we rejected layers to avoid. Nobody needs
-"minimal-on-edge"; if a combination turns out to matter it becomes its own curated
-tree, chosen deliberately.
+Edge runtime is **folded into every DB kit** (`worker.ts` + Wrangler), not a fifth
+tree. Shape (minimal/api/app/saas) × runtime (node/edge) would be eight trees —
+the 2^n we rejected layers to avoid. Nobody needs "minimal-on-edge"; if a
+combination turns out to matter it becomes its own curated tree, chosen deliberately.
 
 Every preset is a tree CI must boot, typecheck, and hit with a request on every push.
-Five is roughly two minutes. Ten would be the thing that makes someone turn the check
+Four is roughly two minutes. Ten would be the thing that makes someone turn the check
 off — and a preset with no boot test is already broken and doesn't know it.
 
 ## The generator

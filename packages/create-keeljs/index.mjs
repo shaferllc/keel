@@ -13,6 +13,7 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 const require = createRequire(import.meta.url);
 
@@ -102,6 +103,24 @@ for (const file of walk(dir)) {
 // .env.example -> .env, so it runs on the first try.
 if (existsSync(join(dir, ".env.example"))) {
   cpSync(join(dir, ".env.example"), join(dir, ".env"));
+}
+
+/* ---------------------------- kit lock (for kit:sync) --------------------------- */
+
+// Record content hashes so `keel kit:sync` can later refresh files that were never
+// customized, without clobbering ones the developer edited.
+{
+  const files = {};
+  for (const file of walk(dir)) {
+    const rel = file.slice(dir.length + 1).replace(/\\/g, "/");
+    if (rel === ".env" || rel === "package-lock.json") continue;
+    files[rel] = createHash("sha256").update(readFileSync(file)).digest("hex");
+  }
+  mkdirSync(join(dir, ".keel"), { recursive: true });
+  writeFileSync(
+    join(dir, ".keel", "kit.json"),
+    `${JSON.stringify({ preset, version, files }, null, 2)}\n`,
+  );
 }
 
 /* --------------------------------- install --------------------------------- */

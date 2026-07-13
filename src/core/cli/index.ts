@@ -12,7 +12,8 @@
  *   keel make:notification Paid generate app/Notifications/PaidNotification.ts
  *   keel make:transformer User  generate app/Transformers/UserTransformer.ts
  *   keel routes                 list registered routes
- *   keel mcp                    start the MCP server (docs + API for AI agents)
+ *   keel vendor:publish         copy package-published files into this app
+ *   keel kit:sync               refresh untouched starter-kit files from the package
  */
 
 import { mkdir, writeFile, access, readdir, stat, copyFile } from "node:fs/promises";
@@ -42,6 +43,7 @@ import {
   commandStub,
 } from "./stubs.js";
 import { findAvailablePort } from "./port.js";
+import { PRESETS as KIT_PRESETS, syncKit, readKitLock, type KitPreset } from "./kit-sync.js";
 
 const basePath = process.cwd();
 
@@ -488,6 +490,48 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     },
   });
 
+  const kitSync = defineCommand({
+    name: "kit:sync",
+    description: "Refresh untouched starter-kit files from @shaferllc/keel/templates",
+    flags: {
+      preset: flag.string({
+        alias: "p",
+        description: `kit preset (${KIT_PRESETS.join("|")}); defaults to .keel/kit.json`,
+      }),
+      force: flag.boolean({ description: "overwrite customized kit files too" }),
+      "dry-run": flag.boolean({ description: "show what would change without writing" }),
+    },
+    async run({ flags, ui }) {
+      const lock = readKitLock(basePath);
+      const preset = (flags.preset ?? lock?.preset) as KitPreset | undefined;
+
+      if (!preset || !(KIT_PRESETS as readonly string[]).includes(preset)) {
+        ui.error(
+          `Pick a preset with --preset ${KIT_PRESETS.join("|")}` +
+            (lock ? ` (lockfile says "${lock.preset}")` : " (no .keel/kit.json yet)"),
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      const result = syncKit({
+        appRoot: basePath,
+        preset,
+        force: flags.force,
+        dryRun: flags["dry-run"],
+        ui,
+      });
+
+      ui.info(
+        `${result.added.length} added, ${result.updated.length} updated, ` +
+          `${result.skipped.length} skipped, ${result.unchanged.length} already current`,
+      );
+      if (result.skipped.length && !flags.force) {
+        ui.info("Skipped files look customized — re-run with --force to overwrite them.");
+      }
+    },
+  });
+
   /* ---------------------------------- dispatch -------------------------------- */
 
   const kernel = new ConsoleKernel({ binary: "keel" }).register(
@@ -510,6 +554,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     migrateRollback as AnyCommand,
     migrateStatus as AnyCommand,
     vendorPublish as AnyCommand,
+    kitSync as AnyCommand,
   );
 
   // Package-contributed commands (a package's `commands([...])`), then the app's —

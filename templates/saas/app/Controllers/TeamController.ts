@@ -6,6 +6,7 @@ import {
   currentTeam,
   invite,
   pendingInvitations,
+  revokeInvitation,
   switchTeam,
   teamsFor,
   type Role,
@@ -13,6 +14,7 @@ import {
 
 import type { User } from "../Models/User.js";
 import { Project } from "../Models/Project.js";
+import { Team as BillableTeam } from "../Models/Team.js";
 import Teams from "../../resources/views/teams/index.js";
 
 export class TeamController {
@@ -21,15 +23,26 @@ export class TeamController {
     if (!user) return c.redirect("/login");
 
     const teamId = currentTeam();
+    let subscribed = false;
+    if (typeof teamId === "number") {
+      const billable = await BillableTeam.find(teamId);
+      subscribed = billable ? await billable.subscribed() : false;
+    }
 
     return c.html(
       await view(Teams, {
         teams: (await teamsFor(user.id)).map((t) => ({ id: t.id, name: t.name })),
         current: typeof teamId === "number" ? teamId : null,
-        // Scoped automatically — this is the current team's projects, and there is
-        // no `where` to forget.
         projects: (await Project.all()).map((p) => ({ id: p.id, name: p.name })),
-        invitations: teamId ? await pendingInvitations(teamId) : [],
+        invitations: teamId
+          ? (await pendingInvitations(teamId)).map((i) => ({
+              id: i.id,
+              email: i.email,
+              role: i.role,
+            }))
+          : [],
+        subscribed,
+        emailVerified: !!user.email_verified_at,
       }),
     );
   }
@@ -49,8 +62,6 @@ export class TeamController {
     if (!user) return c.redirect("/login");
 
     const body = await c.req.parseBody();
-
-    // Returns false for a team they aren't in — the check is the point.
     await switchTeam(user.id, Number(body.team_id));
 
     return c.redirect("/teams");
@@ -66,12 +77,16 @@ export class TeamController {
     return c.redirect("/teams");
   }
 
+  async revokeInvite(c: Ctx) {
+    const body = await c.req.parseBody();
+    await revokeInvitation(Number(body.invitation_id));
+    return c.redirect("/teams");
+  }
+
   async accept(c: Ctx) {
     const user = await auth().user<User>();
     if (!user) return c.redirect("/login");
 
-    // The invited address is re-checked, so a forwarded link can't be redeemed by
-    // whoever happens to hold it.
     const team = await acceptInvitation(c.req.param("token") ?? "", user.id, user.email);
 
     return team ? c.redirect("/teams") : c.text("That invitation is invalid or has expired.", 422);

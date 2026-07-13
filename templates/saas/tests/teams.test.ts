@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { HttpKernel, testClient } from "@shaferllc/keel/core";
+import { HttpKernel, testClient, hash } from "@shaferllc/keel/core";
 
 import { createApplication } from "../bootstrap/app.js";
 
-test("registering creates a personal team and lands on it", async () => {
+test("registering creates a personal team and lands on /teams", async () => {
+  hash.fake();
   const app = await createApplication();
   const client = testClient(app.make(HttpKernel));
 
@@ -15,8 +16,9 @@ test("registering creates a personal team and lands on it", async () => {
     password: "correct horse battery",
   });
 
-  // Redirected to /teams — the personal team exists, so tenant queries can run.
   assert.equal(registered.status, 302);
+  assert.match(registered.header("location") ?? "", /\/teams/);
+  hash.restore();
 });
 
 test("teams turn guests away", async () => {
@@ -24,4 +26,57 @@ test("teams turn guests away", async () => {
   const client = testClient(app.make(HttpKernel));
 
   assert.equal((await client.get("/teams")).status, 302);
+});
+
+test("projects stay on the team that created them", async () => {
+  hash.fake();
+  const app = await createApplication();
+  let ada = testClient(app.make(HttpKernel));
+  let grace = testClient(app.make(HttpKernel));
+
+  const adaReg = await ada.form("/register", {
+    name: "Ada",
+    email: `ada+${crypto.randomUUID()}@example.com`,
+    password: "correct horse battery",
+  });
+  ada = ada.withCookies(adaReg.cookies());
+  await ada.form("/projects", { name: "Ada secret project" });
+
+  const graceReg = await grace.form("/register", {
+    name: "Grace",
+    email: `grace+${crypto.randomUUID()}@example.com`,
+    password: "correct horse battery",
+  });
+  grace = grace.withCookies(graceReg.cookies());
+
+  const graceTeams = await grace.get("/teams");
+  graceTeams.assertOk();
+  const html = await graceTeams.text();
+  assert.doesNotMatch(html, /Ada secret project/);
+
+  hash.restore();
+});
+
+test("subscribe redirects to FakeGateway checkout when Stripe keys are absent", async () => {
+  hash.fake();
+  process.env.BILLING_GATEWAY = "fake";
+
+  const app = await createApplication();
+  let client = testClient(app.make(HttpKernel));
+
+  const registered = await client.form("/register", {
+    name: "Ada",
+    email: `ada+${crypto.randomUUID()}@example.com`,
+    password: "correct horse battery",
+  });
+  client = client.withCookies(registered.cookies());
+
+  (await client.get("/billing")).assertOk();
+
+  const checkout = await client.form("/billing/subscribe", {});
+  assert.equal(checkout.status, 302);
+  assert.match(checkout.header("location") ?? "", /fake\.checkout/);
+
+  hash.restore();
+  delete process.env.BILLING_GATEWAY;
 });

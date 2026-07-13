@@ -18,6 +18,9 @@ export class User extends Billable(Model) {
 }
 ```
 
+To charge **teams** instead, set `billableModel: "Team"` and `billableTable: "teams"`
+in `config/billing.ts` (the provider's migration adds billing columns to that table).
+The saas starter kit does this.
 ## Install
 
 ```ts
@@ -238,6 +241,7 @@ const manager = new BillingManager({
   default: "fake",
   currency: "usd",
   billableModel: "User",
+  billableTable: "users",
   webhook: { path: "billing/webhook" },
   gateways: { stripe: { key: "", webhookSecret: "" }, paddle: { key: "", webhookSecret: "" }, fake: {} },
 });

@@ -8,6 +8,7 @@ import { HomeController } from "../app/Controllers/HomeController.js";
  */
 export default function routes(router: Router): void {
   router.get("/", [HomeController, "index"]);
+  router.get("/health", (c: Ctx) => c.json({ ok: true }));
   router.get("/welcome", [HomeController, "welcome"]);
   router.get("/hello/:name", (c: Ctx) => c.text(`Hello, ${c.req.param("name")}!`));
 }

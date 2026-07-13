@@ -1,5 +1,6 @@
 import type { ProviderClass } from "@shaferllc/keel/core";
 import { AccountsServiceProvider } from "@shaferllc/keel/accounts";
+import { WatchServiceProvider } from "@shaferllc/keel/watch";
 
 import { AppServiceProvider } from "../app/Providers/AppServiceProvider.js";
 import { DatabaseServiceProvider } from "../app/Providers/DatabaseServiceProvider.js";
@@ -14,5 +15,6 @@ import { DatabaseServiceProvider } from "../app/Providers/DatabaseServiceProvide
 export const providers: ProviderClass[] = [
   DatabaseServiceProvider,
   AccountsServiceProvider,
+  WatchServiceProvider,
   AppServiceProvider,
 ];

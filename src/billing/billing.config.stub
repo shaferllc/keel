@@ -14,6 +14,10 @@ export default {
   // The model class stored in subscriptions.billable_type.
   billableModel: "User",
 
+  // Table that receives billing columns (customer id, etc.). Use "teams" when
+  // the team is the customer.
+  billableTable: "users",
+
   // Webhook routes mount at `${path}/${gateway}` — e.g. /billing/webhook/stripe.
   webhook: { path: "billing/webhook" },
 
