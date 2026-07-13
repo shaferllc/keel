@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * npm create keeljs@latest my-app -- --preset saas
+ * npm create keeljs@latest . -- --preset saas
  *
  * Deliberately tiny. The templates live inside @shaferllc/keel, so they version with
  * the framework they demonstrate and a kit cannot lag it — which is exactly how the
@@ -8,12 +9,21 @@
  * is copy one out, fill in two placeholders, and install.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { join, dirname, resolve, basename } from "node:path";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 
 const require = createRequire(import.meta.url);
 
@@ -23,6 +33,9 @@ const PRESETS = {
   app: "Full-stack: views, sessions, login, password reset, 2FA.",
   saas: "app + teams, roles, invitations, billing, multi-tenancy.",
 };
+
+/** Harmless leftovers that still count as "empty enough" to scaffold into. */
+const EMPTY_IGNORE = new Set([".git", ".DS_Store", ".gitignore", ".gitattributes"]);
 
 function bail(message) {
   console.error(`\n  ${message}\n`);
@@ -34,18 +47,26 @@ function bail(message) {
 const argv = process.argv.slice(2);
 let target;
 let preset = "app";
+let force = false;
 
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
 
   if (arg === "--preset" || arg === "-p") preset = argv[++i];
   else if (arg.startsWith("--preset=")) preset = arg.slice("--preset=".length);
+  else if (arg === "--force" || arg === "-f") force = true;
+  else if (arg === "--yes" || arg === "-y") force = true;
   else if (arg === "--help" || arg === "-h") {
     console.log(`
   npm create keeljs@latest <directory> -- --preset <preset>
 
+  Use "." for the current directory. If it isn't empty, you'll be asked to
+  confirm (or pass --force / --yes).
+
   Presets:
-${Object.entries(PRESETS).map(([name, what]) => `    ${name.padEnd(9)} ${what}`).join("\n")}
+${Object.entries(PRESETS)
+  .map(([name, what]) => `    ${name.padEnd(9)} ${what}`)
+  .join("\n")}
 
   Default: app
 `);
@@ -53,11 +74,15 @@ ${Object.entries(PRESETS).map(([name, what]) => `    ${name.padEnd(9)} ${what}`)
   } else if (!arg.startsWith("-")) target = arg;
 }
 
-if (!target) bail("Where should it go?  npm create keeljs@latest my-app");
+if (!target) {
+  bail("Where should it go?\n  npm create keeljs@latest my-app\n  npm create keeljs@latest .");
+}
 if (!PRESETS[preset]) bail(`No such preset "${preset}". Try: ${Object.keys(PRESETS).join(", ")}`);
 
 const dir = resolve(process.cwd(), target);
-if (existsSync(dir) && readdirSync(dir).length) bail(`${target} already exists and isn't empty.`);
+const intoCurrent = target === "." || resolve(target) === process.cwd();
+
+await ensureDestination(dir, { force, label: target });
 
 /* -------------------------------- templates -------------------------------- */
 
@@ -73,12 +98,11 @@ const version = JSON.parse(readFileSync(keelPkg, "utf8")).version;
 const source = join(keelRoot, "templates", preset);
 if (!existsSync(source)) bail(`@shaferllc/keel@${version} ships no "${preset}" template.`);
 
-const appName = target
-  .split("/")
-  .pop()
-  .toLowerCase()
-  .replace(/[^a-z0-9-]+/g, "-")
-  .replace(/^-|-$/g, "") || "keel-app";
+const appName =
+  (intoCurrent ? basename(dir) : target.split("/").pop())
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-|-$/g, "") || "keel-app";
 
 console.log(`\n  Creating ${appName} (${preset}) with keel ${version}\n`);
 
@@ -100,8 +124,8 @@ for (const file of walk(dir)) {
   );
 }
 
-// .env.example -> .env, so it runs on the first try.
-if (existsSync(join(dir, ".env.example"))) {
+// .env.example -> .env, so it runs on the first try. Don't clobber an existing .env.
+if (existsSync(join(dir, ".env.example")) && !existsSync(join(dir, ".env"))) {
   cpSync(join(dir, ".env.example"), join(dir, ".env"));
 }
 
@@ -134,14 +158,47 @@ const migrates = existsSync(join(dir, "database", "migrations"));
 console.log(`
   Done.
 
-    cd ${target}
-    ${migrates ? "npm run keel migrate\n    " : ""}npm run dev
+    ${intoCurrent ? "" : `cd ${target}\n    `}${migrates ? "npm run keel migrate\n    " : ""}npm run dev
 
   Deploying to Cloudflare:
 
     wrangler d1 create ${appName}     # paste the id into wrangler.jsonc
     npm run deploy
 `);
+
+/* --------------------------------- helpers -------------------------------- */
+
+async function ensureDestination(directory, { force, label }) {
+  if (!existsSync(directory)) return;
+
+  const entries = readdirSync(directory).filter((name) => !EMPTY_IGNORE.has(name));
+  if (entries.length === 0) return;
+
+  if (force) {
+    console.log(`\n  ${label} isn't empty — continuing with --force (files may be overwritten).\n`);
+    return;
+  }
+
+  if (!input.isTTY) {
+    bail(
+      `${label} already exists and isn't empty.\n` +
+        `  Re-run with --force to scaffold anyway, or pick an empty directory.`,
+    );
+  }
+
+  const rl = createInterface({ input, output });
+  try {
+    const answer = await rl.question(
+      `\n  ${label} isn't empty (${entries.slice(0, 5).join(", ")}${entries.length > 5 ? ", …" : ""}).\n` +
+        `  Scaffold here anyway? Existing files with the same names will be overwritten. (y/N) `,
+    );
+    if (!/^(y|yes)$/i.test(answer.trim())) {
+      bail("Cancelled.");
+    }
+  } finally {
+    rl.close();
+  }
+}
 
 function resolveKeel() {
   const candidates = [

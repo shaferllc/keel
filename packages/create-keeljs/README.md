@@ -4,6 +4,8 @@ Scaffold a [Keel](https://github.com/shaferllc/keel) application.
 
 ```bash
 npm create keeljs@latest my-app
+npm create keeljs@latest .                 # current directory (confirms if not empty)
+npm create keeljs@latest . -- --force      # skip the confirm
 ```
 
 ## Presets
@@ -13,6 +15,7 @@ npm create keeljs@latest my-app                 # full-stack "app" (default)
 npm create keeljs@latest my-api  -- --preset api
 npm create keeljs@latest my-saas -- --preset saas
 npm create keeljs@latest bare    -- --preset minimal
+npm create keeljs@latest .       -- --preset saas
 ```
 
 | Preset | Use when |

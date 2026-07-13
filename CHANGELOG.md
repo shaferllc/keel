@@ -4,6 +4,16 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.14] — 2026-07-13
+
+### Changed
+
+- **create-keeljs@0.1.3** — `npm create keeljs@latest .` works in the current
+  directory; confirms before writing into a non-empty folder (`--force` /
+  `--yes` to skip).
+
+[0.83.14]: https://github.com/shaferllc/keel/releases/tag/v0.83.14
+
 ## [0.83.13] — 2026-07-13
 
 ### Fixed
