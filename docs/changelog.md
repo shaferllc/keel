@@ -4,6 +4,23 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.4] — 2026-07-13
+
+### Added
+
+- **MCP Cloud tools** (`keel_cloud_*`) — when `KEEL_CLOUD_TOKEN` is set,
+  `keel-mcp` registers create/list/preview/publish/secrets/export tools against
+  a Keel Cloud control plane. Documented in [Building with AI](./docs/ai.md).
+- **`tokensMigration()`** — personal access tokens schema helper for apps that
+  need the table via `keel migrate`.
+- **Billing customer portal** — `user.billingPortal(returnUrl)` (Stripe + Fake
+  gateway); opens the hosted portal to manage card / cancel.
+- **Hosting guide** — [`docs/hosting.md`](./docs/hosting.md) + example harness
+  for `@shaferllc/keel/hosting`.
+- **Tests** for gates, hosting, billing portal, and `tokensMigration`.
+
+[0.83.4]: https://github.com/shaferllc/keel/releases/tag/v0.83.4
+
 ## [0.83.3] — 2026-07-12
 
 ### Added

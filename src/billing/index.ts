@@ -42,6 +42,7 @@ export type {
   CheckoutSession,
   SetupIntent,
   PaymentMethod,
+  BillingPortalSession,
   WebhookEvent,
 } from "./gateway.js";
 

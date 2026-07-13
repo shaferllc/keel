@@ -206,6 +206,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Sessions](./docs/sessions.md) | Cookie-backed sessions, flash messages |
 | [Authentication](./docs/authentication.md) | Session auth, guards, user provider |
 | [Gates](./docs/gates.md) | Signup gating — invite codes & email allowlist |
+| [Hosting](./docs/hosting.md) | Cloudflare, SQL dump, secrets for hosted Workers |
 | [Authorization](./docs/authorization.md) | Ability gates & policies, `can`/`authorize` |
 | [Database](./docs/database.md) | Driver-agnostic query builder |
 | [Models](./docs/models.md) | Active-record: find/create/save, casts, relations |
@@ -269,29 +270,8 @@ lines / ~91% branches**.
 
 ## Roadmap
 
-Keel's first release is the **MVP core**: container, routing, middleware,
-config, and the console. On deck:
-
-- [x] View / templating layer (Hono JSX) — **v0.2.0**
-- [x] Cloudflare Workers–safe core — **v0.2.0**
-- [x] Global helpers: `config()`, `app()`, `view()` — **v0.3.0 / v0.4.0**
-- [x] Error & exception handling — **v0.5.0**
-- [x] Request/response + container helpers — **v0.6.0–v0.9.0**
-- [x] Validation (Zod-compatible) — **v0.10.0**
-- [x] First-class routing (groups, resources, named routes) — **v0.11.0**
-- [x] Domain routing, matchers, Inertia adapter — **v0.12.0**
-- [x] Test suite (~99% coverage)
-- [x] Query builder (driver-agnostic) — **v0.28.0**
-- [x] Active-record Model layer — **v0.29.0**
-- [x] Migrations (schema builder) — **v0.30.0**
-- [x] Model relationships (hasMany / belongsTo / belongsToMany) — **v0.31.0**
-- [x] Factories & seeders (built-in Faker) — **v0.32.0**
-- [x] Model attribute casts + mass-assignment guarding — **v0.33.0**
-- [x] Mail (fluent mailer, pluggable transports) — **v0.34.0**
-- [x] Queues / background jobs (pluggable drivers) — **v0.35.0**
-- [x] Notifications (multi-channel, queueable) — **v0.36.0**
-- [ ] Publish `src/core` as the `@keel/core` package
-
+The MVP core and the major subsystems are shipped. Recent focus is Keel Cloud
+support (gates, hosting, MCP Cloud tools, billing portal) and starter kits.
 See [CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ## Contributing

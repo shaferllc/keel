@@ -61,6 +61,35 @@ package, so it always matches your installed version.
 | `keel_list_generators` | The `keel make:*` generators, what they produce, and their flags. |
 | `keel_scaffold` | Generate a controller/provider/middleware/factory/seeder/job/notification/transformer stub. Returns code + target path — it does **not** write to disk. |
 
+When `KEEL_CLOUD_TOKEN` (and optional `KEEL_CLOUD_URL`) is set, Cloud tools are
+also registered:
+
+| Tool | What it does |
+|------|--------------|
+| `keel_cloud_me` | Authenticated Cloud user |
+| `keel_cloud_list_sites` / `keel_cloud_get_site` | List or fetch a site (includes `storage_path`) |
+| `keel_cloud_create_site` | Create from preset (`minimal` \| `api` \| `app` \| `saas`) |
+| `keel_cloud_preview` | Deploy preview Worker |
+| `keel_cloud_publish` | Publish production — requires `confirm: true` |
+| `keel_cloud_set_secret` | Vault a secret (injected on next deploy) |
+| `keel_cloud_deploys` / `keel_cloud_export` | Deploy history and export manifest |
+| `keel_cloud_export_sql` | Portable `.sql` dump (`local` \| `preview` \| `production`) |
+
+```json
+{
+  "mcpServers": {
+    "keel": {
+      "command": "npx",
+      "args": ["-y", "keel-mcp"],
+      "env": {
+        "KEEL_CLOUD_TOKEN": "kc_…",
+        "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
+      }
+    }
+  }
+}
+```
+
 ### Resources
 
 - `keel://overview` — the same orientation text as `keel_overview`
@@ -74,6 +103,13 @@ package, so it always matches your installed version.
 3. `keel_read_doc { slug: "models", include_example: true }` → read it in full.
 4. `keel_scaffold { kind: "controller", name: "Post", resource: true }` → get the stub.
 5. Write the file, add the route, run `npm run typecheck`.
+
+### A typical Keel Cloud loop
+
+1. `keel_cloud_create_site { name: "Acme", preset: "app" }`
+2. Edit the returned `storage_path` (real Keel app + git)
+3. `keel_cloud_preview { site_id }`
+4. `keel_cloud_publish { site_id, confirm: true }` after the user approves
 
 ## `llms.txt` and `llms-full.txt`
 

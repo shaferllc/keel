@@ -157,6 +157,15 @@ const intent = await user.createSetupIntent();  // return intent.clientSecret to
 const methods = await user.paymentMethods();
 ```
 
+### Customer portal (Stripe)
+
+Send the customer to Stripe's hosted portal to update their card or cancel:
+
+```ts
+const portal = await user.billingPortal("https://app.example.com/billing");
+// redirect to portal.url
+```
+
 These are Stripe-only capabilities; calling them on the Paddle gateway throws a
 `BillingError` (Paddle collects cards in its own hosted checkout).
 
@@ -251,7 +260,7 @@ real gateway from `config/billing.ts` and `.env`.
 |---------|--------|--------|
 | Create a subscription server-side | `create(pmId)` | Not supported — use `checkout()`; the webhook creates the local row |
 | One-off `charge()` | Confirms a PaymentIntent | Not supported — use `checkout({ mode })` / transactions |
-| SetupIntent / `paymentMethods()` | Supported | Throws `BillingError` (hosted checkout) |
+| SetupIntent / `paymentMethods()` / `billingPortal()` | Supported | Throws `BillingError` (hosted checkout) |
 | Checkout handle | `session.url` (redirect) | `session.clientToken` (overlay/inline) |
 | Webhook signature | `Stripe-Signature: t=…,v1=…` | `Paddle-Signature: ts=…;h1=…` |
 

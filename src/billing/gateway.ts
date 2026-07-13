@@ -196,6 +196,17 @@ export interface BillingGateway {
 
   createSetupIntent?(customer: string): Promise<SetupIntent>;
   paymentMethods?(customer: string): Promise<PaymentMethod[]>;
+  /** Hosted customer portal (manage card / cancel). Stripe-style. */
+  createBillingPortalSession?(
+    customer: string,
+    returnUrl: string,
+  ): Promise<BillingPortalSession>;
+}
+
+/** A hosted billing-portal redirect. */
+export interface BillingPortalSession {
+  id: string;
+  url: string;
 }
 
 /** Raised for gateway/config problems and unsupported-capability calls. */

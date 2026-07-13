@@ -165,6 +165,20 @@ test("charge and refund reach the gateway with the right arguments", async () =>
   assert.equal(refund.amount, 500);
 });
 
+test("billingPortal opens a hosted customer portal session", async () => {
+  const { fake } = await setup();
+  const user = await User.create({ email: "portal@x.com" });
+
+  const session = await user.billingPortal("https://app.example.com/billing");
+  assert.match(session.id, /^bps_/);
+  assert.match(session.url, /^https:\/\/fake\.portal\//);
+  assert.match(session.url, /return=/);
+
+  const call = fake.calls.find((c) => c.method === "createBillingPortalSession");
+  assert.ok(call);
+  assert.equal(call!.args[1], "https://app.example.com/billing");
+});
+
 test("webhook verifies, upserts the subscription, and emits an event", async () => {
   const { fake } = await setup();
   const user = await User.create({ email: "hook@x.com" });

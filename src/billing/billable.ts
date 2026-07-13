@@ -99,6 +99,7 @@ export interface BillableInstance {
 
   createSetupIntent(): Promise<SetupIntent>;
   paymentMethods(): Promise<PaymentMethod[]>;
+  billingPortal(returnUrl: string): Promise<import("./gateway.js").BillingPortalSession>;
 }
 
 /**
@@ -307,6 +308,18 @@ export function Billable<TBase extends ModelCtor>(Base: TBase): BillableClass<TB
       }
       if (!this.hasBillingId()) return [];
       return gateway.paymentMethods(this.billing_customer_id!);
+    }
+
+    /** Open the hosted customer portal (manage card / cancel). */
+    async billingPortal(returnUrl: string): Promise<import("./gateway.js").BillingPortalSession> {
+      const gateway = this.billingGateway();
+      if (!gateway.createBillingPortalSession) {
+        throw new BillingError(
+          `The "${gateway.name}" gateway does not support a billing portal.`,
+          gateway.name,
+        );
+      }
+      return gateway.createBillingPortalSession(await this.getCustomerId(), returnUrl);
     }
   }
 

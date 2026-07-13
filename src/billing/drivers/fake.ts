@@ -178,6 +178,15 @@ export class FakeGateway implements BillingGateway {
     return { id, url: `https://fake.checkout/${id}`, clientToken: `ctok_${id}` };
   }
 
+  async createBillingPortalSession(
+    customer: string,
+    returnUrl: string,
+  ): Promise<{ id: string; url: string }> {
+    this.record("createBillingPortalSession", customer, returnUrl);
+    const id = this.id("bps");
+    return { id, url: `https://fake.portal/${id}?return=${encodeURIComponent(returnUrl)}` };
+  }
+
   async createSetupIntent(customer: string): Promise<SetupIntent> {
     this.record("createSetupIntent", customer);
     const id = this.id("seti");

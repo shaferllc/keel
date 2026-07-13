@@ -11,6 +11,8 @@
  *   keel_search_api        search the public export surface
  *   keel_list_generators   the `keel make:*` generators
  *   keel_scaffold          generate a controller/provider/job/… stub (no write)
+ * When KEEL_CLOUD_TOKEN is set, also:
+ *   keel_cloud_*           create/list/preview/publish sites on Keel Cloud
  * Resources: keel://overview, keel://llms-full, and keel://docs/<slug> per guide.
  */
 
@@ -33,6 +35,7 @@ import {
   notificationStub,
   transformerStub,
 } from "../core/cli/stubs.js";
+import { registerCloudTools } from "./cloud.js";
 
 interface DocEntry {
   slug: string;
@@ -231,6 +234,18 @@ export async function createServer(): Promise<McpServer> {
       "",
       "## Generators — use keel_scaffold or `keel make:*`",
       ...manifest.generators.map((g) => `- ${g.command} → ${g.produces}`),
+      ...(process.env.KEEL_CLOUD_TOKEN?.trim()
+        ? [
+            "",
+            "## Keel Cloud (token detected)",
+            "Cloud tools are enabled. Typical loop:",
+            "1. keel_cloud_create_site { name, preset }",
+            "2. Edit files at the returned storage_path (real Keel app)",
+            "3. keel_cloud_preview { site_id }",
+            "4. keel_cloud_publish { site_id, confirm: true } after user approval",
+            "Also: keel_cloud_list_sites, keel_cloud_get_site, keel_cloud_set_secret, keel_cloud_deploys, keel_cloud_export.",
+          ]
+        : []),
     ].join("\n");
 
   // ---- tools ----
@@ -441,6 +456,8 @@ export async function createServer(): Promise<McpServer> {
     );
   }
 
+  registerCloudTools(server);
+
   return server;
 }
 
@@ -450,5 +467,10 @@ export async function runMcpServer(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // stdout is the protocol channel — log to stderr only.
-  console.error("⚓ Keel MCP server running on stdio");
+  const cloud = Boolean(process.env.KEEL_CLOUD_TOKEN?.trim());
+  console.error(
+    cloud
+      ? "⚓ Keel MCP server running on stdio (Cloud tools enabled)"
+      : "⚓ Keel MCP server running on stdio",
+  );
 }

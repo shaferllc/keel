@@ -37,6 +37,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Helpers](https://github.com/shaferllc/keel/blob/main/docs/helpers.md): Keel gives you a handful of global helper functions so you can reach the running application from anywhere — a route handler, a model, a plain function — without threading a container reference through every call.
 - [Built on Hono](https://github.com/shaferllc/keel/blob/main/docs/hono.md): Keel's HTTP layer is Hono — an ultrafast, web-standard router that runs on Node, Cloudflare Workers, Deno, Bun, and more.
 - [Lifecycle Hooks](https://github.com/shaferllc/keel/blob/main/docs/hooks.md): Tap into the application lifecycle — run code once the app is ready, clean up on shutdown, and observe route registration.
+- [Hosting](https://github.com/shaferllc/keel/blob/main/docs/hosting.md): Keel Hosting is a small toolkit for hosted Workers / D1 apps: a Cloudflare REST client, hostname helpers, a SQLite-compatible SQL dump, and purpose-scoped secret encryption.
 - [Internationalization](https://github.com/shaferllc/keel/blob/main/docs/i18n.md): Translations with ICU message formatting, plus the Intl formatters that go with them.
 - [Inertia](https://github.com/shaferllc/keel/blob/main/docs/inertia.md): Keel ships a server-side Inertia.js adapter.
 - [Locks](https://github.com/shaferllc/keel/blob/main/docs/locks.md): "Only one of you may do this at a time" — across processes, across nodes.
@@ -104,6 +105,7 @@ Every topic has a runnable, type-checked example:
 - [Helpers example](https://github.com/shaferllc/keel/blob/main/docs/examples/helpers.ts)
 - [Built on Hono example](https://github.com/shaferllc/keel/blob/main/docs/examples/hono.ts)
 - [Lifecycle Hooks example](https://github.com/shaferllc/keel/blob/main/docs/examples/hooks.ts)
+- [Hosting example](https://github.com/shaferllc/keel/blob/main/docs/examples/hosting.ts)
 - [Internationalization example](https://github.com/shaferllc/keel/blob/main/docs/examples/i18n.ts)
 - [Inertia example](https://github.com/shaferllc/keel/blob/main/docs/examples/inertia.ts)
 - [Locks example](https://github.com/shaferllc/keel/blob/main/docs/examples/locks.ts)

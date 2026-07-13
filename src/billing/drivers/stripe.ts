@@ -277,6 +277,17 @@ export class StripeGateway implements BillingGateway {
     });
   }
 
+  async createBillingPortalSession(
+    customer: string,
+    returnUrl: string,
+  ): Promise<import("../gateway.js").BillingPortalSession> {
+    const session = await this.call("POST", "/billing_portal/sessions", {
+      customer,
+      return_url: returnUrl,
+    });
+    return { id: String(session.id), url: String(session.url ?? "") };
+  }
+
   /* ------------------------------ webhooks ------------------------------- */
 
   async verifyWebhook(

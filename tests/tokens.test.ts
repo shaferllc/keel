@@ -135,3 +135,27 @@ test("tokenAuth: 401 without a token, resolves user + abilities with one", async
     401,
   );
 });
+
+test("tokensMigration creates the personal_access_tokens table", async () => {
+  clearConnections();
+  const sdb = new DatabaseSync(":memory:");
+  const conn: Connection = {
+    async select(sql, bindings) {
+      return sdb.prepare(sql).all(...(bindings as never[])) as Row[];
+    },
+    async write(sql, bindings) {
+      const r = sdb.prepare(sql).run(...(bindings as never[]));
+      return { rowsAffected: Number(r.changes), insertId: Number(r.lastInsertRowid) };
+    },
+  };
+  setConnection(conn, "sqlite");
+
+  const { Migrator } = await import("../src/core/migrations.js");
+  const { tokensMigration } = await import("../src/core/tokens.js");
+  await new Migrator(conn, "sqlite").up([tokensMigration()]);
+
+  const issued = await createToken(1, { name: "from-migration" });
+  const record = await verifyToken(issued.token);
+  assert.ok(record);
+  assert.equal(record!.name, "from-migration");
+});

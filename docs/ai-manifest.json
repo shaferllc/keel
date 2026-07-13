@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.3",
+  "version": "0.83.4",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -207,6 +207,13 @@
       "summary": "Tap into the application lifecycle — run code once the app is ready, clean up on shutdown, and observe route registration.",
       "path": "docs/hooks.md",
       "example": "docs/examples/hooks.ts"
+    },
+    {
+      "slug": "hosting",
+      "title": "Hosting",
+      "summary": "Keel Hosting is a small toolkit for hosted Workers / D1 apps: a Cloudflare REST client, hostname helpers, a SQLite-compatible SQL dump, and purpose-scoped secret encryption.",
+      "path": "docs/hosting.md",
+      "example": "docs/examples/hosting.ts"
     },
     {
       "slug": "i18n",

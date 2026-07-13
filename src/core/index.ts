@@ -447,6 +447,7 @@ export {
   tokenAllows,
   tokenDenies,
   setTokensTable,
+  tokensMigration,
 } from "./tokens.js";
 export type { AccessToken, CreateTokenOptions, IssuedToken } from "./tokens.js";
 export {

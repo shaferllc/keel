@@ -203,3 +203,30 @@ function parseAbilities(value: unknown): string[] {
     return ["*"];
   }
 }
+
+/** Schema for personal access tokens (SQLite-friendly; works on Postgres with minor tweaks). */
+export function tokensMigration(tableName = "personal_access_tokens"): import("./migrations.js").Migration {
+  return {
+    name: `tokens_00_${tableName}`,
+    async up(schema) {
+      await schema.raw(`
+        CREATE TABLE IF NOT EXISTS ${tableName} (
+          selector TEXT NOT NULL UNIQUE,
+          hash TEXT NOT NULL,
+          tokenable_id TEXT NOT NULL,
+          name TEXT,
+          abilities TEXT,
+          last_used_at INTEGER,
+          expires_at INTEGER,
+          created_at INTEGER
+        )
+      `);
+      await schema.raw(
+        `CREATE INDEX IF NOT EXISTS idx_${tableName}_tokenable ON ${tableName} (tokenable_id)`,
+      );
+    },
+    async down(schema) {
+      await schema.dropTable(tableName).catch(() => {});
+    },
+  };
+}
