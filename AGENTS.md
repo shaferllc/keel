@@ -5,10 +5,11 @@ house framework for Node.js — or an app built on it. Humans: this is also a fa
 orientation. For prose guides see [`docs/`](./docs); for a machine-readable
 surface, run the [MCP server](#mcp-server-recommended).
 
-> **The fastest path:** connect the Keel MCP server (below) and call
-> `keel_overview` first. It returns conventions, the folder map, every doc
-> topic, and the generators. Then `keel_search_docs` / `keel_read_doc` for
-> depth, `keel_search_api` to find exports, `keel_scaffold` to generate code.
+> **The fastest path:** follow
+> [`docs/from-install-to-deploy.md`](./docs/from-install-to-deploy.md)
+> (create-keeljs → local → Cloudflare or optional Keel Cloud). For deep
+> lookups, connect the MCP server and call `keel_overview`, then
+> `keel_search_docs` / `keel_search_api`.
 
 ---
 

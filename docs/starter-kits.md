@@ -5,7 +5,8 @@ npm create keeljs@latest my-app -- --preset saas
 ```
 
 Four curated applications. Each is a complete, working app — not a scaffold you have
-to finish.
+to finish. For the full path from this command through Cloudflare or Keel Cloud,
+see [From install to deploy](./from-install-to-deploy.md).
 
 | Preset | What you get |
 | --- | --- |

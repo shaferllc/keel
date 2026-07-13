@@ -5,8 +5,9 @@ AI-facing surface: an MCP server, machine-readable docs (`llms.txt` /
 `llms-full.txt`), an agent playbook (`AGENTS.md`), and code generators an agent
 can drive directly.
 
-If you only read one thing: point your agent at the [MCP server](#the-mcp-server)
-and have it call `keel_overview` first.
+If you only read one thing: follow
+[From install to deploy](./from-install-to-deploy.md), then point your agent at
+the [MCP server](#the-mcp-server) and have it call `keel_overview` first.
 
 ## Why this exists
 

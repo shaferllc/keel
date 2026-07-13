@@ -61,19 +61,29 @@ export class HomeController {
 - **Thin and legible.** The whole framework is a few hundred lines in
   `src/core/`. No magic you can't read.
 
-## Two repos: the framework and your app
+## Two pieces: the framework and your app
 
-Keel is distributed the same way most frameworks are — a **library** you install,
-plus an **app** that depends on it:
+Keel is a **library** you install. New apps come from the generator (templates
+ship inside the package so they cannot lag the framework):
+
+```bash
+npm create keeljs@latest my-app
+cd my-app && npm install && npm run dev
+```
+
+End-to-end (local → Cloudflare or optional Keel Cloud):
+[From install to deploy](./docs/from-install-to-deploy.md).
 
 | Repo | Role |
 |------|------|
 | [`shaferllc/keel`](https://github.com/shaferllc/keel) (this repo) | The framework. Published as `@shaferllc/keel`. |
-| [`shaferllc/keel-app`](https://github.com/shaferllc/keel-app) | The starter app — clone it to build something. Gets core updates via `npm update`. |
+| Your app (via `create-keeljs`) | Routes, models, views — depends on `@shaferllc/keel`. |
 
 ## Install in your app
 
 ```bash
+npm create keeljs@latest my-app
+# or, into an existing project:
 npm install @shaferllc/keel
 ```
 
@@ -81,24 +91,20 @@ npm install @shaferllc/keel
 import { Application, Router, config } from "@shaferllc/keel/core";
 ```
 
-Or clone the [starter app](https://github.com/shaferllc/keel-app) and start
-from a working skeleton.
-
 ## Hack on the framework itself
 
 ```bash
 git clone https://github.com/shaferllc/keel.git
 cd keel
 npm install
-npm test               # 740 tests
-npm run typecheck      # src + tests
-npm run build          # compile the package to dist/
-npm run verify:release # build from what's committed — what a consumer's install runs
+npm test
+npm run typecheck
+npm run build
+npm run verify:release
 ```
 
-This repo is **the framework, and only the framework** — there is no app in it. To
-run one, clone the [starter app](https://github.com/shaferllc/keel-app) and point it
-at your checkout (`"@shaferllc/keel": "file:../keel"`).
+Point a generated kit at your checkout with
+`"@shaferllc/keel": "file:../keel"` while developing.
 
 ## The console
 
@@ -192,7 +198,9 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 
 | Guide | What it covers |
 |-------|----------------|
-| [Getting Started](./docs/getting-started.md) | Install, run, first route and controller |
+| [Getting Started](./docs/getting-started.md) | First route, controller, view, config |
+| [From install to deploy](./docs/from-install-to-deploy.md) | create-keeljs → local → Cloudflare or Keel Cloud |
+| [Starter kits](./docs/starter-kits.md) | Presets (`minimal` / `api` / `app` / `saas`) |
 | [The Service Container](./docs/container.md) | Binding and resolving services, DI |
 | [Service Providers](./docs/providers.md) | Plugin system: register/boot lifecycle, options |
 | [Configuration](./docs/configuration.md) | `config/*.ts`, dot-notation, `env()` |

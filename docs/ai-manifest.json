@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.5",
+  "version": "0.83.6",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -158,6 +158,13 @@
       "summary": "Populate the database with realistic fixtures for tests and demos.",
       "path": "docs/factories.md",
       "example": "docs/examples/factories.ts"
+    },
+    {
+      "slug": "from-install-to-deploy",
+      "title": "From install to deploy",
+      "summary": "One path from zero to a live Keel app — locally, on Cloudflare yourself, or on Keel Cloud with an AI agent.",
+      "path": "docs/from-install-to-deploy.md",
+      "example": null
     },
     {
       "slug": "gates",

@@ -4,6 +4,16 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.6] — 2026-07-13
+
+### Documentation
+
+- **[From install to deploy](./docs/from-install-to-deploy.md)** — end-to-end
+  guide: `create-keeljs` → local dev → Cloudflare self-deploy → optional Keel
+  Cloud + MCP. Getting Started and the README now lead with the generator.
+
+[0.83.6]: https://github.com/shaferllc/keel/releases/tag/v0.83.6
+
 ## [0.83.5] — 2026-07-13
 
 ### Added

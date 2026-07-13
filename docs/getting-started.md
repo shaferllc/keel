@@ -15,32 +15,20 @@ Keel targets modern Node and web-standard APIs, so a current runtime matters —
 
 ## Install
 
-Keel ships as two repos: the **framework** (`@shaferllc/keel`, published to
-npm) and a **starter app** (`shaferllc/keel-app`) you build on. Which path you
-take depends on whether you're starting fresh or bolting Keel onto something
-that already exists. See [Architecture](./architecture.md#two-repos-library-and-starter)
-for why it's split this way.
-
-### From the starter (recommended)
-
-The fastest route to a running app is the starter — a working skeleton with the
-folders, config, and scripts already wired:
+The fastest path to a running app is the generator — it copies a curated kit
+from the same `@shaferllc/keel` version you install, so the template cannot lag
+the framework:
 
 ```bash
-git clone https://github.com/shaferllc/keel-app.git my-app
+npm create keeljs@latest my-app
 cd my-app
 npm install
+npm run dev        # http://localhost:3000
 ```
 
-The starter depends on `@shaferllc/keel`, so you pick up framework updates with
-an ordinary `npm update @shaferllc/keel` — your app code in `app/` stays put.
-
-A fresh checkout ships with a working `.env`. To start from the template
-instead:
-
-```bash
-cp .env.example .env
-```
+For the full journey (presets, Cloudflare deploy, optional Keel Cloud + MCP),
+see **[From install to deploy](./from-install-to-deploy.md)**. Kit details:
+[Starter kits](./starter-kits.md).
 
 ### Into an existing app
 
@@ -57,21 +45,23 @@ import { Application, Router, config } from "@shaferllc/keel/core";
 ```
 
 You supply the four convention folders yourself — `app/`, `config/`, `routes/`,
-`bootstrap/` — plus an entry that calls `createApplication()`. The starter's
+`bootstrap/` — plus an entry that calls `createApplication()`. A generated kit’s
 `bootstrap/app.ts` is the reference; copy it and trim to taste.
 
 ### Hacking on the framework itself
 
-To work on Keel proper, clone the framework repo — it carries an example app you
-can run directly:
+To work on Keel proper, clone the framework repo:
 
 ```bash
 git clone https://github.com/shaferllc/keel.git
 cd keel
 npm install
-npm run dev        # example app on http://localhost:3000
-npm run build      # compile the package to dist/
+npm test
+npm run typecheck
 ```
+
+Generate a disposable app against your checkout with
+`npm create keeljs@latest …` and point its dependency at `file:../keel`.
 
 ## Run the server
 
@@ -267,9 +257,10 @@ unsure what's mounted. [The Console](./console.md) lists every command.
 ## Where to go next
 
 You now have the shape of a Keel app: routes point at controllers, controllers
-render views and read config, and the console scaffolds the pieces. The deep
-guides pick up from here:
+render views and read config, and the console scaffolds the pieces.
 
+- **[From install to deploy](./from-install-to-deploy.md)** — presets, Cloudflare,
+  optional Keel Cloud + MCP
 - [Architecture](./architecture.md) — how boot, the container, and the request
   lifecycle fit together
 - [The Service Container](./container.md) — how dependency injection works
@@ -284,6 +275,7 @@ guides pick up from here:
   the active-record layer on top of it
 - [Configuration](./configuration.md) and [The Console](./console.md) — settings
   and commands
+- [Building with AI](./ai.md) — MCP docs + Cloud tools
 
 When something isn't documented, open the source — the whole framework is a few
 hundred readable lines in `src/core/`, and [Built on Hono](./hono.md) explains

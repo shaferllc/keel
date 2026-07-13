@@ -207,7 +207,9 @@ await writeFile(join(root, "llms.txt"), llms.join("\n"));
 
 // ---- llms-full.txt ---------------------------------------------------------
 const order = [
+  "from-install-to-deploy",
   "getting-started",
+  "starter-kits",
   "architecture",
   "container",
   "providers",
