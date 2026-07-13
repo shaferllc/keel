@@ -4,14 +4,22 @@
   "description": "Create a Keel application.",
   "type": "module",
   "bin": {
-    "create-keeljs": "./index.mjs"
+    "create-keeljs": "index.mjs"
   },
   "files": [
     "index.mjs"
   ],
   "license": "MIT",
+  "author": "Tom Shafer",
+  "homepage": "https://github.com/shaferllc/keel/tree/main/packages/create-keeljs#readme",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@shaferllc/keel": "^0.83.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",

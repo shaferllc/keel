@@ -41,6 +41,7 @@ import {
   pageStub,
   commandStub,
 } from "./stubs.js";
+import { findAvailablePort } from "./port.js";
 
 const basePath = process.cwd();
 
@@ -218,7 +219,11 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
         ? application.make(HttpKernel)
         : new HttpKernel(application);
       const hono = kernel.build();
-      const port = flags.port ?? Number(application.config().get("app.port", 3000));
+      const preferred = flags.port ?? Number(application.config().get("app.port", 3000));
+      const port = await findAvailablePort(preferred);
+      if (port !== preferred) {
+        ui.warning(`Port ${preferred} is in use — using ${port} instead`);
+      }
 
       // Imported here, not at the top: the Node server is only needed to *serve*,
       // and the console must still load on a machine (or a Worker) that has no
@@ -231,6 +236,13 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
 
       const server = listen({ fetch: hono.fetch, port }, (info: { port: number }) => {
         ui.success(`${application.config().get("app.name", "Keel")} listening on http://localhost:${info.port}`);
+      });
+
+      // Probe-then-listen can race; surface a clear message instead of an
+      // unhandled 'error' event if something grabbed the port between the two.
+      server.on("error", (err: NodeJS.ErrnoException) => {
+        ui.error(err.code === "EADDRINUSE" ? `Port ${port} is already in use` : String(err));
+        process.exit(1);
       });
 
       // Graceful shutdown: stop accepting connections, run the app's shutdown

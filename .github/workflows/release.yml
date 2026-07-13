@@ -67,6 +67,21 @@ jobs:
       - name: Publish
         run: npm publish --access public
 
+      # create-keeljs is a separate unscoped package (npm create keeljs@latest).
+      # Templates live in @shaferllc/keel; this package is only the thin copier.
+      # Versioned independently — bump packages/create-keeljs/package.json when the
+      # generator itself changes, not on every framework release. Skip when that
+      # version is already on the registry so framework tags don't fail the job.
+      - name: Publish create-keeljs
+        working-directory: packages/create-keeljs
+        run: |
+          ver="$(node -p 'require("./package.json").version')"
+          if npm view "create-keeljs@${ver}" version >/dev/null 2>&1; then
+            echo "create-keeljs@${ver} already on npm — skip"
+            exit 0
+          fi
+          npm publish --access public
+
       # keeljs.com renders the guides out of the published package, so a release it
       # doesn't hear about is a docs site that quietly lags the framework — which
       # is how the site sat on 0.78.2 while npm had 0.79.0.

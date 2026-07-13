@@ -4,6 +4,16 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.8] — 2026-07-13
+
+### Fixed
+
+- **`keel serve` finds a free port** — when the configured port (default 3000) is
+  already in use, walk up and bind the next free one instead of crashing with
+  `EADDRINUSE`. Prints a warning when it falls back.
+
+[0.83.8]: https://github.com/shaferllc/keel/releases/tag/v0.83.8
+
 ## [0.83.7] — 2026-07-13
 
 ### Documentation
