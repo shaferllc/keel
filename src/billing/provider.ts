@@ -21,7 +21,15 @@ import { registerDefaultGateways } from "./drivers/index.js";
 import { billingMigration } from "./migration.js";
 import { registerBillingRoutes } from "./routes.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
+function packageDir(): string {
+  try {
+    const url = import.meta.url;
+    if (!url) return ".";
+    return dirname(fileURLToPath(url));
+  } catch {
+    return ".";
+  }
+}
 
 export class BillingServiceProvider extends PackageProvider {
   readonly name = "billing";
@@ -40,7 +48,7 @@ export class BillingServiceProvider extends PackageProvider {
 
     // Default billable table is `users`.
     this.migrations([billingMigration("users")]);
-    this.publishes({ [join(here, "billing.config.stub")]: "config/billing.ts" }, "billing-config");
+    this.publishes({ [join(packageDir(), "billing.config.stub")]: "config/billing.ts" }, "billing-config");
   }
 
   boot(): void {

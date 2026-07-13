@@ -20,7 +20,15 @@ import { accountsMigration } from "./migration.js";
 import { registerAccountsRoutes } from "./routes.js";
 import { setAccountStore, tableStore } from "./store.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
+function packageDir(): string {
+  try {
+    const url = import.meta.url;
+    if (!url) return ".";
+    return dirname(fileURLToPath(url));
+  } catch {
+    return ".";
+  }
+}
 
 export class AccountsServiceProvider extends PackageProvider {
   readonly name = "accounts";
@@ -34,7 +42,7 @@ export class AccountsServiceProvider extends PackageProvider {
     setAccountStore(tableStore(this.config.userTable));
 
     this.migrations([accountsMigration(this.config.userTable)]);
-    this.publishes({ [join(here, "accounts.config.stub")]: "config/accounts.ts" }, "accounts-config");
+    this.publishes({ [join(packageDir(), "accounts.config.stub")]: "config/accounts.ts" }, "accounts-config");
   }
 
   boot(): void {

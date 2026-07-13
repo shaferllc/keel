@@ -18,7 +18,15 @@ import { PackageProvider } from "../core/package.js";
 import { defaultConfig, resolveConfig, type TeamsConfig } from "./config.js";
 import { teamsMigration } from "./migration.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
+function packageDir(): string {
+  try {
+    const url = import.meta.url;
+    if (!url) return ".";
+    return dirname(fileURLToPath(url));
+  } catch {
+    return ".";
+  }
+}
 
 export class TeamsServiceProvider extends PackageProvider {
   readonly name = "teams";
@@ -30,6 +38,6 @@ export class TeamsServiceProvider extends PackageProvider {
     this.config = resolveConfig();
 
     this.migrations([teamsMigration(this.config.userTable)]);
-    this.publishes({ [join(here, "teams.config.stub")]: "config/teams.ts" }, "teams-config");
+    this.publishes({ [join(packageDir(), "teams.config.stub")]: "config/teams.ts" }, "teams-config");
   }
 }
