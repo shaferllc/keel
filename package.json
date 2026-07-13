@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.15",
+  "version": "0.83.16",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -97,6 +97,7 @@
   "files": [
     "dist",
     "bin/keel-mcp.mjs",
+    "scripts/install-mcp.sh",
     "docs",
     "AGENTS.md",
     "llms.txt",

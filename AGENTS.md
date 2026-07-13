@@ -146,6 +146,8 @@ Keel ships an MCP server exposing its docs, the full public API surface, the
 generators, and framework conventions to any MCP-capable agent.
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+# or:
 npx -y keel-mcp@latest init          # writes .mcp.json in the current project
 npx -y keel-mcp@latest init --all    # + .cursor/mcp.json + Claude Code
 ```

@@ -4,6 +4,16 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.16] — 2026-07-13
+
+### Added
+
+- **`scripts/install-mcp.sh`** — curlable MCP installer:
+  `curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash`
+  (docs lead with this; same as `npx -y keel-mcp@latest init`).
+
+[0.83.16]: https://github.com/shaferllc/keel/releases/tag/v0.83.16
+
 ## [0.83.15] — 2026-07-13
 
 ### Added

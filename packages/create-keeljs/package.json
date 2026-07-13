@@ -16,7 +16,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@shaferllc/keel": "^0.83.15"
+    "@shaferllc/keel": "^0.83.16"
   },
   "publishConfig": {
     "access": "public"

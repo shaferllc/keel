@@ -27,14 +27,21 @@ its conventions to any MCP-capable client.
 
 ### Connect it
 
-Easiest — run this in your app (or any folder you want the config):
+Easiest — curl this in your app (or any folder you want the config):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+```
+
+Or via npx:
 
 ```bash
 npx -y keel-mcp@latest init
 ```
 
-That writes a merge-safe `.mcp.json`. Add `--all` for `.cursor/mcp.json` plus
-Claude Code registration, or `--token keel_….…` to bake in Cloud credentials.
+Both write a merge-safe `.mcp.json`. Add `--all` for `.cursor/mcp.json` plus
+Claude Code registration, or `--token keel_….…` to bake in Cloud credentials
+(`bash -s -- --all` when using curl).
 
 **Claude Code** only:
 
@@ -51,7 +58,7 @@ claude mcp add keel -- npm --prefix /path/to/keel run mcp
 ```
 
 **`.mcp.json`, Cursor, Windsurf, or any client** that reads the standard config
-(what `init` writes):
+(what `init` / `install-mcp.sh` writes):
 
 ```json
 {

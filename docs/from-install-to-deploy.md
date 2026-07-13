@@ -66,22 +66,29 @@ read [Getting Started](./getting-started.md).
 
 ## 3. Optional — AI agents (local)
 
-Keel is designed to be written with an agent. One command installs the MCP
-server config in the project you're standing in:
+Keel is designed to be written with an agent. Install the MCP server config in
+whatever project you're in:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+```
+
+Same thing via npx:
 
 ```bash
 npx -y keel-mcp@latest init
 ```
 
-That writes `.mcp.json` (merge-safe). Useful flags:
+Flags (work with either command — pass after `bash -s --` for curl):
 
 ```bash
-npx -y keel-mcp@latest init --all              # also .cursor/mcp.json + Claude Code
-npx -y keel-mcp@latest init --claude           # claude mcp add keel …
+curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash -s -- --all
+npx -y keel-mcp@latest init --all              # .cursor/mcp.json + Claude Code
+npx -y keel-mcp@latest init --claude
 npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN"
 ```
 
-Or paste this by hand:
+That writes a merge-safe `.mcp.json`. Or paste by hand:
 
 ```json
 {

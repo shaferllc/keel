@@ -137,9 +137,9 @@ ships a machine-readable surface that stays generated-in-sync, never stale:
   (`create_site` → preview → publish). See [Keel Cloud](./docs/keel-cloud.md).
   Connect it anywhere:
   ```bash
-  npx -y keel-mcp@latest init          # writes .mcp.json
-  # or: claude mcp add keel -- npx -y keel-mcp
-  # Cloud: npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN" --claude
+  curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+  # or: npx -y keel-mcp@latest init
+  # Cloud: … | bash -s -- --token "$KEEL_CLOUD_TOKEN" --claude
   ```
   Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
   `keel_list_generators`, `keel_scaffold`, plus `keel_cloud_*` when a token is set.
