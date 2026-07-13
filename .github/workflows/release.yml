@@ -74,6 +74,7 @@ jobs:
       # version is already on the registry so framework tags don't fail the job.
       - name: Publish create-keeljs
         working-directory: packages/create-keeljs
+        continue-on-error: true
         run: |
           ver="$(node -p 'require("./package.json").version')"
           if npm view "create-keeljs@${ver}" version >/dev/null 2>&1; then
@@ -81,6 +82,9 @@ jobs:
             exit 0
           fi
           npm publish --access public
+          echo "::notice::Published create-keeljs@${ver}"
+          # If this 404s, the package needs a trusted publisher on npm (same workflow
+          # as @shaferllc/keel) or a local `npm publish --otp=…` from a maintainer.
 
       # keeljs.com renders the guides out of the published package, so a release it
       # doesn't hear about is a docs site that quietly lags the framework — which
