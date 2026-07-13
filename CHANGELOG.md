@@ -4,12 +4,36 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.17] — 2026-07-13
+
+### Added
+
+- **`@shaferllc/keel/ui`** — first-party design kit for Hono JSX views: CSS
+  tokens, `.keel-*` component styles, and components (`Button`, `Field`,
+  `Panel`, `Shell`, `Hero`, …). Import stylesheet via `@shaferllc/keel/ui/css`.
+  Starters (`minimal` / `app` / `saas`) consume it instead of a local `ui.ts`.
+
+- **`https://keeljs.com/install.sh`** — curl the MCP installer from the docs domain
+  (site serves the baked script; `/install-mcp.sh` aliases it).
+
+- **`keel-mcp` npm package** — thin published bin so `npx -y keel-mcp` resolves
+  (forwards to `@shaferllc/keel`).
+- **`scripts/install.sh`** — alias of `install-mcp.sh` for the short curl path.
+
+### Fixed
+
+- **MCP config that Cursor actually runs** — written `.mcp.json` uses
+  `npx -y --package=@shaferllc/keel keel-mcp` so the server starts even if the
+  thin `keel-mcp` package is missing from the registry.
+
+[0.83.17]: https://github.com/shaferllc/keel/releases/tag/v0.83.17
+
 ## [0.83.16] — 2026-07-13
 
 ### Added
 
 - **`scripts/install-mcp.sh`** — curlable MCP installer:
-  `curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash`
+  `curl -fsSL https://keeljs.com/install.sh | bash`
   (docs lead with this; same as `npx -y keel-mcp@latest init`).
 
 [0.83.16]: https://github.com/shaferllc/keel/releases/tag/v0.83.16

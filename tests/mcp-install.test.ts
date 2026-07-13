@@ -25,7 +25,7 @@ test("writeMcpConfig creates and merges .mcp.json", () => {
 
     assert.equal(json.mcpServers.other.command, "echo");
     assert.deepEqual(json.mcpServers.keel.command, "npx");
-    assert.deepEqual(json.mcpServers.keel.args, ["-y", "keel-mcp"]);
+    assert.deepEqual(json.mcpServers.keel.args, ["-y", "--package=@shaferllc/keel", "keel-mcp"]);
     assert.equal(json.mcpServers.keel.env.KEEL_CLOUD_TOKEN, "keel_a.b");
   } finally {
     rmSync(dir, { recursive: true, force: true });

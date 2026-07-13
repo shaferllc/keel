@@ -1,5 +1,5 @@
+import { Alert, Button, Field, Muted, SectionLabel } from "@shaferllc/keel/ui";
 import { AuthShell } from "./shell.js";
-import { alert, btnSea, field, muted, sectionLabel } from "../ui.js";
 
 interface Props {
   qr: string | null;
@@ -16,14 +16,14 @@ export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }
     <AuthShell title="Set up two-factor" wide>
       <h1 class="font-display text-2xl font-bold tracking-tight">Set up two-factor</h1>
 
-      {error && <p class={`${alert} mt-5`}>{error}</p>}
+      {error && <Alert class="mt-5">{error}</Alert>}
 
       {ready ? (
         <>
-          <p class={`${muted} mt-3 text-sm leading-relaxed`}>
+          <Muted class="mt-3 text-sm leading-relaxed">
             Scan this with your authenticator app. The code is rendered here — it never leaves this
             server.
-          </p>
+          </Muted>
 
           <div class="mt-6 flex justify-center">
             <img
@@ -35,17 +35,17 @@ export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }
             />
           </div>
 
-          <p class={`${muted} mt-6 text-sm`}>Or enter this secret manually:</p>
+          <Muted class="mt-6 text-sm">Or enter this secret manually:</Muted>
           <code class="mt-2 block break-all rounded-lg bg-mist px-3 py-2 font-mono text-sm">
             {secret}
           </code>
 
           {recoveryCodes.length > 0 && (
             <div class="mt-8">
-              <h2 class={sectionLabel}>Recovery codes</h2>
-              <p class={`${muted} mt-2 text-sm`}>
+              <SectionLabel>Recovery codes</SectionLabel>
+              <Muted class="mt-2 text-sm">
                 Store these somewhere safe. Each works once if you lose your authenticator.
-              </p>
+              </Muted>
               <ul class="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
                 {recoveryCodes.map((code) => (
                   <li class="rounded-md bg-mist px-2 py-1.5">{code}</li>
@@ -55,22 +55,21 @@ export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }
           )}
 
           <form method="post" action="/two-factor/confirm" class="mt-8 flex flex-col gap-3">
-            <input
-              class={field}
+            <Field
               name="code"
               placeholder="6-digit code"
               inputMode="numeric"
               autocomplete="one-time-code"
               required
             />
-            <button class={btnSea} type="submit">
+            <Button variant="sea" type="submit">
               Confirm and enable
-            </button>
+            </Button>
           </form>
         </>
       ) : (
         <div class="mt-6">
-          <p class={`${muted} text-sm`}>Start two-factor from the dashboard to get a new QR code.</p>
+          <Muted class="text-sm">Start two-factor from the dashboard to get a new QR code.</Muted>
           <a class="mt-4 inline-block text-sm underline underline-offset-2" href="/dashboard">
             Back to dashboard
           </a>

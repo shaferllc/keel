@@ -51,7 +51,7 @@ Same server as local docs/API — add env so Cloud tools register:
   "mcpServers": {
     "keel": {
       "command": "npx",
-      "args": ["-y", "keel-mcp"],
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"],
       "env": {
         "KEEL_CLOUD_TOKEN": "keel_….…",
         "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
@@ -64,7 +64,7 @@ Same server as local docs/API — add env so Cloud tools register:
 **Claude Code:**
 
 ```bash
-claude mcp add keel -e KEEL_CLOUD_TOKEN=keel_….… -e KEEL_CLOUD_URL=https://app.keeljs.cloud -- npx -y keel-mcp
+claude mcp add keel -e KEEL_CLOUD_TOKEN=keel_….… -e KEEL_CLOUD_URL=https://app.keeljs.cloud -- npx -y --package=@shaferllc/keel keel-mcp
 ```
 
 Reload the MCP client. Stderr should say `Cloud tools enabled`. Call

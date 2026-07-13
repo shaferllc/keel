@@ -86,6 +86,19 @@ jobs:
           # If this 404s, the package needs a trusted publisher on npm (same workflow
           # as @shaferllc/keel) or a local `npm publish --otp=…` from a maintainer.
 
+      # Thin bin so `npx -y keel-mcp` resolves (forwards to @shaferllc/keel).
+      - name: Publish keel-mcp
+        working-directory: packages/keel-mcp
+        continue-on-error: true
+        run: |
+          ver="$(node -p 'require("./package.json").version')"
+          if npm view "keel-mcp@${ver}" version >/dev/null 2>&1; then
+            echo "keel-mcp@${ver} already on npm — skip"
+            exit 0
+          fi
+          npm publish --access public
+          echo "::notice::Published keel-mcp@${ver}"
+
       # keeljs.com renders the guides out of the published package, so a release it
       # doesn't hear about is a docs site that quietly lags the framework — which
       # is how the site sat on 0.78.2 while npm had 0.79.0.

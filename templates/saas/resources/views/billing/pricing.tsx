@@ -1,17 +1,14 @@
-import Layout from "../layout.js";
 import {
-  brand,
-  btnPrimary,
-  btnSea,
-  panel,
-  rise,
-  rise1,
-  rise2,
-  sectionLabel,
-  shell,
-  shellLinks,
-  shellNav,
-} from "../ui.js";
+  Brand,
+  Button,
+  Panel,
+  Rise,
+  SectionLabel,
+  Shell,
+  ShellLinks,
+  ShellNav,
+} from "@shaferllc/keel/ui";
+import Layout from "../layout.js";
 
 export default function Pricing({
   subscribed,
@@ -24,28 +21,30 @@ export default function Pricing({
 }) {
   return (
     <Layout title="Billing">
-      <main class={shell}>
-        <header class={shellNav}>
-          <a href="/" class={`${brand} text-2xl text-ink`}>
+      <Shell>
+        <ShellNav>
+          <Brand href="/" class="text-2xl text-ink">
             Keel
-          </a>
-          <nav class={shellLinks}>
+          </Brand>
+          <ShellLinks>
             <a href="/dashboard">Dashboard</a>
             <a href="/teams">Teams</a>
             <a href="/billing" aria-current="page">
               Billing
             </a>
-          </nav>
-        </header>
+          </ShellLinks>
+        </ShellNav>
 
-        <h1 class={`font-display ${rise} text-4xl font-bold tracking-tight`}>Billing</h1>
-        <p class={`${rise1} mt-3 max-w-lg text-ink-soft`}>
+        <Rise step={0} as="h1" class="font-display text-4xl font-bold tracking-tight">
+          Billing
+        </Rise>
+        <Rise step={1} as="p" class="mt-3 max-w-lg text-ink-soft">
           The current team is the customer. Gateway{" "}
           <code class="rounded-md bg-white/70 px-1.5 py-0.5 text-sm text-ink">{gateway}</code>.
-        </p>
+        </Rise>
 
-        <section class={`${panel} ${rise2} mt-10`}>
-          <p class={sectionLabel}>Plan</p>
+        <Panel class="mt-10 keel-rise keel-rise--2">
+          <SectionLabel>Plan</SectionLabel>
           <h2 class="font-display mt-2 text-3xl font-bold">Pro</h2>
           <p class="mt-3 text-sm text-ink-soft">
             Price id <code class="rounded bg-mist px-1.5 py-0.5">{plan}</code>. Set{" "}
@@ -54,19 +53,17 @@ export default function Pricing({
 
           {subscribed ? (
             <form method="post" action="/billing/portal" class="mt-8">
-              <button class={btnPrimary} type="submit">
-                Open customer portal
-              </button>
+              <Button type="submit">Open customer portal</Button>
             </form>
           ) : (
             <form method="post" action="/billing/subscribe" class="mt-8">
-              <button class={btnSea} type="submit">
+              <Button variant="sea" type="submit">
                 Subscribe
-              </button>
+              </Button>
             </form>
           )}
-        </section>
-      </main>
+        </Panel>
+      </Shell>
     </Layout>
   );
 }

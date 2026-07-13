@@ -1,0 +1,63 @@
+/**
+ * Keel UI — design tokens (maritime starter look).
+ * Apps can override any --color-* / --font-* on :root after importing.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Syne:wght@600;700;800&display=swap");
+
+:root {
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b1820;
+  --color-ink-soft: #243640;
+  --color-mist: #eef3f1;
+  --color-foam: #f7faf9;
+  --color-sea: #0f6e68;
+  --color-sea-deep: #0a524e;
+  --color-brass: #9a7b4f;
+  --color-line: #d3ddd8;
+  --color-danger: #9b2c2c;
+  --color-warn: #7a5b1e;
+}
+
+/* Tailwind v4 picks these up when the app also @import "tailwindcss". */
+@theme {
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b1820;
+  --color-ink-soft: #243640;
+  --color-mist: #eef3f1;
+  --color-foam: #f7faf9;
+  --color-sea: #0f6e68;
+  --color-sea-deep: #0a524e;
+  --color-brass: #9a7b4f;
+  --color-line: #d3ddd8;
+  --color-danger: #9b2c2c;
+  --color-warn: #7a5b1e;
+
+  --animate-rise: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

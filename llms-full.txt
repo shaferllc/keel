@@ -83,19 +83,21 @@ Keel is designed to be written with an agent. Install the MCP server config in
 whatever project you're in:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+curl -fsSL https://keeljs.com/install.sh | bash
 ```
 
-Same thing via npx:
+Same thing via npx (after `keel-mcp` is on npm) or pinned to the framework package:
 
 ```bash
 npx -y keel-mcp@latest init
+# or, always works today:
+npx -y --package=@shaferllc/keel keel-mcp init
 ```
 
 Flags (work with either command — pass after `bash -s --` for curl):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash -s -- --all
+curl -fsSL https://keeljs.com/install.sh | bash -s -- --all
 npx -y keel-mcp@latest init --all              # .cursor/mcp.json + Claude Code
 npx -y keel-mcp@latest init --claude
 npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN"
@@ -108,7 +110,7 @@ That writes a merge-safe `.mcp.json`. Or paste by hand:
   "mcpServers": {
     "keel": {
       "command": "npx",
-      "args": ["-y", "keel-mcp"]
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"]
     }
   }
 }
@@ -249,7 +251,7 @@ Same server as local docs/API — add env so Cloud tools register:
   "mcpServers": {
     "keel": {
       "command": "npx",
-      "args": ["-y", "keel-mcp"],
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"],
       "env": {
         "KEEL_CLOUD_TOKEN": "keel_….…",
         "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
@@ -262,7 +264,7 @@ Same server as local docs/API — add env so Cloud tools register:
 **Claude Code:**
 
 ```bash
-claude mcp add keel -e KEEL_CLOUD_TOKEN=keel_….… -e KEEL_CLOUD_URL=https://app.keeljs.cloud -- npx -y keel-mcp
+claude mcp add keel -e KEEL_CLOUD_TOKEN=keel_….… -e KEEL_CLOUD_URL=https://app.keeljs.cloud -- npx -y --package=@shaferllc/keel keel-mcp
 ```
 
 Reload the MCP client. Stderr should say `Cloud tools enabled`. Call
@@ -684,10 +686,14 @@ see [From install to deploy](./from-install-to-deploy.md).
 
 | Preset | What you get |
 | --- | --- |
-| `minimal` | Routes, a controller, JSX + Tailwind, `/health`. No database. |
+| `minimal` | Routes, a controller, JSX + [Keel UI](./ui.md) + Tailwind, `/health`. No database. |
 | `api` | JSON API via `apiResource`, OpenAPI at `/docs`, Watch at `/watch`, migrations, tests. |
 | `app` *(default)* | Full-stack auth: register/login, password reset form, email verification, 2FA setup + confirm, Watch. |
 | `saas` | `app` plus teams, role gates, invitation revoke, Stripe-ready **team** billing (pricing / checkout / portal), FakeGateway when Stripe keys are absent. |
+
+UI chrome (buttons, fields, panels, hero) comes from `@shaferllc/keel/ui` — see
+[UI](./ui.md). Kits import the stylesheet in `resources/css/app.css` and use the
+JSX components in `resources/views/`.
 
 Edge deploy is **cross-cutting** — every DB kit ships `worker.ts` + Wrangler. There is
 no separate `edge` preset.
@@ -5202,13 +5208,14 @@ its conventions to any MCP-capable client.
 Easiest — curl this in your app (or any folder you want the config):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+curl -fsSL https://keeljs.com/install.sh | bash
 ```
 
 Or via npx:
 
 ```bash
 npx -y keel-mcp@latest init
+# or: npx -y --package=@shaferllc/keel keel-mcp init
 ```
 
 Both write a merge-safe `.mcp.json`. Add `--all` for `.cursor/mcp.json` plus
@@ -5218,7 +5225,7 @@ Claude Code registration, or `--token keel_….…` to bake in Cloud credentials
 **Claude Code** only:
 
 ```bash
-claude mcp add keel -- npx -y keel-mcp
+claude mcp add keel -- npx -y --package=@shaferllc/keel keel-mcp
 # or:
 npx -y keel-mcp@latest init --claude
 ```
@@ -5230,12 +5237,15 @@ claude mcp add keel -- npm --prefix /path/to/keel run mcp
 ```
 
 **`.mcp.json`, Cursor, Windsurf, or any client** that reads the standard config
-(what `init` / `install-mcp.sh` writes):
+(what `init` / `install.sh` writes):
 
 ```json
 {
   "mcpServers": {
-    "keel": { "command": "npx", "args": ["-y", "keel-mcp"] }
+    "keel": {
+      "command": "npx",
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"]
+    }
   }
 }
 ```
@@ -5283,7 +5293,7 @@ plaintext looks like `keel_<selector>.<verifier>`.
   "mcpServers": {
     "keel": {
       "command": "npx",
-      "args": ["-y", "keel-mcp"],
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"],
       "env": {
         "KEEL_CLOUD_TOKEN": "keel_….…",
         "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
@@ -20721,6 +20731,109 @@ new UserTransformer().document(users, { key: "records", meta: { total: 42 } });
 
 ---
 
+<!-- source: docs/ui.md -->
+
+# UI
+
+Keel ships a small design kit for server-rendered [views](./views.md): CSS
+tokens, named component styles, and Hono JSX components. Starters import it from
+`@shaferllc/keel/ui` — no second package.
+
+```tsx
+import { Button, Field, Panel } from "@shaferllc/keel/ui";
+```
+
+## Stylesheet
+
+Import the kit once in your app CSS, then Tailwind for app-authored utilities:
+
+```css
+/* resources/css/app.css */
+@import "@shaferllc/keel/ui/css";
+@import "tailwindcss";
+```
+
+Build with the Tailwind CLI (as the starters do) into `public/assets/app.css`,
+and link that from your layout. The kit uses stable `.keel-*` classes so you do
+**not** need to `@source` `node_modules` for Tailwind scanning.
+
+## Tokens
+
+The maritime default (Syne + IBM Plex, sea / ink / brass) lives in the kit CSS.
+Override any token after the import:
+
+```css
+@import "@shaferllc/keel/ui/css";
+@import "tailwindcss";
+
+:root {
+  --color-sea: #1a6b5c;
+  --color-ink: #0a1218;
+}
+```
+
+Tailwind v4 also sees the same values via `@theme`, so utilities like
+`text-ink` and `bg-sea` work in your own markup.
+
+## Components
+
+| Component | Role |
+|-----------|------|
+| `Button` | `primary` / `ghost` / `sea`. Pass `href` to render an `<a>`. |
+| `Field` | Styled text input; extra attrs pass through. |
+| `Panel` | Surface. `variant="auth"` / `"auth-wide"` for auth cards. |
+| `Notice` / `Alert` | Soft callout / danger box. |
+| `Brand` | Display-face wordmark. |
+| `Shell` / `ShellNav` / `ShellLinks` | App chrome column + header nav. |
+| `SectionLabel` / `Muted` / `RowForm` | Eyebrow, secondary text, inline form row. |
+| `Hero` / `HeroGlow` / `HeroInner` | Full-viewport welcome stage. |
+| `Grain` / `Rise` | Body grain overlay; staggered entrance. |
+
+```tsx
+import { Button, Field, Panel, Alert } from "@shaferllc/keel/ui";
+
+export default function Login({ error }: { error: string | null }) {
+  return (
+    <Panel variant="auth">
+      {error && <Alert class="mt-5">{error}</Alert>}
+      <form method="post" action="/login" class="mt-6 flex flex-col gap-3">
+        <Field type="email" name="email" placeholder="Email" required />
+        <Field type="password" name="password" placeholder="Password" required />
+        <Button type="submit">Log in</Button>
+      </form>
+    </Panel>
+  );
+}
+```
+
+Compose with your own layout — the kit does not own `<html>` or the CSS link.
+Starters keep `resources/views/layout.tsx` for that.
+
+## Escape hatches
+
+Prefer components. When you need a raw class on your own element:
+
+```ts
+import { classes, cx } from "@shaferllc/keel/ui";
+
+<a class={cx(classes.btnPrimary, "mt-4")} href="/register">
+  Get started
+</a>
+```
+
+`classes` mirrors every kit selector (`btnPrimary`, `field`, `shell`, …).
+
+## What stays yours
+
+- Document shell (`layout.tsx`) and asset URL
+- Route-specific copy and forms
+- Auth page composition (`AuthShell` in the starters)
+- Extra Tailwind utilities for spacing, type scale, and one-off layout
+
+
+
+---
+
 <!-- source: docs/url-builder.md -->
 
 # URL Builder
@@ -21324,6 +21437,9 @@ how the kernel renders it and how to override that.
 Keel renders HTML with **Hono JSX** — type-safe components that run identically
 on Node and on Cloudflare Workers (no filesystem templating, so it ports
 anywhere). Views live by convention in `resources/views/`.
+
+For a ready-made look — tokens, buttons, fields, panels — see [UI](./ui.md)
+(`@shaferllc/keel/ui`). Starters already import it.
 
 ## A view is a component
 

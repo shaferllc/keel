@@ -4,6 +4,9 @@ Keel renders HTML with **Hono JSX** — type-safe components that run identicall
 on Node and on Cloudflare Workers (no filesystem templating, so it ports
 anywhere). Views live by convention in `resources/views/`.
 
+For a ready-made look — tokens, buttons, fields, panels — see [UI](./ui.md)
+(`@shaferllc/keel/ui`). Starters already import it.
+
 ## A view is a component
 
 ```tsx

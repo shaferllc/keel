@@ -1,0 +1,268 @@
+/**
+ * Keel UI — named component classes.
+ * Stable selectors so apps don't need to Tailwind-scan node_modules.
+ */
+
+.keel-body {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      1200px 600px at 12% -10%,
+      color-mix(in oklab, var(--color-sea) 18%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 100% 0%,
+      color-mix(in oklab, var(--color-brass) 12%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(180deg, var(--color-mist) 0%, var(--color-foam) 42%, #e8efec 100%);
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.keel-body ::selection {
+  background: color-mix(in oklab, var(--color-sea) 30%, transparent);
+}
+
+.keel-grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%20200%20200%27%20xmlns%3D%27http://www.w3.org/2000/svg%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.85%27%20numOctaves%3D%274%27%20stitchTiles%3D%27stitch%27/%3E%3C/filter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url(%23n)%27/%3E%3C/svg%3E");
+}
+
+.keel-brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.keel-rise {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.keel-rise--1 {
+  animation-delay: 80ms;
+}
+
+.keel-rise--2 {
+  animation-delay: 160ms;
+}
+
+.keel-rise--3 {
+  animation-delay: 240ms;
+}
+
+.keel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.925rem;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 1.25;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.keel-btn:active {
+  transform: translateY(1px);
+}
+
+.keel-btn--primary {
+  background: var(--color-ink);
+  color: #fff;
+}
+
+.keel-btn--primary:hover {
+  background: var(--color-sea-deep);
+}
+
+.keel-btn--ghost {
+  background: color-mix(in oklab, white 70%, transparent);
+  color: var(--color-ink);
+  border-color: var(--color-line);
+  backdrop-filter: blur(4px);
+}
+
+.keel-btn--ghost:hover {
+  border-color: color-mix(in oklab, var(--color-sea) 40%, var(--color-line));
+  background: #fff;
+}
+
+.keel-btn--sea {
+  background: var(--color-sea);
+  color: #fff;
+}
+
+.keel-btn--sea:hover {
+  background: var(--color-sea-deep);
+}
+
+.keel-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, white 90%, transparent);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: var(--color-ink);
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.keel-field:focus {
+  border-color: var(--color-sea);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-sea) 18%, transparent);
+}
+
+.keel-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, white 80%, transparent);
+  padding: 1rem 1.25rem;
+}
+
+.keel-panel--auth {
+  width: 100%;
+  max-width: 24rem;
+  padding: 2rem;
+  border-color: color-mix(in oklab, var(--color-line) 80%, transparent);
+  box-shadow: 0 24px 60px -40px color-mix(in oklab, var(--color-ink) 45%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.keel-panel--auth-wide {
+  max-width: 32rem;
+}
+
+.keel-shell {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 42rem;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.keel-shell-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.keel-shell-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-ink-soft);
+}
+
+.keel-shell-links a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.keel-shell-links a:hover {
+  color: var(--color-sea);
+  text-decoration: underline;
+}
+
+.keel-section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-ink-soft) 80%, transparent);
+}
+
+.keel-notice {
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-brass) 35%, transparent);
+  background: color-mix(in oklab, var(--color-brass) 10%, white);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: var(--color-warn);
+}
+
+.keel-alert {
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-danger) 25%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 8%, white);
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--color-danger);
+}
+
+.keel-hero {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.keel-hero-glow {
+  pointer-events: none;
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -30%;
+  height: 55%;
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklab, var(--color-sea) 22%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(180deg, transparent, color-mix(in oklab, var(--color-ink) 6%, transparent));
+}
+
+.keel-hero-inner {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 36rem;
+}
+
+.keel-muted {
+  color: var(--color-ink-soft);
+}
+
+.keel-row-form {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.keel-row-form .keel-field {
+  min-width: 12rem;
+  flex: 1;
+}

@@ -72,6 +72,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Templates](https://github.com/shaferllc/keel/blob/main/docs/templates.md): A string templating engine — {{ }} interpolation and @-prefixed tags for logic, includes, layouts, and components.
 - [Testing](https://github.com/shaferllc/keel/blob/main/docs/testing.md): Test your app by injecting requests — no server, no port, no network — and asserting on the response.
 - [Transformers](https://github.com/shaferllc/keel/blob/main/docs/transformers.md): A model knows the database; a transformer knows the API.
+- [UI](https://github.com/shaferllc/keel/blob/main/docs/ui.md): Keel ships a small design kit for server-rendered views: CSS tokens, named component styles, and Hono JSX components.
 - [URL Builder](https://github.com/shaferllc/keel/blob/main/docs/url-builder.md): Generate URLs from named routes so paths live in one place.
 - [Validation](https://github.com/shaferllc/keel/blob/main/docs/validation.md): validate() parses request input against a schema and returns typed data.
 - [Views](https://github.com/shaferllc/keel/blob/main/docs/views.md): Keel renders HTML with Hono JSX — type-safe components that run identically on Node and on Cloudflare Workers (no filesystem templating, so it ports anywhere).
@@ -140,6 +141,7 @@ Every topic has a runnable, type-checked example:
 - [Templates example](https://github.com/shaferllc/keel/blob/main/docs/examples/templates.ts)
 - [Testing example](https://github.com/shaferllc/keel/blob/main/docs/examples/testing.ts)
 - [Transformers example](https://github.com/shaferllc/keel/blob/main/docs/examples/transformers.ts)
+- [UI example](https://github.com/shaferllc/keel/blob/main/docs/examples/ui.tsx)
 - [URL Builder example](https://github.com/shaferllc/keel/blob/main/docs/examples/url-builder.ts)
 - [Validation example](https://github.com/shaferllc/keel/blob/main/docs/examples/validation.ts)
 - [Views example](https://github.com/shaferllc/keel/blob/main/docs/examples/views.tsx)

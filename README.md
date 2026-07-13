@@ -137,7 +137,7 @@ ships a machine-readable surface that stays generated-in-sync, never stale:
   (`create_site` → preview → publish). See [Keel Cloud](./docs/keel-cloud.md).
   Connect it anywhere:
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+  curl -fsSL https://keeljs.com/install.sh | bash
   # or: npx -y keel-mcp@latest init
   # Cloud: … | bash -s -- --token "$KEEL_CLOUD_TOKEN" --claude
   ```
@@ -251,6 +251,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 | [Billing](./docs/billing.md) | Subscriptions, charges & webhooks — Stripe + Paddle |
 | [Watch](./docs/watch.md) | Debug dashboard — requests, queries, jobs, logs at `/watch` |
 | [Views](./docs/views.md) | Hono JSX components, layouts, the View service |
+| [UI](./docs/ui.md) | Design kit — tokens, components (`@shaferllc/keel/ui`) |
 | [Templates](./docs/templates.md) | `{{ }}` + `@`-tag templating engine, edge-safe |
 | [Middleware](./docs/middleware.md) | Global middleware, writing your own |
 | [Rate Limiting](./docs/rate-limiting.md) | rateLimiter() middleware, per-key buckets |

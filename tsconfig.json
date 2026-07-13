@@ -31,6 +31,9 @@
       "@keel/api": [
         "src/api/index.ts"
       ],
+      "@keel/ui": [
+        "src/ui/index.ts"
+      ],
       "@keel/*": [
         "src/core/*"
       ]

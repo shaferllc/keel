@@ -30,13 +30,14 @@ its conventions to any MCP-capable client.
 Easiest — curl this in your app (or any folder you want the config):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+curl -fsSL https://keeljs.com/install.sh | bash
 ```
 
 Or via npx:
 
 ```bash
 npx -y keel-mcp@latest init
+# or: npx -y --package=@shaferllc/keel keel-mcp init
 ```
 
 Both write a merge-safe `.mcp.json`. Add `--all` for `.cursor/mcp.json` plus
@@ -46,7 +47,7 @@ Claude Code registration, or `--token keel_….…` to bake in Cloud credentials
 **Claude Code** only:
 
 ```bash
-claude mcp add keel -- npx -y keel-mcp
+claude mcp add keel -- npx -y --package=@shaferllc/keel keel-mcp
 # or:
 npx -y keel-mcp@latest init --claude
 ```
@@ -58,12 +59,15 @@ claude mcp add keel -- npm --prefix /path/to/keel run mcp
 ```
 
 **`.mcp.json`, Cursor, Windsurf, or any client** that reads the standard config
-(what `init` / `install-mcp.sh` writes):
+(what `init` / `install.sh` writes):
 
 ```json
 {
   "mcpServers": {
-    "keel": { "command": "npx", "args": ["-y", "keel-mcp"] }
+    "keel": {
+      "command": "npx",
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"]
+    }
   }
 }
 ```
@@ -111,7 +115,7 @@ plaintext looks like `keel_<selector>.<verifier>`.
   "mcpServers": {
     "keel": {
       "command": "npx",
-      "args": ["-y", "keel-mcp"],
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"],
       "env": {
         "KEEL_CLOUD_TOKEN": "keel_….…",
         "KEEL_CLOUD_URL": "https://app.keeljs.cloud"

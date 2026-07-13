@@ -10,10 +10,14 @@ see [From install to deploy](./from-install-to-deploy.md).
 
 | Preset | What you get |
 | --- | --- |
-| `minimal` | Routes, a controller, JSX + Tailwind, `/health`. No database. |
+| `minimal` | Routes, a controller, JSX + [Keel UI](./ui.md) + Tailwind, `/health`. No database. |
 | `api` | JSON API via `apiResource`, OpenAPI at `/docs`, Watch at `/watch`, migrations, tests. |
 | `app` *(default)* | Full-stack auth: register/login, password reset form, email verification, 2FA setup + confirm, Watch. |
 | `saas` | `app` plus teams, role gates, invitation revoke, Stripe-ready **team** billing (pricing / checkout / portal), FakeGateway when Stripe keys are absent. |
+
+UI chrome (buttons, fields, panels, hero) comes from `@shaferllc/keel/ui` — see
+[UI](./ui.md). Kits import the stylesheet in `resources/css/app.css` and use the
+JSX components in `resources/views/`.
 
 Edge deploy is **cross-cutting** — every DB kit ships `worker.ts` + Wrangler. There is
 no separate `edge` preset.

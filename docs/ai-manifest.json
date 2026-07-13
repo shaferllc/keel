@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.16",
+  "version": "0.83.17",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -452,6 +452,13 @@
       "summary": "A model knows the database; a transformer knows the API.",
       "path": "docs/transformers.md",
       "example": "docs/examples/transformers.ts"
+    },
+    {
+      "slug": "ui",
+      "title": "UI",
+      "summary": "Keel ships a small design kit for server-rendered views: CSS tokens, named component styles, and Hono JSX components.",
+      "path": "docs/ui.md",
+      "example": "docs/examples/ui.tsx"
     },
     {
       "slug": "url-builder",

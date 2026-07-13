@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.16",
+  "version": "0.83.17",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -85,6 +85,11 @@
       "types": "./dist/hosting/index.d.ts",
       "import": "./dist/hosting/index.js"
     },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js"
+    },
+    "./ui/css": "./dist/ui/css.css",
     "./cli": {
       "types": "./dist/core/cli/index.d.ts",
       "import": "./dist/core/cli/index.js"
@@ -98,6 +103,7 @@
     "dist",
     "bin/keel-mcp.mjs",
     "scripts/install-mcp.sh",
+    "scripts/install.sh",
     "docs",
     "AGENTS.md",
     "llms.txt",
@@ -116,7 +122,8 @@
     "build:ai": "tsx scripts/build-ai.ts",
     "build:watch-ui": "vite build --config src/watch/ui/vite.config.ts",
     "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/ && cp src/openapi/openapi.config.stub dist/openapi/ && cp src/api/api.config.stub dist/api/ && cp src/billing/billing.config.stub dist/billing/ && cp src/accounts/accounts.config.stub dist/accounts/ && cp src/teams/teams.config.stub dist/teams/",
-    "build": "npm run build:ai && npm run build:watch-ui && rm -rf dist && tsc -p tsconfig.build.json && npm run build:watch-copy",
+    "build:ui-css": "mkdir -p dist/ui && cp src/ui/theme.css src/ui/components.css src/ui/css.css dist/ui/",
+    "build": "npm run build:ai && npm run build:watch-ui && rm -rf dist && tsc -p tsconfig.build.json && npm run build:watch-copy && npm run build:ui-css",
     "prepare": "npm run build",
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
     "verify:release": "bash scripts/verify-release.sh",

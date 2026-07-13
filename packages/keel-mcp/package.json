@@ -1,0 +1,37 @@
+{
+  "name": "keel-mcp",
+  "version": "0.1.0",
+  "description": "Keel MCP server — docs, API lookup, scaffolding, optional Keel Cloud.",
+  "type": "module",
+  "bin": {
+    "keel-mcp": "index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "license": "MIT",
+  "author": "Tom Shafer",
+  "homepage": "https://github.com/shaferllc/keel/tree/main/packages/keel-mcp#readme",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@shaferllc/keel": "^0.83.17"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaferllc/keel.git",
+    "directory": "packages/keel-mcp"
+  },
+  "keywords": [
+    "keel",
+    "keeljs",
+    "mcp",
+    "model-context-protocol",
+    "cursor",
+    "claude"
+  ]
+}

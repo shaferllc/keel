@@ -1,27 +1,21 @@
+import { Alert, Button, Field, Muted } from "@shaferllc/keel/ui";
 import { AuthShell } from "./shell.js";
-import { alert, btnPrimary, field, muted } from "../ui.js";
 
 export default function TwoFactor({ error }: { error: string | null }) {
   return (
     <AuthShell title="Two-factor">
       <h1 class="font-display text-2xl font-bold tracking-tight">Two-factor</h1>
-      <p class={`${muted} mt-2 text-sm`}>
+      <Muted class="mt-2 text-sm">
         Your password was accepted. You are not signed in until this code checks out.
-      </p>
+      </Muted>
 
-      {error && <p class={`${alert} mt-5`}>{error}</p>}
+      {error && <Alert class="mt-5">{error}</Alert>}
 
       <form method="post" action="/two-factor" class="mt-6 flex flex-col gap-3">
-        <input
-          class={field}
-          name="code"
-          placeholder="6-digit code, or a recovery code"
-          required
-          autofocus
-        />
-        <button class={`${btnPrimary} mt-1`} type="submit">
+        <Field name="code" placeholder="6-digit code, or a recovery code" required autofocus />
+        <Button class="mt-1" type="submit">
           Continue
-        </button>
+        </Button>
       </form>
     </AuthShell>
   );

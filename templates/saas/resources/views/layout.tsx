@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "hono/jsx";
-import { body, grain } from "./ui.js";
+import { Grain, classes } from "@shaferllc/keel/ui";
 
 export default function Layout({ title, children }: PropsWithChildren<{ title: string }>) {
   return (
@@ -12,8 +12,8 @@ export default function Layout({ title, children }: PropsWithChildren<{ title: s
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
         <link rel="stylesheet" href="/assets/app.css" />
       </head>
-      <body class={body}>
-        <div class={grain} aria-hidden="true" />
+      <body class={classes.body}>
+        <Grain />
         {children}
       </body>
     </html>

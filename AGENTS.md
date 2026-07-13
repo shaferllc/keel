@@ -146,7 +146,7 @@ Keel ships an MCP server exposing its docs, the full public API surface, the
 generators, and framework conventions to any MCP-capable agent.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+curl -fsSL https://keeljs.com/install.sh | bash
 # or:
 npx -y keel-mcp@latest init          # writes .mcp.json in the current project
 npx -y keel-mcp@latest init --all    # + .cursor/mcp.json + Claude Code
@@ -154,7 +154,7 @@ npx -y keel-mcp@latest init --all    # + .cursor/mcp.json + Claude Code
 
 **Claude Code:**
 ```bash
-claude mcp add keel -- npx -y keel-mcp # in an app that depends on @shaferllc/keel
+claude mcp add keel -- npx -y --package=@shaferllc/keel keel-mcp
 ```
 Or, hacking on the framework itself:
 ```bash
@@ -163,7 +163,7 @@ claude mcp add keel -- npm --prefix /path/to/keel run mcp
 
 **`.mcp.json` / Cursor / other clients** (same as `init`):
 ```json
-{ "mcpServers": { "keel": { "command": "npx", "args": ["-y", "keel-mcp"] } } }
+{ "mcpServers": { "keel": { "command": "npx", "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"] } } }
 ```
 
 Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
@@ -175,6 +175,7 @@ Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
 - [`docs/getting-started.md`](./docs/getting-started.md) — a guided first hour
 - [`docs/architecture.md`](./docs/architecture.md) — a request from socket to response
 - [`docs/container.md`](./docs/container.md) — the DI core everything rests on
+- [`docs/ui.md`](./docs/ui.md) — design kit (`@shaferllc/keel/ui`) for JSX views
 - [`llms-full.txt`](./llms-full.txt) — every guide in one file, for a fresh context
 
 ## Learned User Preferences

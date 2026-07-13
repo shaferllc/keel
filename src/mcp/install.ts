@@ -11,7 +11,9 @@ import { spawnSync } from "node:child_process";
 
 const SERVER = {
   command: "npx",
-  args: ["-y", "keel-mcp"],
+  // Prefer the published `keel-mcp` package when available; otherwise pin the
+  // package that ships the bin so Cursor doesn't 404 on a bare `keel-mcp` name.
+  args: ["-y", "--package=@shaferllc/keel", "keel-mcp"],
 } as const;
 
 export type InstallOptions = {
@@ -50,7 +52,12 @@ export function parseInstallArgs(argv: string[]): InstallOptions {
 
 export function printInstallHelp(): void {
   console.log(`
-  npx -y keel-mcp@latest init [options]
+  curl -fsSL https://keeljs.com/install.sh | bash
+
+  Or via npm:
+
+    npx -y keel-mcp@latest init [options]
+    # or: npx -y --package=@shaferllc/keel keel-mcp init
 
   Write Keel's MCP server into this project so Cursor / Claude Code / Windsurf
   can call keel_overview, search docs, scaffold stubs, and (with a token) deploy
@@ -66,9 +73,9 @@ export function printInstallHelp(): void {
     -h, --help        this help
 
   Examples:
-    npx -y keel-mcp@latest init
+    curl -fsSL https://keeljs.com/install.sh | bash
     npx -y keel-mcp@latest init --all
-    npx -y keel-mcp@latest init --token keel_xxxx.yyyy --claude
+    npx -y --package=@shaferllc/keel keel-mcp init --token keel_xxxx.yyyy --claude
 `);
 }
 
@@ -115,7 +122,7 @@ export function runClaudeMcpAdd(options: InstallOptions = {}): boolean {
     return false;
   }
 
-  const args = ["mcp", "add", "keel", "--", "npx", "-y", "keel-mcp"];
+  const args = ["mcp", "add", "keel", "--", "npx", "-y", "--package=@shaferllc/keel", "keel-mcp"];
   if (options.token) {
     // Claude Code picks up env from the shell; remind the user.
     console.log("  Tip: export KEEL_CLOUD_TOKEN before starting Claude Code for Cloud tools.");
@@ -157,6 +164,6 @@ export async function runInstall(argv: string[]): Promise<void> {
 
   Cloud deploy (optional):
     export KEEL_CLOUD_TOKEN=keel_….…
-    npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN" --claude
+    curl -fsSL https://keeljs.com/install.sh | bash -s -- --token "\$KEEL_CLOUD_TOKEN" --claude
 `);
 }

@@ -1,20 +1,18 @@
-import Layout from "../layout.js";
 import {
-  brand,
-  btnPrimary,
-  field,
-  muted,
-  notice,
-  panel,
-  rise,
-  rise1,
-  rise2,
-  rowForm,
-  sectionLabel,
-  shell,
-  shellLinks,
-  shellNav,
-} from "../ui.js";
+  Brand,
+  Button,
+  Field,
+  Muted,
+  Notice,
+  Panel,
+  Rise,
+  SectionLabel,
+  Shell,
+  ShellLinks,
+  ShellNav,
+  classes,
+} from "@shaferllc/keel/ui";
+import Layout from "../layout.js";
 
 interface Props {
   teams: { id: number; name: string }[];
@@ -35,22 +33,24 @@ export default function Teams({
 }: Props) {
   return (
     <Layout title="Teams">
-      <main class={shell}>
-        <header class={shellNav}>
-          <a href="/" class={`${brand} text-2xl text-ink`}>
+      <Shell>
+        <ShellNav>
+          <Brand href="/" class="text-2xl text-ink">
             Keel
-          </a>
-          <nav class={shellLinks}>
+          </Brand>
+          <ShellLinks>
             <a href="/dashboard">Dashboard</a>
             <a href="/teams" aria-current="page">
               Teams
             </a>
             <a href="/billing">Billing</a>
-          </nav>
-        </header>
+          </ShellLinks>
+        </ShellNav>
 
-        <h1 class={`font-display ${rise} text-4xl font-bold tracking-tight`}>Teams</h1>
-        <p class={`${rise1} mt-3 text-ink-soft`}>
+        <Rise step={0} as="h1" class="font-display text-4xl font-bold tracking-tight">
+          Teams
+        </Rise>
+        <Rise step={1} as="p" class="mt-3 text-ink-soft">
           Plan: {subscribed ? <strong class="text-ink">Pro</strong> : "Free"}
           {!subscribed && (
             <>
@@ -60,25 +60,29 @@ export default function Teams({
               </a>
             </>
           )}
-        </p>
+        </Rise>
 
         {!emailVerified && (
-          <div class={`${notice} ${rise2} mt-8`}>
+          <Notice class="mt-8 keel-rise keel-rise--2">
             Confirm your email to finish setup.{" "}
             <form method="post" action="/verify-email/resend" class="inline">
               <button class="font-medium underline underline-offset-2">Resend the link</button>
             </form>
-          </div>
+          </Notice>
         )}
 
-        <section class={`${rise2} mt-10`}>
-          <h2 class={sectionLabel}>Your teams</h2>
+        <section class="mt-10 keel-rise keel-rise--2">
+          <SectionLabel as="h2">Your teams</SectionLabel>
           <ul class="mt-4 flex flex-col gap-2">
             {teams.map((team) => (
-              <li class={`${panel} flex items-center justify-between gap-3`}>
+              <Panel as="li" class="flex items-center justify-between gap-3">
                 <span>
                   {team.name}
-                  {team.id === current && <span class={`${muted} ml-2 text-sm`}>— current</span>}
+                  {team.id === current && (
+                    <Muted as="span" class="ml-2 text-sm">
+                      — current
+                    </Muted>
+                  )}
                 </span>
                 {team.id !== current && (
                   <form method="post" action="/teams/switch">
@@ -88,42 +92,44 @@ export default function Teams({
                     </button>
                   </form>
                 )}
-              </li>
+              </Panel>
             ))}
           </ul>
-          <form method="post" action="/teams" class={rowForm}>
-            <input class={field} name="name" placeholder="New team name" required />
-            <button class={btnPrimary} type="submit">
-              Create
-            </button>
+          <form method="post" action="/teams" class={classes.rowForm}>
+            <Field name="name" placeholder="New team name" required />
+            <Button type="submit">Create</Button>
           </form>
         </section>
 
         <section class="mt-12">
-          <h2 class={sectionLabel}>Projects in this team</h2>
-          <p class={`${muted} mt-2 text-sm`}>
+          <SectionLabel as="h2">Projects in this team</SectionLabel>
+          <Muted class="mt-2 text-sm">
             Scoped automatically — another team&apos;s project isn&apos;t hidden, it&apos;s a 404.
-          </p>
+          </Muted>
           <ul class="mt-4 flex flex-col gap-2">
             {projects.map((project) => (
-              <li class={panel}>{project.name}</li>
+              <Panel as="li">{project.name}</Panel>
             ))}
-            {projects.length === 0 && <li class={`${muted} text-sm`}>No projects yet.</li>}
+            {projects.length === 0 && (
+              <li>
+                <Muted as="span" class="text-sm">
+                  No projects yet.
+                </Muted>
+              </li>
+            )}
           </ul>
-          <form method="post" action="/projects" class={rowForm}>
-            <input class={field} name="name" placeholder="New project" required />
-            <button class={btnPrimary} type="submit">
-              Add
-            </button>
+          <form method="post" action="/projects" class={classes.rowForm}>
+            <Field name="name" placeholder="New project" required />
+            <Button type="submit">Add</Button>
           </form>
         </section>
 
         <section class="mt-12">
-          <h2 class={sectionLabel}>Invitations</h2>
-          <p class={`${muted} mt-2 text-sm`}>Admins and owners can invite and revoke.</p>
+          <SectionLabel as="h2">Invitations</SectionLabel>
+          <Muted class="mt-2 text-sm">Admins and owners can invite and revoke.</Muted>
           <ul class="mt-4 flex flex-col gap-2">
             {invitations.map((invitation) => (
-              <li class={`${panel} flex items-center justify-between gap-3 text-sm`}>
+              <Panel as="li" class="flex items-center justify-between gap-3 text-sm">
                 <span>
                   {invitation.email} · {invitation.role}
                 </span>
@@ -133,21 +139,19 @@ export default function Teams({
                     Revoke
                   </button>
                 </form>
-              </li>
+              </Panel>
             ))}
           </ul>
-          <form method="post" action="/teams/invite" class={rowForm}>
-            <input class={field} type="email" name="email" placeholder="Email" required />
-            <select class={`${field} max-w-36`} name="role">
+          <form method="post" action="/teams/invite" class={classes.rowForm}>
+            <Field type="email" name="email" placeholder="Email" required />
+            <select class={`${classes.field} max-w-36`} name="role">
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
-            <button class={btnPrimary} type="submit">
-              Invite
-            </button>
+            <Button type="submit">Invite</Button>
           </form>
         </section>
-      </main>
+      </Shell>
     </Layout>
   );
 }

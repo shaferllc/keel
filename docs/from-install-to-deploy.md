@@ -70,19 +70,21 @@ Keel is designed to be written with an agent. Install the MCP server config in
 whatever project you're in:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash
+curl -fsSL https://keeljs.com/install.sh | bash
 ```
 
-Same thing via npx:
+Same thing via npx (after `keel-mcp` is on npm) or pinned to the framework package:
 
 ```bash
 npx -y keel-mcp@latest init
+# or, always works today:
+npx -y --package=@shaferllc/keel keel-mcp init
 ```
 
 Flags (work with either command — pass after `bash -s --` for curl):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shaferllc/keel/main/scripts/install-mcp.sh | bash -s -- --all
+curl -fsSL https://keeljs.com/install.sh | bash -s -- --all
 npx -y keel-mcp@latest init --all              # .cursor/mcp.json + Claude Code
 npx -y keel-mcp@latest init --claude
 npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN"
@@ -95,7 +97,7 @@ That writes a merge-safe `.mcp.json`. Or paste by hand:
   "mcpServers": {
     "keel": {
       "command": "npx",
-      "args": ["-y", "keel-mcp"]
+      "args": ["-y", "--package=@shaferllc/keel", "keel-mcp"]
     }
   }
 }
