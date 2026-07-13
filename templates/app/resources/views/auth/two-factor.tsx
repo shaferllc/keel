@@ -1,22 +1,28 @@
-import Layout from "../layout.js";
+import { AuthShell } from "./shell.js";
+import { alert, btnPrimary, field, muted } from "../ui.js";
 
 export default function TwoFactor({ error }: { error: string | null }) {
   return (
-    <Layout title="Two-factor">
-      <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6">
-        <h1 class="text-2xl font-semibold tracking-tight">Two-factor</h1>
+    <AuthShell title="Two-factor">
+      <h1 class="font-display text-2xl font-bold tracking-tight">Two-factor</h1>
+      <p class={`${muted} mt-2 text-sm`}>
+        Your password was accepted. You are not signed in until this code checks out.
+      </p>
 
-        {error && <p class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p class={`${alert} mt-5`}>{error}</p>}
 
-        <form method="post" action="/two-factor" class="flex flex-col gap-3">
-          <input class="rounded-lg border border-slate-300 px-3 py-2" name="code" placeholder="6-digit code, or a recovery code" required autofocus />
-          <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Two-factor</button>
-        </form>
-
-        <p class="text-sm text-slate-500">
-          Your password was accepted. You are not signed in until this code checks out.
-        </p>
-      </main>
-    </Layout>
+      <form method="post" action="/two-factor" class="mt-6 flex flex-col gap-3">
+        <input
+          class={field}
+          name="code"
+          placeholder="6-digit code, or a recovery code"
+          required
+          autofocus
+        />
+        <button class={`${btnPrimary} mt-1`} type="submit">
+          Continue
+        </button>
+      </form>
+    </AuthShell>
   );
 }

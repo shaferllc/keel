@@ -1,34 +1,38 @@
 import Layout from "./layout.js";
+import { brand, btnGhost, btnPrimary, hero, heroGlow, heroInner, muted, rise, rise1, rise2, rise3 } from "./ui.js";
 
 export default function Welcome({ signedIn }: { signedIn: boolean }) {
   return (
     <Layout title="Keel">
-      <main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-6">
-        <h1 class="text-4xl font-semibold tracking-tight">Keel</h1>
-        <p class="text-slate-600">
-          Multi-tenant SaaS starter — teams, invitations, role gates, and Stripe-ready team billing.
-        </p>
-
-        <div class="flex gap-3">
-          {signedIn ? (
-            <>
-              <a class="rounded-lg bg-slate-900 px-4 py-2 text-white" href="/teams">
-                Teams
-              </a>
-              <a class="rounded-lg border border-slate-300 px-4 py-2" href="/billing">
-                Billing
-              </a>
-            </>
-          ) : (
-            <>
-              <a class="rounded-lg bg-slate-900 px-4 py-2 text-white" href="/login">
-                Log in
-              </a>
-              <a class="rounded-lg border border-slate-300 px-4 py-2" href="/register">
-                Register
-              </a>
-            </>
-          )}
+      <main class={hero}>
+        <div class={heroGlow} aria-hidden="true" />
+        <div class={heroInner}>
+          <p class={`${rise} ${muted} mb-4 text-sm tracking-[0.2em] uppercase`}>SaaS starter</p>
+          <h1 class={`${brand} ${rise1} text-[clamp(3.5rem,12vw,6.5rem)] text-ink`}>Keel</h1>
+          <p class={`${rise2} mt-5 max-w-md text-lg leading-relaxed text-ink-soft`}>
+            Teams, invitations, and Stripe-ready billing — a quiet place to build from.
+          </p>
+          <div class={`${rise3} mt-10 flex flex-wrap gap-3`}>
+            {signedIn ? (
+              <>
+                <a class={btnPrimary} href="/teams">
+                  Open teams
+                </a>
+                <a class={btnGhost} href="/billing">
+                  Billing
+                </a>
+              </>
+            ) : (
+              <>
+                <a class={btnPrimary} href="/register">
+                  Get started
+                </a>
+                <a class={btnGhost} href="/login">
+                  Log in
+                </a>
+              </>
+            )}
+          </div>
         </div>
       </main>
     </Layout>

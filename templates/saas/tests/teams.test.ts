@@ -28,6 +28,32 @@ test("teams turn guests away", async () => {
   assert.equal((await client.get("/teams")).status, 302);
 });
 
+test("teams page bootstraps a personal team for users who have none", async () => {
+  hash.fake();
+  const app = await createApplication();
+  let client = testClient(app.make(HttpKernel));
+
+  const { User } = await import("../app/Models/User.js");
+  const email = `solo+${crypto.randomUUID()}@example.com`;
+  await User.create({
+    name: "Solo",
+    email,
+    password: await hash.make("correct horse battery"),
+  });
+
+  const loggedIn = await client.form("/login", {
+    email,
+    password: "correct horse battery",
+  });
+  client = client.withCookies(loggedIn.cookies());
+
+  const page = await client.get("/teams");
+  page.assertOk();
+  assert.match(await page.text(), /Solo's team/);
+
+  hash.restore();
+});
+
 test("projects stay on the team that created them", async () => {
   hash.fake();
   const app = await createApplication();

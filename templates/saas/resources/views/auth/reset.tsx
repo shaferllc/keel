@@ -1,26 +1,30 @@
-import Layout from "../layout.js";
+import { AuthShell } from "./shell.js";
+import { alert, btnPrimary, field, muted } from "../ui.js";
 
 export default function Reset({ token, error }: { token: string; error: string | null }) {
   return (
-    <Layout title="Choose a new password">
-      <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6">
-        <h1 class="text-2xl font-semibold tracking-tight">Choose a new password</h1>
+    <AuthShell title="Choose a new password">
+      <h1 class="font-display text-2xl font-bold tracking-tight">New password</h1>
+      <p class={`${muted} mt-2 text-sm`}>
+        Choose something you&apos;ll remember — and haven&apos;t used elsewhere.
+      </p>
 
-        {error && <p class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p class={`${alert} mt-5`}>{error}</p>}
 
-        <form method="post" action="/reset-password" class="flex flex-col gap-3">
-          <input type="hidden" name="token" value={token} />
-          <input
-            class="rounded-lg border border-slate-300 px-3 py-2"
-            type="password"
-            name="password"
-            placeholder="New password"
-            minLength={8}
-            required
-          />
-          <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Update password</button>
-        </form>
-      </main>
-    </Layout>
+      <form method="post" action="/reset-password" class="mt-6 flex flex-col gap-3">
+        <input type="hidden" name="token" value={token} />
+        <input
+          class={field}
+          type="password"
+          name="password"
+          placeholder="New password"
+          minLength={8}
+          required
+        />
+        <button class={`${btnPrimary} mt-1`} type="submit">
+          Update password
+        </button>
+      </form>
+    </AuthShell>
   );
 }

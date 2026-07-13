@@ -1,4 +1,5 @@
-import Layout from "../layout.js";
+import { AuthShell } from "./shell.js";
+import { alert, btnSea, field, muted, sectionLabel } from "../ui.js";
 
 interface Props {
   uri: string | null;
@@ -9,54 +10,54 @@ interface Props {
 
 export default function TwoFactorSetup({ uri, secret, recoveryCodes, error }: Props) {
   return (
-    <Layout title="Set up two-factor">
-      <main class="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-6 px-6 py-12">
-        <h1 class="text-2xl font-semibold tracking-tight">Set up two-factor</h1>
+    <AuthShell title="Set up two-factor" wide>
+      <h1 class="font-display text-2xl font-bold tracking-tight">Set up two-factor</h1>
 
-        {error && <p class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p class={`${alert} mt-5`}>{error}</p>}
 
-        {secret && uri ? (
-          <>
-            <p class="text-sm text-slate-600">
-              Add this secret to your authenticator app (render a QR from the URI locally — never
-              send it to a third-party QR service):
-            </p>
-            <code class="block break-all rounded-lg bg-slate-100 px-3 py-2 text-sm">{secret}</code>
-            <p class="break-all text-xs text-slate-500">{uri}</p>
+      {secret && uri ? (
+        <>
+          <p class={`${muted} mt-3 text-sm leading-relaxed`}>
+            Add this secret to your authenticator app (render a QR from the URI locally — never send
+            it to a third-party QR service):
+          </p>
+          <code class="mt-4 block break-all rounded-lg bg-mist px-3 py-2 font-mono text-sm">
+            {secret}
+          </code>
+          <p class={`${muted} mt-2 break-all text-xs`}>{uri}</p>
 
-            {recoveryCodes.length > 0 && (
-              <div>
-                <h2 class="text-sm font-medium uppercase tracking-wide text-slate-500">
-                  Recovery codes
-                </h2>
-                <p class="mt-1 text-sm text-slate-600">
-                  Store these somewhere safe. Each works once if you lose your authenticator.
-                </p>
-                <ul class="mt-2 grid grid-cols-2 gap-1 font-mono text-sm">
-                  {recoveryCodes.map((code) => (
-                    <li class="rounded bg-slate-100 px-2 py-1">{code}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          {recoveryCodes.length > 0 && (
+            <div class="mt-8">
+              <h2 class={sectionLabel}>Recovery codes</h2>
+              <p class={`${muted} mt-2 text-sm`}>
+                Store these somewhere safe. Each works once if you lose your authenticator.
+              </p>
+              <ul class="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
+                {recoveryCodes.map((code) => (
+                  <li class="rounded-md bg-mist px-2 py-1.5">{code}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-            <form method="post" action="/two-factor/confirm" class="flex flex-col gap-3">
-              <input
-                class="rounded-lg border border-slate-300 px-3 py-2"
-                name="code"
-                placeholder="6-digit code"
-                inputMode="numeric"
-                required
-              />
-              <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Confirm and enable</button>
-            </form>
-          </>
-        ) : (
-          <a class="text-sm underline" href="/dashboard">
-            Back to dashboard
-          </a>
-        )}
-      </main>
-    </Layout>
+          <form method="post" action="/two-factor/confirm" class="mt-8 flex flex-col gap-3">
+            <input
+              class={field}
+              name="code"
+              placeholder="6-digit code"
+              inputMode="numeric"
+              required
+            />
+            <button class={btnSea} type="submit">
+              Confirm and enable
+            </button>
+          </form>
+        </>
+      ) : (
+        <a class="mt-6 inline-block text-sm underline underline-offset-2" href="/dashboard">
+          Back to dashboard
+        </a>
+      )}
+    </AuthShell>
   );
 }

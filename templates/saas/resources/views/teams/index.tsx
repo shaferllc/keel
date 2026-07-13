@@ -1,4 +1,20 @@
 import Layout from "../layout.js";
+import {
+  brand,
+  btnPrimary,
+  field,
+  muted,
+  notice,
+  panel,
+  rise,
+  rise1,
+  rise2,
+  rowForm,
+  sectionLabel,
+  shell,
+  shellLinks,
+  shellNav,
+} from "../ui.js";
 
 interface Props {
   teams: { id: number; name: string }[];
@@ -19,124 +35,116 @@ export default function Teams({
 }: Props) {
   return (
     <Layout title="Teams">
-      <main class="mx-auto max-w-2xl px-6 py-16">
-        <div class="flex items-start justify-between gap-4">
-          <h1 class="text-3xl font-semibold tracking-tight">Teams</h1>
-          <nav class="flex gap-3 text-sm">
-            <a class="underline" href="/dashboard">
-              Dashboard
+      <main class={shell}>
+        <header class={shellNav}>
+          <a href="/" class={`${brand} text-2xl text-ink`}>
+            Keel
+          </a>
+          <nav class={shellLinks}>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/teams" aria-current="page">
+              Teams
             </a>
-            <a class="underline" href="/billing">
-              Billing
-            </a>
+            <a href="/billing">Billing</a>
           </nav>
-        </div>
+        </header>
+
+        <h1 class={`font-display ${rise} text-4xl font-bold tracking-tight`}>Teams</h1>
+        <p class={`${rise1} mt-3 text-ink-soft`}>
+          Plan: {subscribed ? <strong class="text-ink">Pro</strong> : "Free"}
+          {!subscribed && (
+            <>
+              {" · "}
+              <a class="underline underline-offset-2" href="/billing">
+                Upgrade
+              </a>
+            </>
+          )}
+        </p>
 
         {!emailVerified && (
-          <div class="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div class={`${notice} ${rise2} mt-8`}>
             Confirm your email to finish setup.{" "}
             <form method="post" action="/verify-email/resend" class="inline">
-              <button class="underline">Resend the link</button>
+              <button class="font-medium underline underline-offset-2">Resend the link</button>
             </form>
           </div>
         )}
 
-        <p class="mt-4 text-sm text-slate-600">
-          Plan: {subscribed ? <strong>Pro</strong> : "Free"}{" "}
-          {!subscribed && (
-            <a class="underline" href="/billing">
-              Upgrade
-            </a>
-          )}
-        </p>
-
-        <section class="mt-8">
-          <h2 class="text-sm font-medium uppercase tracking-wide text-slate-500">Your teams</h2>
-
-          <ul class="mt-3 flex flex-col gap-2">
+        <section class={`${rise2} mt-10`}>
+          <h2 class={sectionLabel}>Your teams</h2>
+          <ul class="mt-4 flex flex-col gap-2">
             {teams.map((team) => (
-              <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
+              <li class={`${panel} flex items-center justify-between gap-3`}>
                 <span>
-                  {team.name} {team.id === current && <em class="text-slate-500">— current</em>}
+                  {team.name}
+                  {team.id === current && <span class={`${muted} ml-2 text-sm`}>— current</span>}
                 </span>
-
                 {team.id !== current && (
                   <form method="post" action="/teams/switch">
                     <input type="hidden" name="team_id" value={String(team.id)} />
-                    <button class="text-sm underline">Switch</button>
+                    <button class="text-sm font-medium text-sea underline underline-offset-2" type="submit">
+                      Switch
+                    </button>
                   </form>
                 )}
               </li>
             ))}
           </ul>
-
-          <form method="post" action="/teams" class="mt-3 flex gap-2">
-            <input
-              class="flex-1 rounded-lg border border-slate-300 px-3 py-2"
-              name="name"
-              placeholder="New team name"
-              required
-            />
-            <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Create</button>
+          <form method="post" action="/teams" class={rowForm}>
+            <input class={field} name="name" placeholder="New team name" required />
+            <button class={btnPrimary} type="submit">
+              Create
+            </button>
           </form>
         </section>
 
-        <section class="mt-10">
-          <h2 class="text-sm font-medium uppercase tracking-wide text-slate-500">
-            Projects in this team
-          </h2>
-          <p class="mt-1 text-sm text-slate-500">
-            Scoped automatically — another team's project isn't just hidden, it's a 404.
+        <section class="mt-12">
+          <h2 class={sectionLabel}>Projects in this team</h2>
+          <p class={`${muted} mt-2 text-sm`}>
+            Scoped automatically — another team&apos;s project isn&apos;t hidden, it&apos;s a 404.
           </p>
-
-          <ul class="mt-3 flex flex-col gap-2">
+          <ul class="mt-4 flex flex-col gap-2">
             {projects.map((project) => (
-              <li class="rounded-lg border border-slate-200 bg-white px-4 py-3">{project.name}</li>
+              <li class={panel}>{project.name}</li>
             ))}
+            {projects.length === 0 && <li class={`${muted} text-sm`}>No projects yet.</li>}
           </ul>
-
-          <form method="post" action="/projects" class="mt-3 flex gap-2">
-            <input
-              class="flex-1 rounded-lg border border-slate-300 px-3 py-2"
-              name="name"
-              placeholder="New project"
-              required
-            />
-            <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Add</button>
+          <form method="post" action="/projects" class={rowForm}>
+            <input class={field} name="name" placeholder="New project" required />
+            <button class={btnPrimary} type="submit">
+              Add
+            </button>
           </form>
         </section>
 
-        <section class="mt-10">
-          <h2 class="text-sm font-medium uppercase tracking-wide text-slate-500">Invitations</h2>
-          <p class="mt-1 text-sm text-slate-500">Admins and owners can invite and revoke.</p>
-
-          <ul class="mt-3 flex flex-col gap-2">
+        <section class="mt-12">
+          <h2 class={sectionLabel}>Invitations</h2>
+          <p class={`${muted} mt-2 text-sm`}>Admins and owners can invite and revoke.</p>
+          <ul class="mt-4 flex flex-col gap-2">
             {invitations.map((invitation) => (
-              <li class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">
+              <li class={`${panel} flex items-center justify-between gap-3 text-sm`}>
                 <span>
                   {invitation.email} · {invitation.role}
                 </span>
                 <form method="post" action="/teams/invite/revoke">
                   <input type="hidden" name="invitation_id" value={String(invitation.id)} />
-                  <button class="text-sm underline">Revoke</button>
+                  <button class="font-medium text-danger underline underline-offset-2" type="submit">
+                    Revoke
+                  </button>
                 </form>
               </li>
             ))}
           </ul>
-
-          <form method="post" action="/teams/invite" class="mt-3 flex gap-2">
-            <input
-              class="flex-1 rounded-lg border border-slate-300 px-3 py-2"
-              type="email"
-              name="email"
-              placeholder="Email"
-              required
-            />
-            <select class="rounded-lg border border-slate-300 px-3 py-2" name="role">
+          <form method="post" action="/teams/invite" class={rowForm}>
+            <input class={field} type="email" name="email" placeholder="Email" required />
+            <select class={`${field} max-w-36`} name="role">
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
-            <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Invite</button>
+            <button class={btnPrimary} type="submit">
+              Invite
+            </button>
           </form>
         </section>
       </main>

@@ -4,6 +4,22 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.10] — 2026-07-13
+
+### Changed
+
+- **Starter kit UI** — quiet maritime theme (Syne + IBM Plex Sans) built as
+  Tailwind utilities + `@theme` tokens; shared `resources/views/ui.ts` class
+  strings across minimal / app / saas.
+
+### Fixed
+
+- **SaaS `/teams` without a personal team** — bootstraps a team and enters
+  `runForTeam` so `Project.all()` no longer 500s for accounts created before
+  register minted a workspace.
+
+[0.83.10]: https://github.com/shaferllc/keel/releases/tag/v0.83.10
+
 ## [0.83.9] — 2026-07-13
 
 ### Added

@@ -1,4 +1,18 @@
 import Layout from "./layout.js";
+import {
+  brand,
+  btnGhost,
+  btnSea,
+  notice,
+  panel,
+  rise,
+  rise1,
+  rise2,
+  sectionLabel,
+  shell,
+  shellLinks,
+  shellNav,
+} from "./ui.js";
 
 export default function Dashboard({
   name,
@@ -11,45 +25,60 @@ export default function Dashboard({
 }) {
   return (
     <Layout title="Dashboard">
-      <main class="mx-auto max-w-2xl px-6 py-16">
-        <div class="flex items-start justify-between gap-4">
-          <h1 class="text-3xl font-semibold tracking-tight">Hello, {name}.</h1>
-          <nav class="flex gap-3 text-sm">
-            <a class="underline" href="/teams">
-              Teams
+      <main class={shell}>
+        <header class={shellNav}>
+          <a href="/" class={`${brand} text-2xl text-ink`}>
+            Keel
+          </a>
+          <nav class={shellLinks}>
+            <a href="/dashboard" aria-current="page">
+              Dashboard
             </a>
-            <a class="underline" href="/billing">
-              Billing
-            </a>
+            <a href="/teams">Teams</a>
+            <a href="/billing">Billing</a>
           </nav>
-        </div>
+        </header>
+
+        <h1 class={`font-display ${rise} text-4xl font-bold tracking-tight text-ink`}>Hello, {name}.</h1>
+        <p class={`${rise1} mt-3 max-w-md text-ink-soft`}>
+          Your account is ready. Tighten security when you have a moment.
+        </p>
 
         {!emailVerified && (
-          <div class="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div class={`${notice} ${rise2} mt-8`}>
             Confirm your email to finish setup.{" "}
             <form method="post" action="/verify-email/resend" class="inline">
-              <button class="underline">Resend the link</button>
+              <button class="font-medium underline underline-offset-2">Resend the link</button>
             </form>
           </div>
         )}
 
-        <p class="mt-4 text-slate-600">Two-factor is {twoFactor ? "on" : "off"}.</p>
-
-        <div class="mt-4 flex flex-wrap gap-3">
-          {!twoFactor ? (
-            <form method="post" action="/two-factor/enable">
-              <button class="rounded-lg bg-slate-900 px-4 py-2 text-white">Enable two-factor</button>
+        <section class={`${panel} ${rise2} mt-8`}>
+          <p class={sectionLabel}>Security</p>
+          <p class="mt-2 text-ink-soft">
+            Two-factor authentication is <strong class="text-ink">{twoFactor ? "on" : "off"}</strong>.
+          </p>
+          <div class="mt-5 flex flex-wrap gap-3">
+            {!twoFactor ? (
+              <form method="post" action="/two-factor/enable">
+                <button class={btnSea} type="submit">
+                  Enable two-factor
+                </button>
+              </form>
+            ) : (
+              <form method="post" action="/two-factor/disable">
+                <button class={btnGhost} type="submit">
+                  Disable two-factor
+                </button>
+              </form>
+            )}
+            <form method="post" action="/logout">
+              <button class={btnGhost} type="submit">
+                Log out
+              </button>
             </form>
-          ) : (
-            <form method="post" action="/two-factor/disable">
-              <button class="rounded-lg border border-slate-300 px-4 py-2">Disable two-factor</button>
-            </form>
-          )}
-        </div>
-
-        <form method="post" action="/logout" class="mt-8">
-          <button class="rounded-lg border border-slate-300 px-4 py-2">Log out</button>
-        </form>
+          </div>
+        </section>
       </main>
     </Layout>
   );

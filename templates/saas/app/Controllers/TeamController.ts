@@ -7,6 +7,7 @@ import {
   invite,
   pendingInvitations,
   revokeInvitation,
+  runForTeam,
   switchTeam,
   teamsFor,
   type Role,
@@ -22,25 +23,38 @@ export class TeamController {
     const user = await auth().user<User>();
     if (!user) return c.redirect("/login");
 
-    const teamId = currentTeam();
-    let subscribed = false;
-    if (typeof teamId === "number") {
-      const billable = await BillableTeam.find(teamId);
-      subscribed = billable ? await billable.subscribed() : false;
+    // Users created before register started minting a personal team have no
+    // membership — teamContext() then skips runForTeam, and Project.all() 500s.
+    let teamId = currentTeam();
+    if (typeof teamId !== "number") {
+      let teams = await teamsFor(user.id);
+      if (!teams.length) {
+        const team = await createTeam(`${user.name}'s team`, user.id);
+        await switchTeam(user.id, team.id);
+        teams = [team];
+      } else {
+        await switchTeam(user.id, teams[0]!.id);
+      }
+      return runForTeam(teams[0]!.id, () => this.renderIndex(c, user, teams[0]!.id));
     }
+
+    return this.renderIndex(c, user, teamId);
+  }
+
+  private async renderIndex(c: Ctx, user: User, teamId: number) {
+    const billable = await BillableTeam.find(teamId);
+    const subscribed = billable ? await billable.subscribed() : false;
 
     return c.html(
       await view(Teams, {
         teams: (await teamsFor(user.id)).map((t) => ({ id: t.id, name: t.name })),
-        current: typeof teamId === "number" ? teamId : null,
+        current: teamId,
         projects: (await Project.all()).map((p) => ({ id: p.id, name: p.name })),
-        invitations: teamId
-          ? (await pendingInvitations(teamId)).map((i) => ({
-              id: i.id,
-              email: i.email,
-              role: i.role,
-            }))
-          : [],
+        invitations: (await pendingInvitations(teamId)).map((i) => ({
+          id: i.id,
+          email: i.email,
+          role: i.role,
+        })),
         subscribed,
         emailVerified: !!user.email_verified_at,
       }),
