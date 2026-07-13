@@ -4,6 +4,16 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.7] — 2026-07-13
+
+### Documentation
+
+- **[Keel Cloud (deploy from MCP)](./docs/keel-cloud.md)** — advertise and walk
+  through creating / previewing / publishing sites on `*.keeljs.cloud` from
+  `keel-mcp`. Linked from the install guide, AI guide, README, and MCP overview.
+
+[0.83.7]: https://github.com/shaferllc/keel/releases/tag/v0.83.7
+
 ## [0.83.6] — 2026-07-13
 
 ### Documentation

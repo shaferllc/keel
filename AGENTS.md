@@ -7,8 +7,9 @@ surface, run the [MCP server](#mcp-server-recommended).
 
 > **The fastest path:** follow
 > [`docs/from-install-to-deploy.md`](./docs/from-install-to-deploy.md)
-> (create-keeljs → local → Cloudflare or optional Keel Cloud). For deep
-> lookups, connect the MCP server and call `keel_overview`, then
+> (create-keeljs → local → Cloudflare or optional Keel Cloud). To deploy on
+> `*.keeljs.cloud` from MCP, see [`docs/keel-cloud.md`](./docs/keel-cloud.md).
+> For deep lookups, connect the MCP server and call `keel_overview`, then
 > `keel_search_docs` / `keel_search_api`.
 
 ---
@@ -168,3 +169,13 @@ Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
 - [`docs/architecture.md`](./docs/architecture.md) — a request from socket to response
 - [`docs/container.md`](./docs/container.md) — the DI core everything rests on
 - [`llms-full.txt`](./llms-full.txt) — every guide in one file, for a fresh context
+
+## Learned User Preferences
+
+- Do not reference peer frameworks (Fastify, Laravel, Koa, etc.) in docs, comments, changelogs, or marketing; keep Hono as the only named HTTP foundation.
+
+## Learned Workspace Facts
+
+- Keel Cloud (control plane) lives in the sibling `keel-cloud` repo, not inside this framework repo; this package supplies `@shaferllc/keel/gates`, `@shaferllc/keel/hosting`, and MCP `keel_cloud_*` tools that call Cloud’s API.
+- `create-keeljs` plus self-managed Cloudflare and optional Keel Cloud hosting are alternative paths — do not mix both for the same app; see [`docs/from-install-to-deploy.md`](./docs/from-install-to-deploy.md).
+- Cloud MCP tools register when `KEEL_CLOUD_TOKEN` is set (optional `KEEL_CLOUD_URL`, production default `https://app.keeljs.cloud`).

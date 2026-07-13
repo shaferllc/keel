@@ -7,7 +7,8 @@ the commands, and the MCP server.
 Quick reminders:
 
 - Start with [`docs/from-install-to-deploy.md`](./docs/from-install-to-deploy.md)
-  for create-keeljs → deploy (Cloudflare or optional Keel Cloud).
+  for create-keeljs → deploy (Cloudflare or optional Keel Cloud). Deploy on
+  `*.keeljs.cloud` from MCP: [`docs/keel-cloud.md`](./docs/keel-cloud.md).
 - Userland imports come from `@shaferllc/keel/core` (this repo's example app uses
   the `@keel/core` tsconfig alias — match the file you're editing).
 - Run `npm run typecheck` before finishing; run `npm run build:ai` after editing

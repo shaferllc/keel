@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.6",
+  "version": "0.83.7",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -235,6 +235,13 @@
       "summary": "Keel ships a server-side Inertia.js adapter.",
       "path": "docs/inertia.md",
       "example": "docs/examples/inertia.ts"
+    },
+    {
+      "slug": "keel-cloud",
+      "title": "Keel Cloud (deploy from MCP)",
+      "summary": "Keel Cloud hosts your Keel apps on .keeljs.cloud — preview and production Workers, D1, secrets vault, and full export (git + SQL).",
+      "path": "docs/keel-cloud.md",
+      "example": null
     },
     {
       "slug": "locks",

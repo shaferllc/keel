@@ -6,8 +6,10 @@ AI-facing surface: an MCP server, machine-readable docs (`llms.txt` /
 can drive directly.
 
 If you only read one thing: follow
-[From install to deploy](./from-install-to-deploy.md), then point your agent at
-the [MCP server](#the-mcp-server) and have it call `keel_overview` first.
+[From install to deploy](./from-install-to-deploy.md). To **deploy on
+`*.keeljs.cloud` from your IDE**, see [Keel Cloud (deploy from MCP)](./keel-cloud.md).
+Then point your agent at the [MCP server](#the-mcp-server) and call
+`keel_overview` first.
 
 ## Why this exists
 
@@ -63,8 +65,12 @@ package, so it always matches your installed version.
 | `keel_scaffold` | Generate a controller/provider/middleware/factory/seeder/job/notification/transformer stub. Returns code + target path — it does **not** write to disk. |
 
 When `KEEL_CLOUD_TOKEN` (and optional `KEEL_CLOUD_URL`) is set, Cloud tools are
-also registered. Create a token at `/tokens` on the control plane — the plaintext
-looks like `keel_<selector>.<verifier>`.
+also registered — **create, preview, and publish sites on `*.keeljs.cloud`** from
+the same MCP server. Step-by-step:
+**[Keel Cloud (deploy from MCP)](./keel-cloud.md)**.
+
+Create a token at `/tokens` on [app.keeljs.cloud](https://app.keeljs.cloud) — the
+plaintext looks like `keel_<selector>.<verifier>`.
 
 | Tool | What it does |
 |------|--------------|
@@ -114,11 +120,13 @@ minting a token if you need a different team context.
 
 ### A typical Keel Cloud loop
 
+Full walkthrough: [Keel Cloud (deploy from MCP)](./keel-cloud.md).
+
 1. `keel_cloud_create_site { name: "Acme", preset: "app" }`
 2. Edit the returned `storage_path` (real Keel app + git)
 3. `keel_cloud_set_secret` for env the Worker needs
-4. `keel_cloud_preview { site_id }`
-5. `keel_cloud_publish { site_id, confirm: true }` after the user approves
+4. `keel_cloud_preview { site_id }` → `preview-{slug}.keeljs.cloud`
+5. `keel_cloud_publish { site_id, confirm: true }` → `{slug}.keeljs.cloud`
 6. Optional Pro: `keel_cloud_set_custom_domain { hostname, attach: true }`
 7. Escape hatch anytime: `keel_cloud_export` + `keel_cloud_export_sql`
 

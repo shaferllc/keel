@@ -112,56 +112,25 @@ npm run dev:edge                       # wrangler + local D1
 Hosting helpers (hostname utils, SQL dump, secrets encryption) live in
 [`@shaferllc/keel/hosting`](./hosting.md) if you build your own control plane.
 
-## 5. Optional — Keel Cloud
+## 5. Optional — Keel Cloud (`*.keeljs.cloud`)
 
-[Keel Cloud](https://app.keeljs.cloud) is a hosted control plane: pick a preset,
-edit real source, preview and publish Workers for you, vault secrets, and export
-git + SQL anytime. Free tier is limited (typically one site); Pro adds more sites
-and custom domains.
+Ship without owning a Cloudflare account: **Keel Cloud** creates the site,
+runs preview/production Workers on `*.keeljs.cloud`, vaults secrets, and lets
+you export git + SQL anytime — driven from the **same `keel-mcp`** you already
+use for docs.
+
+**Dedicated guide:** [Keel Cloud (deploy from MCP)](./keel-cloud.md).
+
+Quick path:
+
+1. Sign up at [app.keeljs.cloud](https://app.keeljs.cloud) → mint a token at `/tokens`
+2. Add `KEEL_CLOUD_TOKEN` (+ `KEEL_CLOUD_URL`) to your MCP config
+3. Agent: `keel_cloud_create_site` → edit `storage_path` → `keel_cloud_preview` →
+   `keel_cloud_publish { confirm: true }`
 
 Use Cloud when you want the platform to own deploys and hostnames. Skip it when
-you already have Cloudflare / your own pipeline (§4).
-
-### Sign up and mint a token
-
-1. Open [app.keeljs.cloud](https://app.keeljs.cloud) (invite code or allowlisted
-   email during alpha).
-2. Create a personal access token at **`/tokens`**. The plaintext looks like
-   `keel_<selector>.<verifier>` — copy it once.
-3. Wire it into your MCP client (same `keel-mcp` binary as local):
-
-```json
-{
-  "mcpServers": {
-    "keel": {
-      "command": "npx",
-      "args": ["-y", "keel-mcp"],
-      "env": {
-        "KEEL_CLOUD_TOKEN": "keel_….…",
-        "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
-      }
-    }
-  }
-}
-```
-
-Reload MCP. When the token is set, `keel_cloud_*` tools appear alongside the
-docs tools. The token binds to your **first team**.
-
-### Agent loop on Cloud
-
-1. `keel_cloud_create_site { name: "Acme", preset: "app" }`
-2. Edit files at the returned `storage_path` (real Keel app + git)
-3. `keel_cloud_set_secret` for anything the Worker needs at runtime
-4. `keel_cloud_preview { site_id }` — iterate freely
-5. `keel_cloud_publish { site_id, confirm: true }` — only after you approve
-6. Optional Pro: `keel_cloud_set_custom_domain { hostname, attach: true }`
-7. Escape hatch anytime: `keel_cloud_export` + `keel_cloud_export_sql`
-
-You can also drive the same flow from the dashboard at `/sites`. Billing for Pro
-is at `/billing` (or `keel_cloud_billing` / `_checkout` / `_portal` via MCP).
-
-Tool reference: [Building with AI](./ai.md#the-mcp-server).
+you already have Cloudflare / your own pipeline (§4). Don’t mix Cloud and
+self-host for the same app.
 
 ## Which path should I pick?
 
@@ -169,7 +138,7 @@ Tool reference: [Building with AI](./ai.md#the-mcp-server).
 |------|------|
 | Learn Keel / ship a side project on your CF account | §§1–4 |
 | Build with an agent in your IDE, deploy yourself | §§1–4 + §3 |
-| Let the platform host preview/prod + secrets + export | §§1–2 + §5 (Cloud creates the app for you) |
+| Let the platform host preview/prod on `*.keeljs.cloud` via MCP | [Keel Cloud](./keel-cloud.md) |
 | Multi-tenant SaaS with billing | Preset `saas`, then §4 or §5 |
 
 Cloud **create_site** scaffolds a kit the same way `create-keeljs` does — you do
@@ -178,6 +147,8 @@ use Cloud when you want hosted preview/publish under `*.keeljs.cloud`.
 
 ## Where next
 
+- [Keel Cloud (deploy from MCP)](./keel-cloud.md) — create / preview / publish
+  on `*.keeljs.cloud` from `keel-mcp`
 - [Getting Started](./getting-started.md) — first route, controller, view
 - [Starter kits](./starter-kits.md) — presets and the Node/edge seam
 - [Building with AI](./ai.md) — MCP tools (local + Cloud)

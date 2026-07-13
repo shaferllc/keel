@@ -74,6 +74,9 @@ cd my-app && npm install && npm run dev
 End-to-end (local → Cloudflare or optional Keel Cloud):
 [From install to deploy](./docs/from-install-to-deploy.md).
 
+**Deploy on `*.keeljs.cloud` from your IDE** (same `keel-mcp` + a Cloud token):
+[Keel Cloud — deploy from MCP](./docs/keel-cloud.md).
+
 | Repo | Role |
 |------|------|
 | [`shaferllc/keel`](https://github.com/shaferllc/keel) (this repo) | The framework. Published as `@shaferllc/keel`. |
@@ -130,13 +133,16 @@ ships a machine-readable surface that stays generated-in-sync, never stale:
 
 - **An MCP server.** `keel-mcp` exposes Keel's docs, its full public API (380+
   exports), the generators, and its conventions to any [MCP](https://modelcontextprotocol.io)
-  client. Connect it in Claude Code:
+  client — and with `KEEL_CLOUD_TOKEN`, **deploys sites to `*.keeljs.cloud`**
+  (`create_site` → preview → publish). See [Keel Cloud](./docs/keel-cloud.md).
+  Connect it in Claude Code:
   ```bash
   claude mcp add keel -- npx -y keel-mcp
+  # Cloud: add -e KEEL_CLOUD_TOKEN=… -e KEEL_CLOUD_URL=https://app.keeljs.cloud
   ```
   Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
-  `keel_list_generators`, `keel_scaffold`. Resources: `keel://overview`,
-  `keel://llms-full`, `keel://docs/<slug>`.
+  `keel_list_generators`, `keel_scaffold`, plus `keel_cloud_*` when a token is set.
+  Resources: `keel://overview`, `keel://llms-full`, `keel://docs/<slug>`.
 - **[`AGENTS.md`](./AGENTS.md).** The agent playbook — the one import rule, the
   folder map, the container/provider model, a "how to add X" table, and the
   guardrails. `CLAUDE.md` points to it.
@@ -200,6 +206,7 @@ See [docs/architecture.md](./docs/architecture.md) for the full picture.
 |-------|----------------|
 | [Getting Started](./docs/getting-started.md) | First route, controller, view, config |
 | [From install to deploy](./docs/from-install-to-deploy.md) | create-keeljs → local → Cloudflare or Keel Cloud |
+| [Keel Cloud](./docs/keel-cloud.md) | Deploy `*.keeljs.cloud` from `keel-mcp` (create → preview → publish) |
 | [Starter kits](./docs/starter-kits.md) | Presets (`minimal` / `api` / `app` / `saas`) |
 | [The Service Container](./docs/container.md) | Binding and resolving services, DI |
 | [Service Providers](./docs/providers.md) | Plugin system: register/boot lifecycle, options |
