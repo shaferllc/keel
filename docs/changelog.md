@@ -20,11 +20,46 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (forwards to `@shaferllc/keel`).
 - **`scripts/install.sh`** — alias of `install-mcp.sh` for the short curl path.
 
+- **The `saas` starter kit grew three capabilities.** It stopped at teams and
+  billing; these are the three things a real SaaS reaches for next.
+
+  - **Social login** (GitHub / Google). Off unless credentials are set — no
+    button, and the route 403s, the same bargain billing makes with Stripe.
+    Accounts match on the provider's **id first, email second**, and email links
+    an existing account only when the provider says the address is verified. The
+    reverse order is an account takeover: anyone can put your address on their
+    GitHub profile. GitHub doesn't report verification in the profile payload, so
+    the kit asks `/user/emails` and fails closed.
+
+  - **A queue and a scheduler.** Registration used to `await` the verification
+    email inline, putting a mail provider on the critical path of every signup —
+    a failing one turned a *successful* registration into a 500. It's a
+    [job](./queues.md) now. Node drains a `MemoryDriver` on an interval; the edge
+    stays sync (a Worker may not hold a timer between requests) and a cron trigger
+    drives the [scheduler](./scheduling.md) via the `scheduled` handler.
+
+  - **A team-scoped REST API** at `/api/projects`, documented at `/docs`. There is
+    no `scope:` and no `where("team_id", …)`: `Project` is a `TenantModel`, so the
+    generated queries are already scoped and another team's project is a **404**,
+    not a leak.
+
 ### Fixed
 
 - **MCP config that Cursor actually runs** — written `.mcp.json` uses
   `npx -y --package=@shaferllc/keel keel-mcp` so the server starts even if the
   thin `keel-mcp` package is missing from the registry.
+
+- **Inviting anyone to a team 500'd in the `saas` kit.** `invite()` sends the
+  invitation email itself and needs `teams.mail.from`; the kit shipped no
+  `config/teams.ts`, so the message had no from address and `send()` threw. No test
+  ever POSTed to `/teams/invite`, which is why it went unnoticed. There is one now.
+
+- **The `app` kit's two-factor test** scraped the TOTP secret with a regex anchored
+  on `class="block break-all` and silently stopped matching when an `mt-2` was added
+  in front of it. It matches the element, not an exact class prefix.
+
+- **The `saas` "personal team" test** asserted `/Solo's team/` against HTML reading
+  `Solo&#39;s team` — JSX escapes the apostrophe, so it could never match.
 
 [0.83.17]: https://github.com/shaferllc/keel/releases/tag/v0.83.17
 
