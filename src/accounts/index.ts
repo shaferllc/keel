@@ -30,6 +30,7 @@ export {
   disableTwoFactor,
   enableTwoFactor,
   hasTwoFactor,
+  pendingTwoFactorSetup,
   recoveryCodesRemaining,
   redeemRecoveryCode,
   regenerateRecoveryCodes,

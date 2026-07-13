@@ -24,6 +24,7 @@ import {
   disableTwoFactor,
   enableTwoFactor,
   hasTwoFactor,
+  pendingTwoFactorSetup,
   recoveryCodesRemaining,
   redeemRecoveryCode,
   regenerateRecoveryCodes,
@@ -110,7 +111,7 @@ test("the otpauth URI carries the secret — so it must never leave the server",
 
   const svg = otpauthQrSvg(uri);
   assert.match(svg, /<svg[\s\S]*<\/svg>/);
-  assert.match(otpauthQrDataUrl(uri), /^data:image\/svg\+xml/);
+  assert.match(otpauthQrDataUrl(uri), /^data:image\/svg\+xml;base64,/);
 });
 
 /* ---------------------------------- login --------------------------------- */
@@ -172,6 +173,17 @@ test("a challenge can't be forged, and isn't interchangeable with a reset token"
   // decrypt as a 2FA challenge — purposes are what stop tokens being swapped.
   const reset = await passwordResetToken(user);
   assert.equal(await completeTwoFactor(reset, await totp(setup.secret)), null);
+});
+
+
+test("pendingTwoFactorSetup rebuilds the QR after enable, before confirm", async () => {
+  await boot();
+  const user = await makeUser();
+  const setup = await enableTwoFactor(user);
+  const pending = await pendingTwoFactorSetup((await accountStore().findByEmail(user.email))!);
+  assert.ok(pending);
+  assert.equal(pending!.secret, setup.secret);
+  assert.match(pending!.qr, /^data:image\/svg\+xml;base64,/);
 });
 
 /* ------------------------------- two factor ------------------------------- */

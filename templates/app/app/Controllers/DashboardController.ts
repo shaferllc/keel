@@ -5,11 +5,14 @@ import {
   disableTwoFactor,
   enableTwoFactor,
   hasTwoFactor,
+  pendingTwoFactorSetup,
 } from "@shaferllc/keel/accounts";
 
 import type { User } from "../Models/User.js";
 import Dashboard from "../../resources/views/dashboard.js";
 import TwoFactorSetup from "../../resources/views/auth/two-factor-setup.js";
+
+const ISSUER = "Keel App";
 
 export class DashboardController {
   async index(c: Ctx) {
@@ -25,14 +28,14 @@ export class DashboardController {
     );
   }
 
-  /** Step one: generate a secret + recovery codes. 2FA is NOT on yet. */
   async startTwoFactor(c: Ctx) {
     const user = await auth().user<User>();
     if (!user) return c.redirect("/login");
 
     if (hasTwoFactor(user as never)) return c.redirect("/dashboard");
 
-    const setup = await enableTwoFactor(user as never, { issuer: "Keel App" });
+    const existing = await pendingTwoFactorSetup(user as never, { issuer: ISSUER });
+    const setup = existing ?? (await enableTwoFactor(user as never, { issuer: ISSUER }));
 
     return c.html(
       await view(TwoFactorSetup, {
@@ -45,23 +48,21 @@ export class DashboardController {
     );
   }
 
-  /** Step two: a working authenticator code turns 2FA on. */
   async confirmTwoFactor(c: Ctx) {
     const user = await auth().user<User>();
     if (!user) return c.redirect("/login");
 
     const body = await c.req.parseBody();
-    const code = String(body.code ?? "");
-
-    const ok = await confirmTwoFactor(user as never, code);
+    const ok = await confirmTwoFactor(user as never, String(body.code ?? ""));
     if (!ok) {
+      const pending = await pendingTwoFactorSetup(user as never, { issuer: ISSUER });
       return c.html(
         await view(TwoFactorSetup, {
-          qr: null,
-          uri: null,
-          secret: null,
-          recoveryCodes: [],
-          error: "That code isn't valid. Try again from the dashboard.",
+          qr: pending?.qr ?? null,
+          uri: pending?.uri ?? null,
+          secret: pending?.secret ?? null,
+          recoveryCodes: pending?.recoveryCodes ?? [],
+          error: "That code isn't valid. Check the authenticator and try again.",
         }),
         422,
       );

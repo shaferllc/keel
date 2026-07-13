@@ -5,11 +5,14 @@ import {
   disableTwoFactor,
   enableTwoFactor,
   hasTwoFactor,
+  pendingTwoFactorSetup,
 } from "@shaferllc/keel/accounts";
 
 import type { User } from "../Models/User.js";
 import Dashboard from "../../resources/views/dashboard.js";
 import TwoFactorSetup from "../../resources/views/auth/two-factor-setup.js";
+
+const ISSUER = "Keel SaaS";
 
 export class DashboardController {
   async index(c: Ctx) {
@@ -31,7 +34,9 @@ export class DashboardController {
 
     if (hasTwoFactor(user as never)) return c.redirect("/dashboard");
 
-    const setup = await enableTwoFactor(user as never, { issuer: "Keel SaaS" });
+    // Resume an unfinished setup instead of minting a new secret every click.
+    const existing = await pendingTwoFactorSetup(user as never, { issuer: ISSUER });
+    const setup = existing ?? (await enableTwoFactor(user as never, { issuer: ISSUER }));
 
     return c.html(
       await view(TwoFactorSetup, {
@@ -51,13 +56,14 @@ export class DashboardController {
     const body = await c.req.parseBody();
     const ok = await confirmTwoFactor(user as never, String(body.code ?? ""));
     if (!ok) {
+      const pending = await pendingTwoFactorSetup(user as never, { issuer: ISSUER });
       return c.html(
         await view(TwoFactorSetup, {
-          qr: null,
-          uri: null,
-          secret: null,
-          recoveryCodes: [],
-          error: "That code isn't valid. Try again from the dashboard.",
+          qr: pending?.qr ?? null,
+          uri: pending?.uri ?? null,
+          secret: pending?.secret ?? null,
+          recoveryCodes: pending?.recoveryCodes ?? [],
+          error: "That code isn't valid. Check the authenticator and try again.",
         }),
         422,
       );

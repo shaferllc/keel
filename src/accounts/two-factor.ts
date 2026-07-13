@@ -82,6 +82,34 @@ export async function enableTwoFactor(
 }
 
 /**
+ * Rebuild the QR for a user who started setup but has not confirmed yet.
+ *
+ * Recovery codes cannot be shown again (only hashes are stored). Returns `null`
+ * if 2FA is already on, or if setup was never started.
+ */
+export async function pendingTwoFactorSetup(
+  user: AccountUser,
+  options: TwoFactorOptions = {},
+): Promise<TwoFactorSetup | null> {
+  if (hasTwoFactor(user)) return null;
+  const secret = await secretFor(user);
+  if (!secret) return null;
+
+  const uri = otpauthUri({
+    secret,
+    account: user.email,
+    issuer: options.issuer ?? "Keel",
+  });
+
+  return {
+    secret,
+    uri,
+    qr: otpauthQrDataUrl(uri),
+    recoveryCodes: [],
+  };
+}
+
+/**
  * Step two: a working code turns it on. Returns false if the code is wrong, and
  * 2FA stays off — which is the whole point of the two-step dance.
  */

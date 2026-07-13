@@ -192,9 +192,13 @@ export function otpauthQrSvg(uri: string): string {
   return renderSVG(uri, { ecc: "M", border: 2 });
 }
 
-/** `data:image/svg+xml` URL suitable for an `<img src>` — no `raw()` HTML needed. */
+/** `data:image/svg+xml;base64,…` for an `<img src>` — safer in attributes than utf8. */
 export function otpauthQrDataUrl(uri: string): string {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(otpauthQrSvg(uri))}`;
+  const svg = otpauthQrSvg(uri);
+  const bytes = new TextEncoder().encode(svg);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `data:image/svg+xml;base64,${btoa(binary)}`;
 }
 
 /* --------------------------------- helpers -------------------------------- */

@@ -10,22 +10,24 @@ interface Props {
 }
 
 export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }: Props) {
+  const ready = Boolean(secret && uri && qr);
+
   return (
     <AuthShell title="Set up two-factor" wide>
       <h1 class="font-display text-2xl font-bold tracking-tight">Set up two-factor</h1>
 
       {error && <p class={`${alert} mt-5`}>{error}</p>}
 
-      {secret && uri && qr ? (
+      {ready ? (
         <>
           <p class={`${muted} mt-3 text-sm leading-relaxed`}>
-            Scan this with your authenticator app. The code is rendered here — it never leaves
-            this server.
+            Scan this with your authenticator app. The code is rendered here — it never leaves this
+            server.
           </p>
 
           <div class="mt-6 flex justify-center">
             <img
-              src={qr}
+              src={qr!}
               alt="Authenticator QR code"
               width="200"
               height="200"
@@ -58,6 +60,7 @@ export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }
               name="code"
               placeholder="6-digit code"
               inputMode="numeric"
+              autocomplete="one-time-code"
               required
             />
             <button class={btnSea} type="submit">
@@ -66,9 +69,12 @@ export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }
           </form>
         </>
       ) : (
-        <a class="mt-6 inline-block text-sm underline underline-offset-2" href="/dashboard">
-          Back to dashboard
-        </a>
+        <div class="mt-6">
+          <p class={`${muted} text-sm`}>Start two-factor from the dashboard to get a new QR code.</p>
+          <a class="mt-4 inline-block text-sm underline underline-offset-2" href="/dashboard">
+            Back to dashboard
+          </a>
+        </div>
       )}
     </AuthShell>
   );
