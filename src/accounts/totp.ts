@@ -5,11 +5,11 @@
  *   const uri = otpauthUri({ secret, account: "ada@example.com", issuer: "Acme" });
  *   const ok = await verifyTotp(secret, "492039");
  *
- * Deliberately dependency-free and edge-safe: the whole thing is WebCrypto plus
- * about thirty lines of base32, so it runs unchanged on Workers. TOTP wants
- * HMAC-SHA1 — not a weakness here (the secret is 160 bits of CSPRNG and the code
- * lives 30 seconds), and it's what every authenticator app implements.
+ * Deliberately edge-safe: WebCrypto + base32 for the codes, and `uqr` for a local
+ * SVG QR so the shared secret never hits a third-party image CDN.
  */
+
+import { renderSVG } from "uqr";
 
 /* --------------------------------- base32 --------------------------------- */
 
@@ -168,9 +168,8 @@ export interface OtpauthOptions {
 /**
  * The `otpauth://` URI an authenticator app scans.
  *
- * Render it to a QR code **yourself, locally**. Never post it to a QR-image
- * service: the URI contains the shared secret, so a third-party URL hands your
- * users' second factor to someone else.
+ * Prefer {@link otpauthQrDataUrl} / {@link otpauthQrSvg} for the on-screen code —
+ * never post this URI to a QR-image CDN: it contains the shared secret.
  */
 export function otpauthUri(options: OtpauthOptions): string {
   const label = `${options.issuer}:${options.account}`;
@@ -183,6 +182,19 @@ export function otpauthUri(options: OtpauthOptions): string {
   });
 
   return `otpauth://totp/${encodeURIComponent(label)}?${params.toString()}`;
+}
+
+/**
+ * Inline SVG for an `otpauth://` URI — generated locally so the secret never
+ * leaves the process (no third-party QR CDN).
+ */
+export function otpauthQrSvg(uri: string): string {
+  return renderSVG(uri, { ecc: "M", border: 2 });
+}
+
+/** `data:image/svg+xml` URL suitable for an `<img src>` — no `raw()` HTML needed. */
+export function otpauthQrDataUrl(uri: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(otpauthQrSvg(uri))}`;
 }
 
 /* --------------------------------- helpers -------------------------------- */

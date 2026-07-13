@@ -35,6 +35,7 @@ export class DashboardController {
 
     return c.html(
       await view(TwoFactorSetup, {
+        qr: setup.qr,
         uri: setup.uri,
         secret: setup.secret,
         recoveryCodes: setup.recoveryCodes,
@@ -52,6 +53,7 @@ export class DashboardController {
     if (!ok) {
       return c.html(
         await view(TwoFactorSetup, {
+          qr: null,
           uri: null,
           secret: null,
           recoveryCodes: [],

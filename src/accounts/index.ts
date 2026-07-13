@@ -41,6 +41,8 @@ export {
   base32Decode,
   base32Encode,
   generateSecret,
+  otpauthQrDataUrl,
+  otpauthQrSvg,
   otpauthUri,
   totp,
   verifyTotp,

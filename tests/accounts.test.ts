@@ -29,7 +29,7 @@ import {
   regenerateRecoveryCodes,
 } from "../src/accounts/two-factor.js";
 import { passwordResetToken, verifyPasswordResetToken } from "../src/accounts/tokens.js";
-import { base32Encode, totp, verifyTotp, otpauthUri } from "../src/accounts/totp.js";
+import { base32Encode, totp, verifyTotp, otpauthUri, otpauthQrSvg, otpauthQrDataUrl } from "../src/accounts/totp.js";
 
 /* ---------------------------------- setup --------------------------------- */
 
@@ -107,6 +107,10 @@ test("the otpauth URI carries the secret — so it must never leave the server",
   assert.match(uri, /^otpauth:\/\/totp\//);
   assert.match(uri, /secret=JBSWY3DPEHPK3PXP/);
   assert.match(uri, /issuer=Acme/);
+
+  const svg = otpauthQrSvg(uri);
+  assert.match(svg, /<svg[\s\S]*<\/svg>/);
+  assert.match(otpauthQrDataUrl(uri), /^data:image\/svg\+xml/);
 });
 
 /* ---------------------------------- login --------------------------------- */

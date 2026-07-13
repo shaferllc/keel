@@ -2,29 +2,41 @@ import { AuthShell } from "./shell.js";
 import { alert, btnSea, field, muted, sectionLabel } from "../ui.js";
 
 interface Props {
+  qr: string | null;
   uri: string | null;
   secret: string | null;
   recoveryCodes: string[];
   error: string | null;
 }
 
-export default function TwoFactorSetup({ uri, secret, recoveryCodes, error }: Props) {
+export default function TwoFactorSetup({ qr, uri, secret, recoveryCodes, error }: Props) {
   return (
     <AuthShell title="Set up two-factor" wide>
       <h1 class="font-display text-2xl font-bold tracking-tight">Set up two-factor</h1>
 
       {error && <p class={`${alert} mt-5`}>{error}</p>}
 
-      {secret && uri ? (
+      {secret && uri && qr ? (
         <>
           <p class={`${muted} mt-3 text-sm leading-relaxed`}>
-            Add this secret to your authenticator app (render a QR from the URI locally — never send
-            it to a third-party QR service):
+            Scan this with your authenticator app. The code is rendered here — it never leaves
+            this server.
           </p>
-          <code class="mt-4 block break-all rounded-lg bg-mist px-3 py-2 font-mono text-sm">
+
+          <div class="mt-6 flex justify-center">
+            <img
+              src={qr}
+              alt="Authenticator QR code"
+              width="200"
+              height="200"
+              class="rounded-xl border border-line bg-white p-3"
+            />
+          </div>
+
+          <p class={`${muted} mt-6 text-sm`}>Or enter this secret manually:</p>
+          <code class="mt-2 block break-all rounded-lg bg-mist px-3 py-2 font-mono text-sm">
             {secret}
           </code>
-          <p class={`${muted} mt-2 break-all text-xs`}>{uri}</p>
 
           {recoveryCodes.length > 0 && (
             <div class="mt-8">

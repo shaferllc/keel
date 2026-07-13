@@ -16,15 +16,20 @@
 import { hash, encryption } from "../core/crypto.js";
 
 import { accountStore, type AccountUser } from "./store.js";
-import { generateSecret, otpauthUri, verifyTotp } from "./totp.js";
+import { generateSecret, otpauthQrDataUrl, otpauthUri, verifyTotp } from "./totp.js";
 
 const SECRET_PURPOSE = "accounts:2fa-secret";
 
 export interface TwoFactorSetup {
   /** The plaintext secret. Show it once, for manual entry. */
   secret: string;
-  /** Render this to a QR code **locally** — it contains the secret. */
+  /** The otpauth URI — prefer `qr` for scanning; keep this for debugging. */
   uri: string;
+  /**
+   * Local SVG as a `data:` URL for `<img src>`. Generated in-process — never
+   * fetch a QR from a CDN (that would leak the shared secret).
+   */
+  qr: string;
   /** Show these once. They are hashed the moment they're stored. */
   recoveryCodes: string[];
 }
@@ -62,13 +67,16 @@ export async function enableTwoFactor(
     two_factor_confirmed_at: null,
   });
 
+  const uri = otpauthUri({
+    secret,
+    account: user.email,
+    issuer: options.issuer ?? "Keel",
+  });
+
   return {
     secret,
-    uri: otpauthUri({
-      secret,
-      account: user.email,
-      issuer: options.issuer ?? "Keel",
-    }),
+    uri,
+    qr: otpauthQrDataUrl(uri),
     recoveryCodes,
   };
 }

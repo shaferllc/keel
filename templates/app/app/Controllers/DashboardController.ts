@@ -34,10 +34,9 @@ export class DashboardController {
 
     const setup = await enableTwoFactor(user as never, { issuer: "Keel App" });
 
-    // Render setup.uri locally — it contains the shared secret, so it must never
-    // be sent to a third-party QR service.
     return c.html(
       await view(TwoFactorSetup, {
+        qr: setup.qr,
         uri: setup.uri,
         secret: setup.secret,
         recoveryCodes: setup.recoveryCodes,
@@ -58,6 +57,7 @@ export class DashboardController {
     if (!ok) {
       return c.html(
         await view(TwoFactorSetup, {
+          qr: null,
           uri: null,
           secret: null,
           recoveryCodes: [],
