@@ -10,6 +10,11 @@
   // The compiled stylesheet. Cloudflare serves these; the Worker never sees them.
   "assets": { "directory": "./public" },
 
+  // One trigger, every minute — the scheduler decides what's actually due. Recurring
+  // work is declared in app/Providers/ScheduleServiceProvider.ts, so this list never
+  // has to grow. See the `scheduled` handler in worker.ts.
+  "triggers": { "crons": ["* * * * *"] },
+
   "d1_databases": [
     {
       "binding": "DB",

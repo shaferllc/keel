@@ -1,5 +1,5 @@
 import type { Ctx } from "@shaferllc/keel/core";
-import { auth, hash, session, validate, view } from "@shaferllc/keel/core";
+import { auth, dispatch, hash, session, validate, view } from "@shaferllc/keel/core";
 import {
   attempt,
   completeTwoFactor,
@@ -12,6 +12,7 @@ import { createTeam, switchTeam } from "@shaferllc/keel/teams";
 import { z } from "zod";
 
 import { User } from "../Models/User.js";
+import { SendVerificationEmailJob } from "../Jobs/SendVerificationEmailJob.js";
 import Login from "../../resources/views/auth/login.js";
 import Register from "../../resources/views/auth/register.js";
 import TwoFactor from "../../resources/views/auth/two-factor.js";
@@ -96,7 +97,10 @@ export class AuthController {
     const team = await createTeam(`${data.name}'s team`, user.id);
     await switchTeam(user.id, team.id);
 
-    await sendVerificationEmail(user as never);
+    // Queued, not awaited. The account is already committed, so there is no reason to
+    // hold the signup open for an SMTP round-trip — and a mail provider having a bad
+    // afternoon must not turn a successful registration into a 500.
+    await dispatch(new SendVerificationEmailJob(user.id));
 
     auth().login(user.id);
     return c.redirect("/teams");

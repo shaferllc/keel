@@ -1,4 +1,5 @@
 import { AuthShell } from "./shell.js";
+import { SocialButtons } from "./social.js";
 import { alert, btnPrimary, field, muted } from "../ui.js";
 
 export default function Register({ error }: { error: string | null }) {
@@ -17,6 +18,8 @@ export default function Register({ error }: { error: string | null }) {
           Register
         </button>
       </form>
+
+      <SocialButtons />
 
       <p class={`${muted} mt-6 text-sm`}>
         Already have an account?{" "}

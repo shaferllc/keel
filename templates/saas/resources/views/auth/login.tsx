@@ -1,4 +1,5 @@
 import { AuthShell } from "./shell.js";
+import { SocialButtons } from "./social.js";
 import { alert, btnPrimary, field, muted } from "../ui.js";
 
 export default function Login({ error }: { error: string | null }) {
@@ -16,6 +17,8 @@ export default function Login({ error }: { error: string | null }) {
           Log in
         </button>
       </form>
+
+      <SocialButtons />
 
       <p class={`${muted} mt-6 text-sm`}>
         <a class="underline underline-offset-2" href="/register">
