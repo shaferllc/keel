@@ -4725,6 +4725,34 @@ package, so it always matches your installed version.
 | `keel_list_generators` | The `keel make:*` generators, what they produce, and their flags. |
 | `keel_scaffold` | Generate a controller/provider/middleware/factory/seeder/job/notification/transformer stub. Returns code + target path — it does **not** write to disk. |
 
+When `KEEL_CLOUD_TOKEN` (and optional `KEEL_CLOUD_URL`) is set, Cloud tools are
+also registered:
+
+| Tool | What it does |
+|------|--------------|
+| `keel_cloud_me` | Authenticated Cloud user |
+| `keel_cloud_list_sites` / `keel_cloud_get_site` | List or fetch a site (includes `storage_path`) |
+| `keel_cloud_create_site` | Create from preset (`minimal` \| `api` \| `app` \| `saas`) |
+| `keel_cloud_preview` | Deploy preview Worker |
+| `keel_cloud_publish` | Publish production — requires `confirm: true` |
+| `keel_cloud_set_secret` | Vault a secret (injected on next deploy) |
+| `keel_cloud_deploys` / `keel_cloud_export` | Deploy history and export manifest |
+
+```json
+{
+  "mcpServers": {
+    "keel": {
+      "command": "npx",
+      "args": ["-y", "keel-mcp"],
+      "env": {
+        "KEEL_CLOUD_TOKEN": "kc_…",
+        "KEEL_CLOUD_URL": "https://app.keeljs.cloud"
+      }
+    }
+  }
+}
+```
+
 ### Resources
 
 - `keel://overview` — the same orientation text as `keel_overview`
@@ -4738,6 +4766,13 @@ package, so it always matches your installed version.
 3. `keel_read_doc { slug: "models", include_example: true }` → read it in full.
 4. `keel_scaffold { kind: "controller", name: "Post", resource: true }` → get the stub.
 5. Write the file, add the route, run `npm run typecheck`.
+
+### A typical Keel Cloud loop
+
+1. `keel_cloud_create_site { name: "Acme", preset: "app" }`
+2. Edit the returned `storage_path` (real Keel app + git)
+3. `keel_cloud_preview { site_id }`
+4. `keel_cloud_publish { site_id, confirm: true }` after the user approves
 
 ## `llms.txt` and `llms-full.txt`
 
@@ -5763,6 +5798,46 @@ resolveBillableUsing(async (customerId) => {
   return user ? { id: user.id, type: "User" } : null;
 });
 ```
+
+## A complete flow
+
+From "user signs up" to "they're subscribed", with the fake gateway for tests:
+
+```ts
+import { Model } from "@shaferllc/keel/core";
+import {
+  Billable,
+  BillingManager,
+  FakeGateway,
+  setBilling,
+} from "@shaferllc/keel/billing";
+
+class User extends Billable(Model) {
+  static table = "users";
+  declare email: string;
+}
+
+// In a test bootstrap:
+const fake = new FakeGateway();
+const manager = new BillingManager({
+  default: "fake",
+  currency: "usd",
+  billableModel: "User",
+  webhook: { path: "billing/webhook" },
+  gateways: { stripe: { key: "", webhookSecret: "" }, paddle: { key: "", webhookSecret: "" }, fake: {} },
+});
+manager.register("fake", () => fake);
+setBilling(manager);
+
+const user = await User.create({ email: "ada@example.com" });
+await user.newSubscription("default", "price_pro").trialDays(14).create();
+
+await user.subscribed(); // true
+fake.calls.some((c) => c.method === "createSubscription"); // true
+```
+
+In production you skip the fake manager — `BillingServiceProvider` wires the
+real gateway from `config/billing.ts` and `.env`.
 
 ## Gateway differences
 
@@ -7610,6 +7685,34 @@ router.group(() => { /* … */ }).use(cors({ origin: ["https://app.example.com"]
 
 With no options, `cors()` reflects the caller's origin — convenient in
 development. **Lock it down in production** with an explicit allowlist.
+
+## A production API group
+
+Typical setup for a JSON API served from `api.example.com` and called from a
+SPA on `app.example.com`:
+
+```ts
+// app/Http/Kernel.ts
+import { cors } from "@shaferllc/keel/core";
+
+this.use(
+  cors({
+    origin: ["https://app.example.com"],
+    credentials: true,          // cookies / Authorization
+    exposeHeaders: ["X-Request-Id"],
+  }),
+);
+```
+
+During local development, allow any localhost port with a predicate:
+
+```ts
+cors({
+  origin: (origin) =>
+    origin.startsWith("http://localhost:") || origin === "https://app.example.com",
+  credentials: true,
+});
+```
 
 ## Options
 
@@ -14934,6 +15037,44 @@ query shapes without an ORM dependency. For a gnarly one-off report, reach for
 the [query builder](./query-builder.md) or a raw `connection().select(sql)`; the
 model layer never gets in the way.
 
+## A worked example
+
+A blog with authors and posts — enough to see CRUD, a relation, and eager loading
+together:
+
+```ts
+import { Model } from "@shaferllc/keel/core";
+
+class Post extends Model {
+  static table = "posts";
+  static fillable = ["title", "body"];
+  declare id: number;
+  declare title: string;
+  declare user_id: number;
+
+  author() { return this.belongsTo(User); }
+}
+
+class User extends Model {
+  static table = "users";
+  declare id: number;
+  declare email: string;
+
+  posts() { return this.hasMany(Post); }
+}
+
+const ada = await User.create({ email: "ada@example.com" });
+await ada.posts().create({ title: "Notes on engines", body: "…" });
+
+const withPosts = await User.with("posts").where("id", ada.id).first();
+for (const post of (withPosts as User & { posts: Post[] }).posts) {
+  console.log(post.title);
+}
+```
+
+For the full surface — casts, soft deletes, scopes, polymorphic relations —
+see [Models](./models.md).
+
 
 
 ---
@@ -17629,6 +17770,20 @@ to finish.
 | `api` | JSON only — models, migrations, validation, tests. No views. |
 | `app` *(default)* | Full-stack: views, sessions, register/login, password reset, two-factor. |
 | `saas` | `app` plus teams, roles, invitations, billing, and multi-tenancy. |
+
+## Pick a kit
+
+```bash
+npm create keeljs@latest my-app                 # app (default)
+npm create keeljs@latest my-api  -- --preset api
+npm create keeljs@latest my-saas -- --preset saas
+npm create keeljs@latest bare    -- --preset minimal
+cd my-app && npm install && npm run dev
+```
+
+Then open `http://localhost:3000`. The SaaS kit already has a team switcher,
+invites, and a billing stub wired through [teams](./teams.md) and
+[billing](./billing.md) — start by editing `app/Models` and `routes/web.ts`.
 
 ## Every database, Cloudflare first
 
@@ -21244,7 +21399,7 @@ Vite's `manifest.json`, as produced by the build. You rarely touch it directly �
 
 # Watch
 
-Keel Watch is a debug dashboard — a Telescope for Keel. It records the requests,
+Keel Watch is a debug dashboard for Keel apps. It records the requests,
 queries, exceptions, logs, jobs, mail, notifications, cache lookups, events, and
 scheduled tasks flowing through your app, and shows them in a single-page UI at
 `/watch`, with every request linked to the queries and logs it produced.

@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.1",
+  "version": "0.83.2",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -52,7 +52,7 @@
       "title": "Billing",
       "summary": "Keel Billing is a subscription-billing layer for charging customers, managing subscriptions, and reconciling gateway state through webhooks.",
       "path": "docs/billing.md",
-      "example": null
+      "example": "docs/examples/billing.ts"
     },
     {
       "slug": "broadcasting",
@@ -115,7 +115,7 @@
       "title": "CORS",
       "summary": "Cross-Origin Resource Sharing lets browsers on other origins call your API.",
       "path": "docs/cors.md",
-      "example": null
+      "example": "docs/examples/cors.ts"
     },
     {
       "slug": "database",
@@ -192,7 +192,7 @@
       "title": "Built on Hono",
       "summary": "Keel's HTTP layer is Hono — an ultrafast, web-standard router that runs on Node, Cloudflare Workers, Deno, Bun, and more.",
       "path": "docs/hono.md",
-      "example": null
+      "example": "docs/examples/hono.ts"
     },
     {
       "slug": "hooks",
@@ -269,21 +269,21 @@
       "title": "OpenAPI",
       "summary": "Keel OpenAPI generates an OpenAPI 3 spec from your routes and serves Swagger UI to explore it.",
       "path": "docs/openapi.md",
-      "example": null
+      "example": "docs/examples/openapi.ts"
     },
     {
       "slug": "orm",
       "title": "ORM",
       "summary": "Keel's ORM is a compact active record over the query builder: a model is a class pointed at a table, and its rows come back as typed objects with methods.",
       "path": "docs/orm.md",
-      "example": null
+      "example": "docs/examples/orm.ts"
     },
     {
       "slug": "packages",
       "title": "Packages",
       "summary": "A package is a redistributable slice of a Keel app — routes, a UI, config, migrations, console commands — that installs with a single app.register(...).",
       "path": "docs/packages.md",
-      "example": null
+      "example": "docs/examples/packages.ts"
     },
     {
       "slug": "pages",
@@ -304,7 +304,7 @@
       "title": "Query Builder",
       "summary": "Keel's driver-agnostic query builder — build and run SQL by chaining methods off db(table).",
       "path": "docs/query-builder.md",
-      "example": null
+      "example": "docs/examples/query-builder.ts"
     },
     {
       "slug": "queues",
@@ -353,7 +353,7 @@
       "title": "Securing SSR apps",
       "summary": "Two middlewares harden server-rendered apps: securityHeaders() sets the defensive HTTP headers browsers act on, and csrf() blocks cross-site form submissions.",
       "path": "docs/security.md",
-      "example": null
+      "example": "docs/examples/security.ts"
     },
     {
       "slug": "sessions",
@@ -367,14 +367,14 @@
       "title": "Social authentication",
       "summary": "\"Sign in with GitHub / Google / Discord\" — OAuth 2.0, without an SDK.",
       "path": "docs/social-auth.md",
-      "example": null
+      "example": "docs/examples/social-auth.ts"
     },
     {
       "slug": "starter-kits",
       "title": "Starter kits",
       "summary": "",
       "path": "docs/starter-kits.md",
-      "example": null
+      "example": "docs/examples/starter-kits.ts"
     },
     {
       "slug": "static-files",
@@ -456,9 +456,9 @@
     {
       "slug": "watch",
       "title": "Watch",
-      "summary": "Keel Watch is a debug dashboard — a Telescope for Keel.",
+      "summary": "Keel Watch is a debug dashboard for Keel apps.",
       "path": "docs/watch.md",
-      "example": null
+      "example": "docs/examples/watch.ts"
     }
   ],
   "api": [
@@ -3074,6 +3074,11 @@
     },
     {
       "name": "tokenDenies",
+      "kind": "value",
+      "module": "tokens"
+    },
+    {
+      "name": "tokensMigration",
       "kind": "value",
       "module": "tokens"
     },

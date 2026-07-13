@@ -72,7 +72,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Validation](https://github.com/shaferllc/keel/blob/main/docs/validation.md): validate() parses request input against a schema and returns typed data.
 - [Views](https://github.com/shaferllc/keel/blob/main/docs/views.md): Keel renders HTML with Hono JSX — type-safe components that run identically on Node and on Cloudflare Workers (no filesystem templating, so it ports anywhere).
 - [Vite](https://github.com/shaferllc/keel/blob/main/docs/vite.md): Wire a modern frontend build — bundling, hashed filenames, hot module reload — to Keel's server-rendered HTML, the way modern full-stack frameworks do.
-- [Watch](https://github.com/shaferllc/keel/blob/main/docs/watch.md): Keel Watch is a debug dashboard — a Telescope for Keel.
+- [Watch](https://github.com/shaferllc/keel/blob/main/docs/watch.md): Keel Watch is a debug dashboard for Keel apps.
 
 ## Examples
 
@@ -82,6 +82,7 @@ Every topic has a runnable, type-checked example:
 - [API Resources example](https://github.com/shaferllc/keel/blob/main/docs/examples/api-resources.ts)
 - [Authentication example](https://github.com/shaferllc/keel/blob/main/docs/examples/authentication.ts)
 - [Authorization example](https://github.com/shaferllc/keel/blob/main/docs/examples/authorization.ts)
+- [Billing example](https://github.com/shaferllc/keel/blob/main/docs/examples/billing.ts)
 - [Broadcasting example](https://github.com/shaferllc/keel/blob/main/docs/examples/broadcasting.ts)
 - [Service Broker example](https://github.com/shaferllc/keel/blob/main/docs/examples/broker.ts)
 - [Cache example](https://github.com/shaferllc/keel/blob/main/docs/examples/cache.ts)
@@ -89,6 +90,7 @@ Every topic has a runnable, type-checked example:
 - [The Console example](https://github.com/shaferllc/keel/blob/main/docs/examples/console.ts)
 - [The Service Container example](https://github.com/shaferllc/keel/blob/main/docs/examples/container.ts)
 - [Controllers example](https://github.com/shaferllc/keel/blob/main/docs/examples/controllers.ts)
+- [CORS example](https://github.com/shaferllc/keel/blob/main/docs/examples/cors.ts)
 - [Database example](https://github.com/shaferllc/keel/blob/main/docs/examples/database.ts)
 - [Debugging example](https://github.com/shaferllc/keel/blob/main/docs/examples/debugging.ts)
 - [Request Decorators example](https://github.com/shaferllc/keel/blob/main/docs/examples/decorators.ts)
@@ -98,6 +100,7 @@ Every topic has a runnable, type-checked example:
 - [Hashing & Encryption example](https://github.com/shaferllc/keel/blob/main/docs/examples/hashing.ts)
 - [Health Checks example](https://github.com/shaferllc/keel/blob/main/docs/examples/health.ts)
 - [Helpers example](https://github.com/shaferllc/keel/blob/main/docs/examples/helpers.ts)
+- [Built on Hono example](https://github.com/shaferllc/keel/blob/main/docs/examples/hono.ts)
 - [Lifecycle Hooks example](https://github.com/shaferllc/keel/blob/main/docs/examples/hooks.ts)
 - [Internationalization example](https://github.com/shaferllc/keel/blob/main/docs/examples/i18n.ts)
 - [Inertia example](https://github.com/shaferllc/keel/blob/main/docs/examples/inertia.ts)
@@ -108,15 +111,22 @@ Every topic has a runnable, type-checked example:
 - [Migrations example](https://github.com/shaferllc/keel/blob/main/docs/examples/migrations.ts)
 - [Models example](https://github.com/shaferllc/keel/blob/main/docs/examples/models.ts)
 - [Notifications example](https://github.com/shaferllc/keel/blob/main/docs/examples/notification.ts)
+- [OpenAPI example](https://github.com/shaferllc/keel/blob/main/docs/examples/openapi.ts)
+- [ORM example](https://github.com/shaferllc/keel/blob/main/docs/examples/orm.ts)
+- [Packages example](https://github.com/shaferllc/keel/blob/main/docs/examples/packages.ts)
 - [Pages example](https://github.com/shaferllc/keel/blob/main/docs/examples/pages.ts)
 - [Service Providers example](https://github.com/shaferllc/keel/blob/main/docs/examples/providers.ts)
+- [Query Builder example](https://github.com/shaferllc/keel/blob/main/docs/examples/query-builder.ts)
 - [Queues & Jobs example](https://github.com/shaferllc/keel/blob/main/docs/examples/queues.ts)
 - [Rate Limiting example](https://github.com/shaferllc/keel/blob/main/docs/examples/rate-limiting.ts)
 - [Redis example](https://github.com/shaferllc/keel/blob/main/docs/examples/redis.ts)
 - [Request & Response example](https://github.com/shaferllc/keel/blob/main/docs/examples/request-response.ts)
 - [Routing example](https://github.com/shaferllc/keel/blob/main/docs/examples/routing.ts)
 - [Task Scheduling example](https://github.com/shaferllc/keel/blob/main/docs/examples/scheduling.ts)
+- [Securing SSR apps example](https://github.com/shaferllc/keel/blob/main/docs/examples/security.ts)
 - [Sessions example](https://github.com/shaferllc/keel/blob/main/docs/examples/sessions.ts)
+- [Social authentication example](https://github.com/shaferllc/keel/blob/main/docs/examples/social-auth.ts)
+- [Starter kits example](https://github.com/shaferllc/keel/blob/main/docs/examples/starter-kits.ts)
 - [Static Files example](https://github.com/shaferllc/keel/blob/main/docs/examples/static-files.ts)
 - [Storage example](https://github.com/shaferllc/keel/blob/main/docs/examples/storage.ts)
 - [Teams example](https://github.com/shaferllc/keel/blob/main/docs/examples/teams.ts)
@@ -128,6 +138,7 @@ Every topic has a runnable, type-checked example:
 - [Validation example](https://github.com/shaferllc/keel/blob/main/docs/examples/validation.ts)
 - [Views example](https://github.com/shaferllc/keel/blob/main/docs/examples/views.tsx)
 - [Vite example](https://github.com/shaferllc/keel/blob/main/docs/examples/vite.ts)
+- [Watch example](https://github.com/shaferllc/keel/blob/main/docs/examples/watch.ts)
 
 ## Optional
 

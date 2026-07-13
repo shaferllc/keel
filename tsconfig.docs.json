@@ -13,7 +13,9 @@
       "@shaferllc/keel/accounts": ["dist/accounts/index.d.ts"],
       "@shaferllc/keel/teams": ["dist/teams/index.d.ts"],
       "@shaferllc/keel/api": ["dist/api/index.d.ts"],
-      "@shaferllc/keel/openapi": ["dist/openapi/index.d.ts"]
+      "@shaferllc/keel/openapi": ["dist/openapi/index.d.ts"],
+      "@shaferllc/keel/billing": ["dist/billing/index.d.ts"],
+      "@shaferllc/keel/watch": ["dist/watch/index.d.ts"]
     }
   },
   "include": ["docs/examples"]

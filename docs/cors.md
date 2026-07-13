@@ -21,6 +21,34 @@ router.group(() => { /* … */ }).use(cors({ origin: ["https://app.example.com"]
 With no options, `cors()` reflects the caller's origin — convenient in
 development. **Lock it down in production** with an explicit allowlist.
 
+## A production API group
+
+Typical setup for a JSON API served from `api.example.com` and called from a
+SPA on `app.example.com`:
+
+```ts
+// app/Http/Kernel.ts
+import { cors } from "@shaferllc/keel/core";
+
+this.use(
+  cors({
+    origin: ["https://app.example.com"],
+    credentials: true,          // cookies / Authorization
+    exposeHeaders: ["X-Request-Id"],
+  }),
+);
+```
+
+During local development, allow any localhost port with a predicate:
+
+```ts
+cors({
+  origin: (origin) =>
+    origin.startsWith("http://localhost:") || origin === "https://app.example.com",
+  credentials: true,
+});
+```
+
 ## Options
 
 ```ts

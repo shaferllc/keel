@@ -55,3 +55,42 @@ The ORM is deliberately small — enough for CRUD, relationships, and the common
 query shapes without an ORM dependency. For a gnarly one-off report, reach for
 the [query builder](./query-builder.md) or a raw `connection().select(sql)`; the
 model layer never gets in the way.
+
+## A worked example
+
+A blog with authors and posts — enough to see CRUD, a relation, and eager loading
+together:
+
+```ts
+import { Model } from "@shaferllc/keel/core";
+
+class Post extends Model {
+  static table = "posts";
+  static fillable = ["title", "body"];
+  declare id: number;
+  declare title: string;
+  declare user_id: number;
+
+  author() { return this.belongsTo(User); }
+}
+
+class User extends Model {
+  static table = "users";
+  declare id: number;
+  declare email: string;
+
+  posts() { return this.hasMany(Post); }
+}
+
+const ada = await User.create({ email: "ada@example.com" });
+await ada.posts().create({ title: "Notes on engines", body: "…" });
+
+const withPosts = await User.with("posts").where("id", ada.id).first();
+for (const post of (withPosts as User & { posts: Post[] }).posts) {
+  console.log(post.title);
+}
+```
+
+For the full surface — casts, soft deletes, scopes, polymorphic relations —
+see [Models](./models.md).
+

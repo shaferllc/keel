@@ -205,6 +205,46 @@ resolveBillableUsing(async (customerId) => {
 });
 ```
 
+## A complete flow
+
+From "user signs up" to "they're subscribed", with the fake gateway for tests:
+
+```ts
+import { Model } from "@shaferllc/keel/core";
+import {
+  Billable,
+  BillingManager,
+  FakeGateway,
+  setBilling,
+} from "@shaferllc/keel/billing";
+
+class User extends Billable(Model) {
+  static table = "users";
+  declare email: string;
+}
+
+// In a test bootstrap:
+const fake = new FakeGateway();
+const manager = new BillingManager({
+  default: "fake",
+  currency: "usd",
+  billableModel: "User",
+  webhook: { path: "billing/webhook" },
+  gateways: { stripe: { key: "", webhookSecret: "" }, paddle: { key: "", webhookSecret: "" }, fake: {} },
+});
+manager.register("fake", () => fake);
+setBilling(manager);
+
+const user = await User.create({ email: "ada@example.com" });
+await user.newSubscription("default", "price_pro").trialDays(14).create();
+
+await user.subscribed(); // true
+fake.calls.some((c) => c.method === "createSubscription"); // true
+```
+
+In production you skip the fake manager — `BillingServiceProvider` wires the
+real gateway from `config/billing.ts` and `.env`.
+
 ## Gateway differences
 
 | Concern | Stripe | Paddle |

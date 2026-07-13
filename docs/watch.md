@@ -1,6 +1,6 @@
 # Watch
 
-Keel Watch is a debug dashboard — a Telescope for Keel. It records the requests,
+Keel Watch is a debug dashboard for Keel apps. It records the requests,
 queries, exceptions, logs, jobs, mail, notifications, cache lookups, events, and
 scheduled tasks flowing through your app, and shows them in a single-page UI at
 `/watch`, with every request linked to the queries and logs it produced.

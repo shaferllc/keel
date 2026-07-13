@@ -4,6 +4,24 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.2] — 2026-07-12
+
+### Added
+
+- **More runnable doc examples.** Billing, ORM, query builder, CORS, security,
+  social auth, OpenAPI, Watch, packages, Hono, and starter kits now have
+  typechecked harnesses under `docs/examples/` — the same ones
+  `npm run typecheck:docs` compiles against the published surface.
+- **Worked examples in the guides** — a complete billing subscribe flow (with
+  `FakeGateway`), an ORM CRUD+eager-load walkthrough, a production CORS recipe,
+  and a clearer starter-kit picker.
+
+### Changed
+
+- Watch no longer describes itself by another product's name.
+
+[0.83.2]: https://github.com/shaferllc/keel/releases/tag/v0.83.2
+
 ## [0.83.0] — 2026-07-12
 
 ### Added

@@ -14,6 +14,20 @@ to finish.
 | `app` *(default)* | Full-stack: views, sessions, register/login, password reset, two-factor. |
 | `saas` | `app` plus teams, roles, invitations, billing, and multi-tenancy. |
 
+## Pick a kit
+
+```bash
+npm create keeljs@latest my-app                 # app (default)
+npm create keeljs@latest my-api  -- --preset api
+npm create keeljs@latest my-saas -- --preset saas
+npm create keeljs@latest bare    -- --preset minimal
+cd my-app && npm install && npm run dev
+```
+
+Then open `http://localhost:3000`. The SaaS kit already has a team switcher,
+invites, and a billing stub wired through [teams](./teams.md) and
+[billing](./billing.md) — start by editing `app/Models` and `routes/web.ts`.
+
 ## Every database, Cloudflare first
 
 Each kit ships with all four drivers wired. Switching is `DB_CONNECTION` and nothing
