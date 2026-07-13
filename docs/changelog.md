@@ -4,6 +4,15 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.83.15] — 2026-07-13
+
+### Added
+
+- **`npx -y keel-mcp@latest init`** — one command writes (merge-safe) `.mcp.json`
+  in the current project. Flags: `--cursor`, `--claude`, `--all`, `--token`.
+
+[0.83.15]: https://github.com/shaferllc/keel/releases/tag/v0.83.15
+
 ## [0.83.14] — 2026-07-13
 
 ### Changed

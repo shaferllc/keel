@@ -27,10 +27,21 @@ its conventions to any MCP-capable client.
 
 ### Connect it
 
-**Claude Code**, in an app that depends on `@shaferllc/keel`:
+Easiest — run this in your app (or any folder you want the config):
+
+```bash
+npx -y keel-mcp@latest init
+```
+
+That writes a merge-safe `.mcp.json`. Add `--all` for `.cursor/mcp.json` plus
+Claude Code registration, or `--token keel_….…` to bake in Cloud credentials.
+
+**Claude Code** only:
 
 ```bash
 claude mcp add keel -- npx -y keel-mcp
+# or:
+npx -y keel-mcp@latest init --claude
 ```
 
 Hacking on the framework repo itself:
@@ -39,7 +50,8 @@ Hacking on the framework repo itself:
 claude mcp add keel -- npm --prefix /path/to/keel run mcp
 ```
 
-**`.mcp.json`, Cursor, Windsurf, or any client** that reads the standard config:
+**`.mcp.json`, Cursor, Windsurf, or any client** that reads the standard config
+(what `init` writes):
 
 ```json
 {

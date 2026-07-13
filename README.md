@@ -135,10 +135,11 @@ ships a machine-readable surface that stays generated-in-sync, never stale:
   exports), the generators, and its conventions to any [MCP](https://modelcontextprotocol.io)
   client — and with `KEEL_CLOUD_TOKEN`, **deploys sites to `*.keeljs.cloud`**
   (`create_site` → preview → publish). See [Keel Cloud](./docs/keel-cloud.md).
-  Connect it in Claude Code:
+  Connect it anywhere:
   ```bash
-  claude mcp add keel -- npx -y keel-mcp
-  # Cloud: add -e KEEL_CLOUD_TOKEN=… -e KEEL_CLOUD_URL=https://app.keeljs.cloud
+  npx -y keel-mcp@latest init          # writes .mcp.json
+  # or: claude mcp add keel -- npx -y keel-mcp
+  # Cloud: npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN" --claude
   ```
   Tools: `keel_overview`, `keel_search_docs`, `keel_read_doc`, `keel_search_api`,
   `keel_list_generators`, `keel_scaffold`, plus `keel_cloud_*` when a token is set.

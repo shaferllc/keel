@@ -66,8 +66,22 @@ read [Getting Started](./getting-started.md).
 
 ## 3. Optional — AI agents (local)
 
-Keel is designed to be written with an agent. Point Cursor / Claude Code at the
-MCP server that ships with the package:
+Keel is designed to be written with an agent. One command installs the MCP
+server config in the project you're standing in:
+
+```bash
+npx -y keel-mcp@latest init
+```
+
+That writes `.mcp.json` (merge-safe). Useful flags:
+
+```bash
+npx -y keel-mcp@latest init --all              # also .cursor/mcp.json + Claude Code
+npx -y keel-mcp@latest init --claude           # claude mcp add keel …
+npx -y keel-mcp@latest init --token "$KEEL_CLOUD_TOKEN"
+```
+
+Or paste this by hand:
 
 ```json
 {

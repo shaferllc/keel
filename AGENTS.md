@@ -145,16 +145,21 @@ npm run build:ai       # regenerate llms.txt, llms-full.txt, docs/ai-manifest.js
 Keel ships an MCP server exposing its docs, the full public API surface, the
 generators, and framework conventions to any MCP-capable agent.
 
+```bash
+npx -y keel-mcp@latest init          # writes .mcp.json in the current project
+npx -y keel-mcp@latest init --all    # + .cursor/mcp.json + Claude Code
+```
+
 **Claude Code:**
 ```bash
-claude mcp add keel -- npx -y keel-mcp        # in an app that depends on @shaferllc/keel
+claude mcp add keel -- npx -y keel-mcp # in an app that depends on @shaferllc/keel
 ```
 Or, hacking on the framework itself:
 ```bash
 claude mcp add keel -- npm --prefix /path/to/keel run mcp
 ```
 
-**`.mcp.json` / Cursor / other clients:**
+**`.mcp.json` / Cursor / other clients** (same as `init`):
 ```json
 { "mcpServers": { "keel": { "command": "npx", "args": ["-y", "keel-mcp"] } } }
 ```
