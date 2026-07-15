@@ -155,22 +155,46 @@ await cache().put("otp", code, 300);   // gone 300s after this write
 await cache().put("app.config", cfg);  // no TTL — lives until forgotten
 ```
 
+## Shipped stores
+
+The default is in-memory — per process, per isolate, gone on restart. Three
+shared stores come in the box; bind the `Cache` you want in a provider:
+
+```ts
+import { Cache, singleton, DatabaseStore, cacheMigration, kvStore, redisStore } from "@shaferllc/keel/core";
+
+// Rows — works anywhere a Connection does. Add cacheMigration() to your migrations.
+singleton(Cache, () => new Cache(new DatabaseStore()));
+
+// Cloudflare KV — the shared cache for Workers.
+singleton(Cache, () => new Cache(kvStore(env.CACHE)));
+
+// Redis — over the redis() client (see the redis guide).
+singleton(Cache, () => new Cache(redisStore()));
+```
+
+The database store skips (and drops) expired rows on read; call its `prune()`
+from a [scheduled task](./scheduling.md) to sweep the ones nothing reads again.
+KV enforces a 60-second minimum TTL — shorter-lived entries carry their real
+expiry inside the envelope, so rounding up never serves a stale value, it only
+delays garbage collection.
+
 ## Custom stores
 
-The default is in-memory. To persist elsewhere, implement `CacheStore` and bind
-your own `Cache` in a provider:
+To persist elsewhere, implement `CacheStore` and bind your own `Cache` in a
+provider:
 
 ```ts
 import { Cache, singleton, type CacheStore } from "@shaferllc/keel/core";
 
-class RedisStore implements CacheStore {
+class MyStore implements CacheStore {
   async get(key: string) { /* … */ }
   async set(key: string, value: unknown, ttlMs?: number) { /* … */ }
   async delete(key: string) { /* … */ }
   async clear() { /* … */ }
 }
 
-singleton(Cache, () => new Cache(new RedisStore()));
+singleton(Cache, () => new Cache(new MyStore()));
 ```
 
 The store speaks **milliseconds** (`ttlMs`), while the `Cache` façade takes

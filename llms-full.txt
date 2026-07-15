@@ -7306,22 +7306,46 @@ await cache().put("otp", code, 300);   // gone 300s after this write
 await cache().put("app.config", cfg);  // no TTL — lives until forgotten
 ```
 
+## Shipped stores
+
+The default is in-memory — per process, per isolate, gone on restart. Three
+shared stores come in the box; bind the `Cache` you want in a provider:
+
+```ts
+import { Cache, singleton, DatabaseStore, cacheMigration, kvStore, redisStore } from "@shaferllc/keel/core";
+
+// Rows — works anywhere a Connection does. Add cacheMigration() to your migrations.
+singleton(Cache, () => new Cache(new DatabaseStore()));
+
+// Cloudflare KV — the shared cache for Workers.
+singleton(Cache, () => new Cache(kvStore(env.CACHE)));
+
+// Redis — over the redis() client (see the redis guide).
+singleton(Cache, () => new Cache(redisStore()));
+```
+
+The database store skips (and drops) expired rows on read; call its `prune()`
+from a [scheduled task](./scheduling.md) to sweep the ones nothing reads again.
+KV enforces a 60-second minimum TTL — shorter-lived entries carry their real
+expiry inside the envelope, so rounding up never serves a stale value, it only
+delays garbage collection.
+
 ## Custom stores
 
-The default is in-memory. To persist elsewhere, implement `CacheStore` and bind
-your own `Cache` in a provider:
+To persist elsewhere, implement `CacheStore` and bind your own `Cache` in a
+provider:
 
 ```ts
 import { Cache, singleton, type CacheStore } from "@shaferllc/keel/core";
 
-class RedisStore implements CacheStore {
+class MyStore implements CacheStore {
   async get(key: string) { /* … */ }
   async set(key: string, value: unknown, ttlMs?: number) { /* … */ }
   async delete(key: string) { /* … */ }
   async clear() { /* … */ }
 }
 
-singleton(Cache, () => new Cache(new RedisStore()));
+singleton(Cache, () => new Cache(new MyStore()));
 ```
 
 The store speaks **milliseconds** (`ttlMs`), while the `Cache` façade takes
@@ -7741,6 +7765,8 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `serve` | `--port <n>` | Start the HTTP server |
 | `routes` | — | List every registered route |
 | `make:controller` | `<name>` `[-r]` | `app/Controllers/<Name>Controller.ts` |
+| `make:model` | `<name>` `[-m] [-f] [-c]` | `app/Models/<Name>.ts` (+ migration, factory, controller) |
+| `make:migration` | `<name>` `[--create <t>] [--table <t>]` | `database/migrations/<NNNN>_<name>.ts` |
 | `make:provider` | `<name>` | `app/Providers/<Name>ServiceProvider.ts` |
 | `make:middleware` | `<name>` | `app/Http/Middleware/<name>Middleware.ts` |
 | `make:factory` | `<model>` | `database/factories/<Model>Factory.ts` |
@@ -7748,6 +7774,10 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `make:job` | `<name>` | `app/Jobs/<Name>Job.ts` |
 | `make:notification` | `<name>` | `app/Notifications/<Name>Notification.ts` |
 | `make:transformer` | `<name>` `[-m <model>]` | `app/Transformers/<Name>Transformer.ts` |
+| `queue:work` | `[--once] [--sleep <s>]` | Process jobs on the default queue |
+| `queue:failed` | — | List jobs that exhausted their retries |
+| `queue:retry` | `<id\|all>` | Put a failed job back on the queue |
+| `queue:flush` | `[id]` | Delete failed jobs — one, or all of them |
 | `mcp` | — | Start the [MCP server](./ai.md) for AI agents (stdio) |
 
 Every generator normalizes the name you pass and refuses to overwrite an existing
@@ -7815,6 +7845,25 @@ npm run keel mcp        # or the shipped `keel-mcp` bin in a consuming app
 See [Building with AI](./ai.md) for how to connect it to Claude Code, Cursor, or
 any MCP client, and the tools it provides.
 
+### Queue commands
+
+Run and operate the [queue](./queues.md) from the console:
+
+```bash
+npm run keel queue:work            # poll for jobs every 3s (Ctrl-C to stop)
+npm run keel queue:work -- --once  # drain what's due and exit (cron-friendly)
+npm run keel queue:failed          # list jobs that exhausted their retries
+npm run keel queue:retry 42        # back on the queue (or: queue:retry all)
+npm run keel queue:flush           # delete failed jobs (or one: queue:flush 42)
+```
+
+`queue:work` drives whatever driver `setQueue()` registered at boot;
+`queue:failed` / `queue:retry` / `queue:flush` need a driver that persists
+failures (`DatabaseDriver`, `RedisDriver`, or anything implementing
+`FailedJobStore`) —
+with the in-memory drivers, `queue:failed` still lists what the process has
+seen, but there is nothing durable to retry.
+
 ## Generators
 
 Each `make:*` command normalizes the name you give it and writes a single file.
@@ -7875,6 +7924,53 @@ export class PostController {
 ```
 
 Wire it up with `Route.resource(...)` — see [Controllers](./controllers.md).
+
+### `make:model`
+
+Generate an active-record model in `app/Models/`. The table name follows from
+the class: `Post` → `posts`, `UserProfile` → `user_profiles`.
+
+```bash
+npm run keel make:model Post
+# -> app/Models/Post.ts
+```
+
+```ts
+import { Model } from "@shaferllc/keel/core";
+
+export class Post extends Model {
+  static override table = "posts";
+  static override fillable = [];
+  static override timestamps = true;
+
+  declare id: number;
+}
+```
+
+A model rarely travels alone — flags scaffold its companions in one command:
+
+```bash
+npm run keel make:model Post -- -m -f -c
+# -> app/Models/Post.ts
+# -> database/migrations/0004_create_posts.ts   (-m: a create-table migration)
+# -> database/factories/PostFactory.ts          (-f: a factory)
+# -> app/Controllers/PostController.ts          (-c: a resource controller)
+```
+
+### `make:migration`
+
+Generate a migration in `database/migrations/`, numbered to continue whatever
+sequence is already there (`0001_…`, `0002_…`).
+
+```bash
+npm run keel make:migration create_posts
+# -> database/migrations/0004_create_posts.ts
+```
+
+The stub is shaped by what the name says it does: `create_posts` gets a full
+`createTable`/`dropTable` pair for `posts`; `add_slug_to_posts` gets
+`alterTable` both ways; anything else is left open. The `--create <table>` and
+`--table <table>` flags override the inference.
 
 ### `make:provider`
 
@@ -10079,6 +10175,157 @@ others in order. `seed(DatabaseSeeder)` instantiates and runs one.
 
 `type Definition<T> = (faker: Faker, index: number) => Row` — the factory
 definition function.
+
+
+
+---
+
+<!-- source: docs/flags.md -->
+
+# Feature Flags
+
+Ship the code dark, turn it on when you're ready — per user, per team, or for
+everyone. A **flag** is defined once (a value, or a resolver that decides per
+scope), asked anywhere with `feature()`, and overridden explicitly when support
+needs to force it on for one account.
+
+```ts
+import { features, feature } from "@shaferllc/keel/core";
+
+// a provider's boot()
+features().define("new-billing", (user) => (user as User).plan === "pro");
+features().define("dark-mode", true);
+
+// anywhere
+if (await feature("new-billing", user)) {
+  return newBillingFlow();
+}
+```
+
+## The first answer sticks
+
+The first time a flag is resolved for a scope, the answer is **persisted**. A
+user who saw the new thing keeps seeing it while you ramp up — a resolver edit
+doesn't flap experiences on the next request. Changing a decision is explicit:
+
+```ts
+await features().activate("new-billing", user);    // force on, this user
+await features().deactivate("new-billing", team);  // force off, this team
+await features().deactivate("new-billing");        // force off, globally
+await features().forget("new-billing", user);      // back to the resolver
+await features().purge("new-billing");             // every stored decision, gone
+```
+
+An **undefined flag is off**, not an error — code behind a flag nobody defined
+is simply dark. That means you can merge the `feature()` check before the
+`define()`, and delete the definition before the last check.
+
+## Scopes
+
+A scope is `null` (global), a primitive (an id, an email), or an object with an
+`id` — a `User`, a `Team`, any model. Objects are keyed as `ClassName:id`, so
+`User#7` today matches `User#7` tomorrow. An object *without* an `id` is
+refused: it has no stable identity, and silently keying every request
+differently would make each check a fresh resolution.
+
+```ts
+await feature("new-billing", user);        // per user
+await feature("beta-api", team);           // per team
+await feature("maintenance-banner");       // global
+```
+
+## Rich values
+
+A flag's value is JSON, not just a boolean — it can carry a variant or a limit.
+`active()` is simply "truthy"; `value()` returns the payload:
+
+```ts
+features().define("search", (user) => (isBetaTester(user) ? { engine: "meili" } : false));
+
+const search = await features().value("search", user); // { engine: "meili" } | false
+await features().activate("search", user, { engine: "typesense" }); // override with a value
+```
+
+## Storage
+
+Like the queue and the cache: in-memory by default (per process — right for dev
+and tests), a database store when a rollout must be shared and survive a
+deploy. Add `flagsMigration()` to your migrations and swap the store in a
+provider:
+
+```ts
+import { setFeatures, DatabaseFlagStore, flagsMigration } from "@shaferllc/keel/core";
+
+// database/migrations/0006_features.ts
+export default flagsMigration();
+
+// a provider's register()
+setFeatures(new DatabaseFlagStore());
+```
+
+Any backend is four methods — implement `FlagStore` (`get` / `set` / `delete` /
+`purge`, keyed by feature name and scope key) to store decisions in Redis, KV,
+or a vendor's flag service.
+
+## In tests
+
+The default in-memory store makes flags deterministic already; give a test its
+own instance to avoid cross-test bleed:
+
+```ts
+import { setFeatures, MemoryFlagStore } from "@shaferllc/keel/core";
+
+const flags = setFeatures(new MemoryFlagStore());
+flags.define("new-billing", true);
+```
+
+---
+
+## API reference
+
+### `feature(name, scope?)`
+
+`feature(name: string, scope: FlagScope = null): Promise<boolean>`
+
+Shorthand for `features().active(name, scope)` — is the flag on for this scope?
+
+### `features()` / `setFeatures(storeOrInstance)`
+
+`features(): Features` returns the process-wide instance.
+`setFeatures(storeOrInstance: FlagStore | Features): Features` swaps the store
+(or the whole instance) behind it, and returns the active `Features`.
+
+### `Features`
+
+| Method | Signature |
+|--------|-----------|
+| `define` | `(name, valueOrResolver?) => this` — a fixed value or a `(scope) => value` resolver; default `true` |
+| `defined` | `() => string[]` |
+| `value` | `(name, scope?) => Promise<unknown>` — stored value, else resolve + persist |
+| `active` | `(name, scope?) => Promise<boolean>` — `value` is truthy |
+| `inactive` | `(name, scope?) => Promise<boolean>` |
+| `activate` | `(name, scope?, value?) => Promise<void>` — force on (default `true`) |
+| `deactivate` | `(name, scope?) => Promise<void>` — force off |
+| `forget` | `(name, scope?) => Promise<void>` — drop the stored value; the resolver decides afresh |
+| `purge` | `(name?) => Promise<void>` — drop every stored value for a flag, or all of them |
+
+### Stores
+
+`MemoryFlagStore` (the default) and `DatabaseFlagStore({ table?, connection? })`
+— rows in `features` (name, scope, JSON value), unique per `(name, scope)`.
+`flagsMigration(table?)` is the schema. `FlagStore` is the seam:
+
+```ts
+interface FlagStore {
+  get(feature: string, scopeKey: string): Promise<unknown> | unknown;
+  set(feature: string, scopeKey: string, value: unknown): Promise<void> | void;
+  delete(feature: string, scopeKey: string): Promise<void> | void;
+  purge(feature?: string): Promise<void> | void;
+}
+```
+
+`flagScopeKey(scope)` is the exported keying function — `"__global"` for null,
+`String(primitive)`, `ClassName:id` for objects.
 
 
 
@@ -16842,9 +17089,101 @@ setQueue(new MemoryDriver()); // holds jobs; a worker drains them
 |--------|----------|
 | `SyncDriver` | Runs each job the instant it's dispatched. The default; great for dev and tests. |
 | `MemoryDriver` | Enqueues jobs in memory; `work()` runs them. Inspect `.jobs` / `.size`. |
+| `DatabaseDriver` | Jobs are rows — they survive a restart, workers claim them atomically, failures persist. |
+| `RedisDriver` | The same durability contract in Redis — sorted sets and a failed hash, claims via atomic `ZREM`. |
 
 With the sync driver, a job that throws surfaces the error to whoever called
 `dispatch` — so failures are visible in development.
+
+## The database driver
+
+Memory empties on every restart. When a queued job must *survive* — a deploy, a
+crash, a Worker eviction — make it a row. The driver is built on the `db()`
+layer, so it runs anywhere a `Connection` does (Postgres, D1, libSQL, SQLite):
+
+```ts
+import { setQueue, DatabaseDriver, registerJobs, queueMigration } from "@shaferllc/keel/core";
+
+// database/migrations/0005_queue_tables.ts — the jobs + failed_jobs tables
+export default queueMigration();
+
+// a provider's register(), in BOTH the web process and the worker
+registerJobs(SendWelcome, ChargeCard);
+setQueue(new DatabaseDriver());
+```
+
+Run the worker with `keel queue:work` (poll forever) or `keel queue:work --once`
+(drain what's due and exit — the right shape for a cron trigger or a scheduled
+task). Several workers can share the table: a job is claimed with an atomic
+conditional update, so exactly one gets it, and a claim held past `staleAfter`
+seconds (default 300) is released — the escape hatch for a worker that died
+mid-job.
+
+Two constraints follow from jobs being rows:
+
+- **Only `Job` subclasses can be dispatched** — a closure can't be serialized,
+  and the driver says so rather than storing something it can't run. A job's
+  payload is its constructor state (its own enumerable properties), rebuilt on
+  the worker via `registerJobs()` — which is why registration must happen in the
+  worker process too.
+- **A per-dispatch `backoff` override can't cross the process boundary** (a
+  function isn't data). Backoff comes from the job class; `maxRetries`
+  overrides are stored and honored.
+
+Failed jobs land in the `failed_jobs` table, where the console can see them:
+
+```bash
+keel queue:failed        # list them
+keel queue:retry 42      # back on the queue (keel queue:retry all for every one)
+keel queue:flush         # delete them (or one: keel queue:flush 42)
+```
+
+[Keel Watch](./watch.md) shows the same list under **Failed jobs**, with retry
+and delete buttons.
+
+Options: `new DatabaseDriver({ table, failedTable, connection, staleAfter })` —
+all optional; the defaults are `jobs`, `failed_jobs`, the default connection,
+and 300 seconds.
+
+## The redis driver
+
+The same durability contract as the database driver — jobs survive a restart,
+several workers share the backlog, exhausted jobs are retryable — with Redis's
+latency instead of a SQL round-trip. No migration; just a client:
+
+```ts
+import { setQueue, RedisDriver, registerJobs, setRedis } from "@shaferllc/keel/core";
+
+setRedis(myAdapter);            // ioredis, node-redis, Upstash… (see the redis guide)
+registerJobs(SendWelcome);      // in BOTH the web process and the worker
+setQueue(new RedisDriver());    // or new RedisDriver({ client, prefix, staleAfter })
+```
+
+How it's laid out: pending jobs live in a sorted set (`queue:jobs`) scored by
+when they become due — delays and backoffs are just future scores. A claim is
+`ZREM`: atomic per command, so exactly one worker removes any member, and no
+Lua script is required — which keeps HTTP adapters like Upstash in play. A
+claimed job sits in `queue:reserved` scored by its deadline; a worker that dies
+mid-job leaves a member behind, and the next drain re-queues anything past
+`staleAfter` (default 300 seconds). Failures land in the `queue:failed` hash,
+so `queue:failed` / `queue:retry` / `queue:flush` and the Watch panel work
+exactly as they do for the database driver.
+
+The driver needs eight commands beyond the basic `RedisConnection` set —
+`zadd`, `zrangebyscore`, `zrem`, `zcard`, `hset`, `hget`, `hgetall`, `hdel` —
+each a passthrough to one standard Redis command. The built-in `MemoryRedis`
+implements them (so tests run against the real driver); a custom adapter that
+lacks any of them is refused at first use with the missing ones named.
+
+The serialization rules are the database driver's: **`Job` subclasses only**
+(a closure can't cross a process boundary), classes rebuilt via
+`registerJobs()`, class-level backoff, stored `maxRetries` overrides.
+
+**Which one?** Same durability, different trade: the database driver needs no
+extra infrastructure and joins your existing backups and transactions; the
+redis driver keeps queue chatter off your database and polls cheaper under
+load. If you already run Redis for cache or rate limiting, the queue can share
+it — the keys are prefixed.
 
 ## Running queued jobs
 
@@ -17455,6 +17794,56 @@ running them. `restoreQueue()` puts the real one back.
 `{ id, job, options, attempts, error }` — a job that exhausted its retries. Read
 them from `driver.failed` or `getQueue().failed`.
 
+### The database driver
+
+#### `DatabaseDriver`
+
+`class DatabaseDriver implements QueueDriver, FailedJobStore`
+
+Jobs as rows; see [The database driver](#the-database-driver) above.
+`new DatabaseDriver(options?: DatabaseDriverOptions)` with
+`{ table?, failedTable?, connection?, staleAfter? }`.
+
+| Method | Signature |
+|--------|-----------|
+| `push` | `(job, options) => Promise<void>` — inserts a row; refuses closures |
+| `work` | `() => Promise<number>` — releases stale claims, then runs every due job |
+| `pending` | `() => Promise<number>` — waiting (unreserved) jobs |
+| `failedJobs` | `() => Promise<FailedJobRecord[]>` |
+| `retryFailed` | `(id) => Promise<boolean>` — move a failed job back onto the queue |
+| `flushFailed` | `(id?) => Promise<number>` — delete one failed job, or all of them |
+
+#### `registerJobs(...classes)`
+
+`registerJobs(...classes: JobClass[]): void`
+
+Registers job classes by name so a worker can rebuild them from their stored
+payload. Call at boot in every process that runs `queue:work`.
+
+#### `queueMigration(table?, failedTable?)`
+
+`queueMigration(table = "jobs", failedTable = "failed_jobs"): Migration`
+
+The schema for the driver's two tables — add it to your migrations.
+
+#### `RedisDriver`
+
+`class RedisDriver implements QueueDriver, FailedJobStore`
+
+Jobs in Redis; see [The redis driver](#the-redis-driver) above.
+`new RedisDriver(options?: RedisDriverOptions)` with
+`{ client?, prefix?, staleAfter? }` — defaults: the `redis()` global, `"queue"`,
+300 seconds. Same method surface as `DatabaseDriver` (`push` / `work` /
+`pending` / `failedJobs` / `retryFailed` / `flushFailed`).
+
+#### `FailedJobRecord` / `FailedJobStore`
+
+`FailedJobRecord` is `{ id, queue, job, payload, attempts, error, failedAt }` —
+`job` is the class name, `failedAt` epoch ms. `FailedJobStore` is the interface
+(`failedJobs` / `retryFailed` / `flushFailed`) the console's `queue:failed`,
+`queue:retry`, and `queue:flush` commands drive; implement it on a custom driver
+to get those commands (and the Watch panel's buttons) for free.
+
 
 
 ---
@@ -17555,8 +17944,24 @@ The store self-prunes: once it holds more than 10,000 keys it sweeps expired
 buckets on the next request, so a large key space (e.g. per-IP) won't grow
 unbounded.
 
-For distributed limiting, wrap your own middleware that counts in Redis/KV and
-returns `429` the same way.
+On anything horizontal, share the tally by passing a `store`:
+
+```ts
+import { rateLimiter, redisRateLimitStore, cacheRateLimitStore } from "@shaferllc/keel/core";
+
+// Redis: counts with INCR — atomic, so a burst across nodes can't slip past.
+this.use(rateLimiter({ max: 60, window: 60, store: redisRateLimitStore() }));
+
+// Any Cache (database, KV): read-modify-write — simultaneous hits can
+// under-count by a request or two. Fine for traffic shaping, not for billing.
+this.use(rateLimiter({ max: 60, window: 60, store: cacheRateLimitStore() }));
+```
+
+Pass the *same* store instance to several `rateLimiter()` calls and they share
+one tally; the backends namespace their keys under `ratelimit:`, so a shared
+Redis or cache doesn't collide with your own entries. A custom backend is one
+method — implement `RateLimitStore.hit(key, windowMs)` and return the running
+`{ count, reset }` for the window.
 
 ---
 
@@ -17595,6 +18000,7 @@ interface RateLimiterOptions {
   window?: number;                  // window length in seconds; default 60
   key?: (c: Context) => string;     // bucket key; default: client IP
   message?: string;                 // 429 body message; default "Too Many Requests"
+  store?: RateLimitStore;           // where counters live; default: in-memory
 }
 ```
 
@@ -17616,6 +18022,24 @@ rateLimiter(perUser);
 **Notes:** `window` is **seconds**, not milliseconds (it's multiplied by 1000
 internally). `key` is called on every request, so keep it cheap and pure. Returning
 a constant string collapses all clients into one shared bucket.
+
+#### `RateLimitStore` / `RateLimitBucket`
+
+```ts
+interface RateLimitStore {
+  hit(key: string, windowMs: number): Promise<RateLimitBucket> | RateLimitBucket;
+}
+interface RateLimitBucket {
+  count: number;  // hits so far in the current window, including this one
+  reset: number;  // epoch ms when the window rolls over
+}
+```
+
+The storage seam. `hit` records one request against `key`, rotating the window
+if it lapsed, and returns the running tally. Shipped implementations:
+`MemoryRateLimitStore` (the default), `redisRateLimitStore(client?)` (atomic),
+and `cacheRateLimitStore(cache?)` (best-effort over any `Cache`) — the latter
+two default to the app's `redis()` client and `cache()` singleton.
 
 
 
@@ -17727,6 +18151,30 @@ const upstash = (url: string, token: string): RedisConnection => {
 };
 setRedis(upstash(env("UPSTASH_URL"), env("UPSTASH_TOKEN")));
 ```
+
+### The optional queue commands
+
+`RedisConnection` also declares eight **optional** methods — `zadd`,
+`zrangebyscore`, `zrem`, `zcard`, `hset`, `hget`, `hgetall`, `hdel` — the
+sorted-set and hash commands the queue's
+[`RedisDriver`](./queues.md#the-redis-driver) runs on. A minimal adapter that
+skips them still works everywhere else; the queue refuses it at first use with
+the missing commands named. Each maps 1:1 onto a standard Redis command, so
+extending the Upstash adapter above is one `call(...)` line apiece:
+
+```ts
+async zadd(key, score, member) { return (await call("ZADD", key, score, member)).result; },
+async zrangebyscore(key, min, max, limit) {
+  const args = limit === undefined ? [] : ["LIMIT", 0, limit];
+  return (await call("ZRANGEBYSCORE", key, min, max, ...args)).result;
+},
+async zrem(key, member) { return (await call("ZREM", key, member)).result; },
+// …and so on for zcard, hset, hget, hgetall, hdel
+```
+
+(For `hgetall`, mind your client's return shape — the queue expects a
+`Record<string, string>`; Upstash's REST API returns a flat
+`[field, value, …]` array you'll need to fold.)
 
 ## In tests
 
@@ -22252,6 +22700,21 @@ A tab per type, each behind an on/off switch:
 Clicking any entry shows its full detail and **everything else in its batch** —
 the request it belonged to and every query, log, and exception that request
 produced.
+
+## Failed jobs
+
+The **Failed jobs** tab is the one place Watch *acts* instead of observing: it
+lists the queue's failed jobs — class, queue, attempts, the full error — with
+**Retry** and **Delete** per row, plus retry-all and flush-all. It drives the
+same bookkeeping as `keel queue:failed` / `queue:retry` / `queue:flush`, so a
+retry from the dashboard is exactly a retry from the console.
+
+What it can show depends on the queue driver: the
+[database](./queues.md#the-database-driver) and
+[redis](./queues.md#the-redis-driver) drivers persist failures (a retry
+survives a restart and any worker can pick it up); the in-memory drivers expose
+their per-process `failed` list, where a retry re-pushes the live instance. A
+driver that keeps no failure list gets an explanatory empty state.
 
 ## Configuration
 

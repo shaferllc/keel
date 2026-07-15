@@ -182,3 +182,57 @@ test("WatchServiceProvider: wires config, migration, and routes", async () => {
   assert.ok(paths.includes("/watch/api/entries"), "entries API mounted");
   assert.ok(paths.some((p) => p.startsWith("/watch/assets")), "assets route mounted");
 });
+
+test("queue API: lists, retries, and flushes failed jobs", async () => {
+  const { HttpKernel } = await import("../src/core/http/kernel.js");
+  const { Job, MemoryDriver, setQueue, noBackoff } = await import("../src/core/queue.js");
+
+  const app = new Application();
+  await app.boot([WatchServiceProvider], {
+    discoverConfig: false,
+    config: { watch: { storage: "memory", path: "watch" }, app: { debug: true } },
+  });
+  const hono = new HttpKernel(app).build();
+
+  let healed = false;
+  class Sometimes extends Job {
+    static override maxRetries = 0;
+    static override backoff = noBackoff;
+    async handle(): Promise<void> {
+      if (!healed) throw new Error("broken dependency");
+    }
+  }
+
+  const driver = new MemoryDriver();
+  const queue = setQueue(driver);
+  await queue.dispatch(new Sometimes());
+  await queue.work();
+  assert.equal(driver.failed.length, 1);
+
+  // List
+  const list = await hono.request("/watch/api/queue/failed");
+  assert.equal(list.status, 200);
+  const { failed } = (await list.json()) as { failed: { id: string; job: string; error: string }[] };
+  assert.equal(failed.length, 1);
+  assert.equal(failed[0]!.job, "Sometimes");
+  assert.match(failed[0]!.error, /broken dependency/);
+
+  // Retry — the instance goes back on the queue and succeeds this time.
+  healed = true;
+  const retry = await hono.request(`/watch/api/queue/failed/${failed[0]!.id}/retry`, { method: "POST" });
+  assert.equal(retry.status, 200);
+  assert.equal(driver.failed.length, 0);
+  assert.equal(await queue.work(), 1);
+
+  // Flush
+  healed = false;
+  await queue.dispatch(new Sometimes());
+  await queue.work();
+  const flush = await hono.request("/watch/api/queue/failed/all", { method: "DELETE" });
+  assert.deepEqual(await flush.json(), { removed: 1 });
+  assert.equal(driver.failed.length, 0);
+
+  // Missing ids 404.
+  const missing = await hono.request("/watch/api/queue/failed/nope/retry", { method: "POST" });
+  assert.equal(missing.status, 404);
+});

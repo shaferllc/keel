@@ -1,7 +1,9 @@
 /**
  * A small queue for background work. Dispatch a `Job` (or a plain function) and
  * a pluggable `QueueDriver` decides when it runs — immediately (the default),
- * held in memory for a worker to drain, or handed to a real broker. The API
+ * held in memory for a worker to drain, persisted so it survives a restart
+ * (`DatabaseDriver` as rows, `RedisDriver` in sorted sets), or handed to a
+ * real broker. The API
  * mirrors the database and mail layers (`setQueue` / `dispatch` are to queues
  * what `setConnection` / `db()` are to the database). The core imports no broker,
  * so it stays edge-safe.
@@ -27,6 +29,8 @@
 
 import { logger, hasApplication } from "./helpers.js";
 import { instrument, currentRequestId } from "./instrumentation.js";
+import { db, type Row } from "./database.js";
+import { redis, type Redis, type RedisConnection } from "./redis.js";
 
 /* ---------------------------------- jobs ---------------------------------- */
 
@@ -346,6 +350,593 @@ export class MemoryDriver implements QueueDriver, Drainable {
         count++;
       }
     }
+  }
+}
+
+/* ---------------------------- the database driver -------------------------- */
+
+/**
+ * Job classes the database driver may rehydrate, keyed by class name. A job
+ * pulled off a database queue is only a class name and a JSON payload;
+ * registration is what turns the name back into a constructor — a worker
+ * process can't reach into the dispatching process's closures.
+ */
+const jobClasses = new Map<string, JobClass>();
+
+/**
+ * Register job classes so a worker can rebuild them from their stored payload.
+ * Call it once at boot (a provider's `register()`), in both the process that
+ * dispatches and the one that runs `queue:work` — they are often not the same.
+ *
+ *   registerJobs(SendWelcome, ChargeCard);
+ */
+export function registerJobs(...classes: JobClass[]): void {
+  for (const cls of classes) jobClasses.set(cls.name, cls);
+}
+
+/** The instance's own state, minus driver bookkeeping — what gets stored. */
+function serialize(job: Job): string {
+  const payload: Record<string, unknown> = { ...job };
+  delete payload.context;
+  return JSON.stringify(payload);
+}
+
+/** Rebuild a Job from its class name and stored payload, bypassing the constructor. */
+function hydrate(name: string, payload: string): Job {
+  const cls = jobClasses.get(name);
+  if (!cls) {
+    throw new Error(
+      `queue: no job class registered as "${name}" — call registerJobs(${name}) at boot so the worker can rebuild it.`,
+    );
+  }
+  const job = Object.create(cls.prototype) as Job;
+  Object.assign(job, JSON.parse(payload));
+  return job;
+}
+
+/** A failed job as a database driver stores it — inspectable and retryable. */
+export interface FailedJobRecord {
+  id: number | string;
+  queue: string;
+  /** The job's class name. */
+  job: string;
+  payload: string;
+  attempts: number;
+  error: string;
+  /** Epoch ms. */
+  failedAt: number;
+}
+
+/** A driver that persists failures — what `queue:failed` / `queue:retry` drive. */
+export interface FailedJobStore {
+  failedJobs(): Promise<FailedJobRecord[]>;
+  /** Move a failed job back onto the queue. Returns whether it was found. */
+  retryFailed(id: number | string): Promise<boolean>;
+  /** Delete failed jobs — one, or all of them. Returns how many were removed. */
+  flushFailed(id?: number | string): Promise<number>;
+}
+
+export interface DatabaseDriverOptions {
+  /** Pending-jobs table. Default: `"jobs"`. */
+  table?: string;
+  /** Failed-jobs table. Default: `"failed_jobs"`. */
+  failedTable?: string;
+  /** Named connection to use. Default: the default connection. */
+  connection?: string;
+  /**
+   * Seconds after which a reserved-but-unfinished job is released for another
+   * attempt — the escape hatch for a worker that died mid-job. Must be longer
+   * than your slowest job, or it will run twice. Default: 300.
+   */
+  staleAfter?: number;
+}
+
+/**
+ * A queue that survives a restart: jobs live in a database table, workers claim
+ * them atomically, and exhausted jobs land in a failed-jobs table where
+ * `queue:failed` / `queue:retry` can see them. Built on the `db()` layer, so it
+ * runs anywhere a `Connection` does — Node, D1, Postgres, libSQL.
+ *
+ *   setQueue(new DatabaseDriver());
+ *   registerJobs(SendWelcome);            // in the worker too
+ *   await dispatch(new SendWelcome(user.id));
+ *
+ * Two constraints follow from jobs being *rows*: only `Job` subclasses can be
+ * dispatched (a closure can't be serialized), and a per-dispatch `backoff`
+ * override can't cross the process boundary (a function isn't data) — backoff
+ * comes from the job class; `maxRetries` overrides are stored and honored.
+ */
+export class DatabaseDriver implements QueueDriver, FailedJobStore {
+  private table: string;
+  private failedTable: string;
+  private connection?: string;
+  private staleAfter: number;
+
+  constructor(options: DatabaseDriverOptions = {}) {
+    this.table = options.table ?? "jobs";
+    this.failedTable = options.failedTable ?? "failed_jobs";
+    if (options.connection !== undefined) this.connection = options.connection;
+    this.staleAfter = options.staleAfter ?? 300;
+  }
+
+  private jobs() {
+    return db(this.table, this.connection);
+  }
+
+  private failed() {
+    return db(this.failedTable, this.connection);
+  }
+
+  async push(job: Dispatchable, options: JobOptions): Promise<void> {
+    if (!(job instanceof Job)) {
+      throw new Error(
+        "queue: the database driver can't serialize a closure — dispatch a Job subclass (and registerJobs() it) instead.",
+      );
+    }
+    await this.jobs().insert({
+      queue: options.queue ?? "default",
+      job: job.constructor.name,
+      payload: serialize(job),
+      attempts: 0,
+      max_retries: options.maxRetries ?? null,
+      priority: options.priority ?? 0,
+      available_at: Date.now() + (options.delay ?? 0) * 1000,
+      reserved_at: null,
+      created_at: Date.now(),
+    });
+  }
+
+  /** How many jobs are waiting to run (not currently reserved by a worker). */
+  async pending(): Promise<number> {
+    return this.jobs().whereNull("reserved_at").count();
+  }
+
+  /**
+   * Run every job that's currently due; returns how many ran. Safe to call from
+   * several workers at once — a job is claimed with an atomic conditional
+   * update, so exactly one worker gets it.
+   */
+  async work(): Promise<number> {
+    await this.releaseStale();
+    let count = 0;
+    for (;;) {
+      const row = await this.claim();
+      if (!row) return count;
+      await this.run(row);
+      count++;
+    }
+  }
+
+  /** Free jobs whose worker vanished mid-run, so they aren't reserved forever. */
+  private async releaseStale(): Promise<void> {
+    await this.jobs()
+      .whereNotNull("reserved_at")
+      .where("reserved_at", "<", Date.now() - this.staleAfter * 1000)
+      .update({ reserved_at: null });
+  }
+
+  /** The next due job, claimed. Loses a race gracefully: it just tries the next one. */
+  private async claim(): Promise<Row | null> {
+    for (;;) {
+      const row = await this.jobs()
+        .whereNull("reserved_at")
+        .where("available_at", "<=", Date.now())
+        .orderBy("priority")
+        .orderBy("id")
+        .first();
+      if (!row) return null;
+
+      const { rowsAffected } = await this.jobs()
+        .where("id", row.id as number)
+        .whereNull("reserved_at")
+        .update({ reserved_at: Date.now() });
+      if (rowsAffected) return row;
+      // Another worker got there first — claim the next one instead.
+    }
+  }
+
+  private async run(row: Row): Promise<void> {
+    const attempt = Number(row.attempts) + 1;
+    const context: JobContext = {
+      jobId: String(row.id),
+      attempt,
+      queue: String(row.queue),
+    };
+
+    let job: Job;
+    try {
+      job = hydrate(String(row.job), String(row.payload));
+    } catch (error) {
+      // An unregistered class can never run — no amount of retrying fixes a
+      // missing registerJobs() call. Straight to the failed table, loudly.
+      log("queue: job failed", { job: String(row.job), jobId: context.jobId, error });
+      instrument("job.failed", { job: String(row.job), error });
+      await this.moveToFailed(row, attempt, error);
+      return;
+    }
+
+    try {
+      await invoke(job, context);
+      await this.jobs().where("id", row.id as number).delete();
+    } catch (error) {
+      const stored = row.max_retries;
+      const { maxRetries, backoff } = policy(job, {
+        ...(stored != null ? { maxRetries: Number(stored) } : {}),
+      });
+      if (attempt > maxRetries) {
+        await reportFailure(job, error, context);
+        await this.moveToFailed(row, attempt, error);
+      } else {
+        // Back on the queue, not runnable until the backoff has elapsed.
+        await this.jobs().where("id", row.id as number).update({
+          attempts: attempt,
+          reserved_at: null,
+          available_at: Date.now() + backoff(attempt),
+        });
+      }
+    }
+  }
+
+  private async moveToFailed(row: Row, attempts: number, error: unknown): Promise<void> {
+    await this.failed().insert({
+      queue: row.queue,
+      job: row.job,
+      payload: row.payload,
+      priority: row.priority ?? 0,
+      attempts,
+      error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+      failed_at: Date.now(),
+    });
+    await this.jobs().where("id", row.id as number).delete();
+  }
+
+  async failedJobs(): Promise<FailedJobRecord[]> {
+    const rows = await this.failed().orderBy("id").get();
+    return rows.map((row) => ({
+      id: row.id as number | string,
+      queue: String(row.queue),
+      job: String(row.job),
+      payload: String(row.payload),
+      attempts: Number(row.attempts),
+      error: String(row.error),
+      failedAt: Number(row.failed_at),
+    }));
+  }
+
+  async retryFailed(id: number | string): Promise<boolean> {
+    const row = await this.failed().where("id", id).first();
+    if (!row) return false;
+    await this.jobs().insert({
+      queue: row.queue,
+      job: row.job,
+      payload: row.payload,
+      attempts: 0,
+      max_retries: null,
+      priority: row.priority ?? 0,
+      available_at: Date.now(),
+      reserved_at: null,
+      created_at: Date.now(),
+    });
+    await this.failed().where("id", id).delete();
+    return true;
+  }
+
+  async flushFailed(id?: number | string): Promise<number> {
+    const query = id === undefined ? this.failed() : this.failed().where("id", id);
+    const { rowsAffected } = await query.delete();
+    return rowsAffected;
+  }
+}
+
+/** Schema for the database driver's two tables — add it to your migrations. */
+export function queueMigration(table = "jobs", failedTable = "failed_jobs"): import("./migrations.js").Migration {
+  return {
+    name: `queue_00_${table}`,
+    async up(schema) {
+      await schema.createTable(table, (t) => {
+        t.id();
+        t.string("queue").default("default");
+        t.string("job");
+        t.text("payload");
+        t.integer("attempts").default(0);
+        t.integer("max_retries").nullable();
+        t.integer("priority").default(0);
+        t.bigInteger("available_at");
+        t.bigInteger("reserved_at").nullable();
+        t.bigInteger("created_at");
+        t.index(["queue", "reserved_at", "available_at"]);
+      });
+      await schema.createTable(failedTable, (t) => {
+        t.id();
+        t.string("queue");
+        t.string("job");
+        t.text("payload");
+        t.integer("priority").default(0);
+        t.integer("attempts");
+        t.text("error");
+        t.bigInteger("failed_at");
+      });
+    },
+    async down(schema) {
+      await schema.dropTable(failedTable);
+      await schema.dropTable(table);
+    },
+  };
+}
+
+/* ----------------------------- the redis driver ---------------------------- */
+
+/** A job as it lives inside a Redis sorted-set member (JSON-encoded). */
+interface RedisJobRecord {
+  id: string;
+  /** Monotonic sequence — the stable tiebreak within equal priority. */
+  seq: number;
+  queue: string;
+  /** The job's class name. */
+  job: string;
+  payload: string;
+  attempts: number;
+  /** A per-dispatch `maxRetries` override, if one was given. */
+  maxRetries: number | null;
+  priority: number;
+}
+
+/** The sorted-set / hash commands the driver runs on. */
+const REDIS_QUEUE_COMMANDS = [
+  "zadd",
+  "zrangebyscore",
+  "zrem",
+  "zcard",
+  "hset",
+  "hget",
+  "hgetall",
+  "hdel",
+] as const;
+
+type RedisQueueConnection = RedisConnection &
+  Required<Pick<RedisConnection, (typeof REDIS_QUEUE_COMMANDS)[number]>>;
+
+export interface RedisDriverOptions {
+  /** The client to use. Default: the `redis()` global. */
+  client?: Redis;
+  /** Key prefix. Default: `"queue"` → `queue:jobs`, `queue:reserved`, `queue:failed`. */
+  prefix?: string;
+  /**
+   * Seconds after which a claimed-but-unfinished job is released for another
+   * attempt — the escape hatch for a worker that died mid-job. Must be longer
+   * than your slowest job, or it will run twice. Default: 300.
+   */
+  staleAfter?: number;
+}
+
+/**
+ * A queue in Redis: pending jobs in a sorted set scored by when they become
+ * due, claims in a second set scored by their deadline, failures in a hash.
+ * Same durability contract as `DatabaseDriver` — jobs survive a restart,
+ * several workers can share the keys, exhausted jobs are retryable — with
+ * Redis's latency instead of a SQL round-trip.
+ *
+ *   setRedis(myAdapter);            // ioredis, node-redis, Upstash…
+ *   setQueue(new RedisDriver());
+ *   registerJobs(SendWelcome);      // in the worker too
+ *
+ * A claim is `ZREM` — atomic per command, so exactly one worker removes any
+ * member and no Lua script is required, which keeps HTTP adapters (Upstash) in
+ * play. The same serialization rules as the database driver apply: `Job`
+ * subclasses only, class-level backoff.
+ */
+export class RedisDriver implements QueueDriver, FailedJobStore {
+  private client?: Redis;
+  private prefix: string;
+  private staleAfter: number;
+
+  constructor(options: RedisDriverOptions = {}) {
+    if (options.client !== undefined) this.client = options.client;
+    this.prefix = options.prefix ?? "queue";
+    this.staleAfter = options.staleAfter ?? 300;
+  }
+
+  private get jobsKey(): string {
+    return `${this.prefix}:jobs`;
+  }
+  private get reservedKey(): string {
+    return `${this.prefix}:reserved`;
+  }
+  private get failedKey(): string {
+    return `${this.prefix}:failed`;
+  }
+
+  /** The connection, verified to speak the sorted-set/hash commands we need. */
+  private conn(): RedisQueueConnection {
+    const conn = (this.client ?? redis()).connection;
+    const missing = REDIS_QUEUE_COMMANDS.filter((cmd) => typeof conn[cmd] !== "function");
+    if (missing.length) {
+      throw new Error(
+        `queue: the Redis connection doesn't implement ${missing.join(", ")} — ` +
+          "add them to your RedisConnection adapter (each is one standard Redis command).",
+      );
+    }
+    return conn as RedisQueueConnection;
+  }
+
+  private async nextRecordId(): Promise<number> {
+    return this.conn().incrBy(`${this.prefix}:seq`, 1);
+  }
+
+  async push(job: Dispatchable, options: JobOptions): Promise<void> {
+    if (!(job instanceof Job)) {
+      throw new Error(
+        "queue: the redis driver can't serialize a closure — dispatch a Job subclass (and registerJobs() it) instead.",
+      );
+    }
+    const seq = await this.nextRecordId();
+    const record: RedisJobRecord = {
+      id: String(seq),
+      seq,
+      queue: options.queue ?? "default",
+      job: job.constructor.name,
+      payload: serialize(job),
+      attempts: 0,
+      maxRetries: options.maxRetries ?? null,
+      priority: options.priority ?? 0,
+    };
+    await this.conn().zadd(this.jobsKey, Date.now() + (options.delay ?? 0) * 1000, JSON.stringify(record));
+  }
+
+  /** How many jobs are waiting to run (not currently claimed by a worker). */
+  async pending(): Promise<number> {
+    return this.conn().zcard(this.jobsKey);
+  }
+
+  /**
+   * Run every job that's currently due; returns how many ran. Safe to call from
+   * several workers at once — `ZREM` removes a member exactly once, so a job
+   * has exactly one claimant.
+   */
+  async work(): Promise<number> {
+    await this.releaseStale();
+    let count = 0;
+    for (;;) {
+      const claimed = await this.claim();
+      if (!claimed) return count;
+      await this.run(claimed.record, claimed.member);
+      count++;
+    }
+  }
+
+  /** Free jobs whose worker vanished mid-run, so they aren't claimed forever. */
+  private async releaseStale(): Promise<void> {
+    const conn = this.conn();
+    for (const member of await conn.zrangebyscore(this.reservedKey, 0, Date.now())) {
+      // Only the one who removes the reservation gets to requeue it.
+      if (await conn.zrem(this.reservedKey, member)) {
+        await conn.zadd(this.jobsKey, Date.now(), member);
+      }
+    }
+  }
+
+  /**
+   * The next due job, claimed. Fetches a batch of due members, orders them by
+   * priority then dispatch order, and races `ZREM` — losing to another worker
+   * just means trying the next one.
+   */
+  private async claim(): Promise<{ record: RedisJobRecord; member: string } | null> {
+    const conn = this.conn();
+    for (;;) {
+      const due = await conn.zrangebyscore(this.jobsKey, 0, Date.now(), 32);
+      if (!due.length) return null;
+
+      const candidates = due
+        .map((member) => ({ member, record: JSON.parse(member) as RedisJobRecord }))
+        .sort((a, b) => a.record.priority - b.record.priority || a.record.seq - b.record.seq);
+
+      for (const candidate of candidates) {
+        if (await conn.zrem(this.jobsKey, candidate.member)) {
+          await conn.zadd(this.reservedKey, Date.now() + this.staleAfter * 1000, candidate.member);
+          return candidate;
+        }
+      }
+      // Every candidate went to other workers — look again.
+    }
+  }
+
+  private async run(record: RedisJobRecord, member: string): Promise<void> {
+    const conn = this.conn();
+    const attempt = record.attempts + 1;
+    const context: JobContext = { jobId: record.id, attempt, queue: record.queue };
+
+    let job: Job;
+    try {
+      job = hydrate(record.job, record.payload);
+    } catch (error) {
+      // An unregistered class can never run — no amount of retrying fixes a
+      // missing registerJobs() call. Straight to the failed hash, loudly.
+      log("queue: job failed", { job: record.job, jobId: record.id, error });
+      instrument("job.failed", { job: record.job, error });
+      await this.moveToFailed(record, attempt, error, member);
+      return;
+    }
+
+    try {
+      await invoke(job, context);
+      await conn.zrem(this.reservedKey, member);
+    } catch (error) {
+      const { maxRetries, backoff } = policy(job, {
+        ...(record.maxRetries != null ? { maxRetries: record.maxRetries } : {}),
+      });
+      if (attempt > maxRetries) {
+        await reportFailure(job, error, context);
+        await this.moveToFailed(record, attempt, error, member);
+      } else {
+        // Back on the queue, not runnable until the backoff has elapsed.
+        await conn.zrem(this.reservedKey, member);
+        await conn.zadd(
+          this.jobsKey,
+          Date.now() + backoff(attempt),
+          JSON.stringify({ ...record, attempts: attempt }),
+        );
+      }
+    }
+  }
+
+  private async moveToFailed(
+    record: RedisJobRecord,
+    attempts: number,
+    error: unknown,
+    member: string,
+  ): Promise<void> {
+    await this.conn().hset(
+      this.failedKey,
+      record.id,
+      JSON.stringify({
+        id: record.id,
+        queue: record.queue,
+        job: record.job,
+        payload: record.payload,
+        priority: record.priority,
+        attempts,
+        error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+        failedAt: Date.now(),
+      }),
+    );
+    await this.conn().zrem(this.reservedKey, member);
+  }
+
+  async failedJobs(): Promise<FailedJobRecord[]> {
+    const all = await this.conn().hgetall(this.failedKey);
+    return Object.values(all)
+      .map((raw) => JSON.parse(raw) as FailedJobRecord & { priority: number })
+      .sort((a, b) => a.failedAt - b.failedAt || String(a.id).localeCompare(String(b.id)));
+  }
+
+  async retryFailed(id: number | string): Promise<boolean> {
+    const conn = this.conn();
+    const raw = await conn.hget(this.failedKey, String(id));
+    if (raw == null) return false;
+    const failed = JSON.parse(raw) as FailedJobRecord & { priority: number };
+
+    const seq = await this.nextRecordId();
+    const record: RedisJobRecord = {
+      id: String(seq),
+      seq,
+      queue: failed.queue,
+      job: failed.job,
+      payload: failed.payload,
+      attempts: 0,
+      maxRetries: null,
+      priority: failed.priority ?? 0,
+    };
+    await conn.zadd(this.jobsKey, Date.now(), JSON.stringify(record));
+    await conn.hdel(this.failedKey, String(id));
+    return true;
+  }
+
+  async flushFailed(id?: number | string): Promise<number> {
+    const conn = this.conn();
+    if (id !== undefined) return conn.hdel(this.failedKey, String(id));
+    const count = Object.keys(await conn.hgetall(this.failedKey)).length;
+    await conn.del(this.failedKey);
+    return count;
   }
 }
 

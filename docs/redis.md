@@ -103,6 +103,30 @@ const upstash = (url: string, token: string): RedisConnection => {
 setRedis(upstash(env("UPSTASH_URL"), env("UPSTASH_TOKEN")));
 ```
 
+### The optional queue commands
+
+`RedisConnection` also declares eight **optional** methods — `zadd`,
+`zrangebyscore`, `zrem`, `zcard`, `hset`, `hget`, `hgetall`, `hdel` — the
+sorted-set and hash commands the queue's
+[`RedisDriver`](./queues.md#the-redis-driver) runs on. A minimal adapter that
+skips them still works everywhere else; the queue refuses it at first use with
+the missing commands named. Each maps 1:1 onto a standard Redis command, so
+extending the Upstash adapter above is one `call(...)` line apiece:
+
+```ts
+async zadd(key, score, member) { return (await call("ZADD", key, score, member)).result; },
+async zrangebyscore(key, min, max, limit) {
+  const args = limit === undefined ? [] : ["LIMIT", 0, limit];
+  return (await call("ZRANGEBYSCORE", key, min, max, ...args)).result;
+},
+async zrem(key, member) { return (await call("ZREM", key, member)).result; },
+// …and so on for zcard, hset, hget, hgetall, hdel
+```
+
+(For `hgetall`, mind your client's return shape — the queue expects a
+`Record<string, string>`; Upstash's REST API returns a flat
+`[field, value, …]` array you'll need to fold.)
+
 ## In tests
 
 `MemoryRedis` is a full in-memory implementation with TTL support — no server:

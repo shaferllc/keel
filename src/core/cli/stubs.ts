@@ -1,5 +1,73 @@
 /** Code-generation templates for `keel make:*`. */
 
+/** The conventional table for a model class: `UserProfile` → `user_profiles`. */
+export function tableName(model: string): string {
+  const snake = model.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  return snake.endsWith("s") ? snake : `${snake}s`;
+}
+
+export function modelStub(name: string, table: string): string {
+  return `import { Model } from "@shaferllc/keel/core";
+
+export class ${name} extends Model {
+  static override table = "${table}";
+  static override fillable = [];
+  static override timestamps = true;
+
+  declare id: number;
+}
+`;
+}
+
+/**
+ * A migration — `database/migrations/<name>.ts`. Shapes the stub from what the
+ * name says it does: a `create` table gets a full createTable/dropTable pair, an
+ * altered `table` gets alterTable both ways, and anything else is left open.
+ */
+export function migrationStub(name: string, create?: string, alter?: string): string {
+  const body = create
+    ? `  async up(schema) {
+    await schema.createTable("${create}", (t) => {
+      t.id();
+      t.timestamps();
+    });
+  },
+
+  async down(schema) {
+    await schema.dropTable("${create}");
+  },`
+    : alter
+      ? `  async up(schema) {
+    await schema.alterTable("${alter}", (t) => {
+      // t.string("column");
+    });
+  },
+
+  async down(schema) {
+    await schema.alterTable("${alter}", (t) => {
+      // t.dropColumn("column");
+    });
+  },`
+      : `  async up(schema) {
+    // await schema.createTable(...) / schema.alterTable(...) / schema.raw(...)
+  },
+
+  async down(schema) {
+    // Undo what up() did.
+  },`;
+
+  return `import type { Migration } from "@shaferllc/keel/core";
+
+const migration: Migration = {
+  name: "${name}",
+
+${body}
+};
+
+export default migration;
+`;
+}
+
 export function controllerStub(name: string): string {
   return `import type { Ctx } from "@shaferllc/keel/core";
 

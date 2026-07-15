@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.83.17",
+  "version": "0.84.0",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "repo": "https://github.com/shaferllc/keel",
   "generated": "run `npm run build:ai` to regenerate",
@@ -158,6 +158,13 @@
       "summary": "Populate the database with realistic fixtures for tests and demos.",
       "path": "docs/factories.md",
       "example": "docs/examples/factories.ts"
+    },
+    {
+      "slug": "flags",
+      "title": "Feature Flags",
+      "summary": "Ship the code dark, turn it on when you're ready — per user, per team, or for everyone.",
+      "path": "docs/flags.md",
+      "example": null
     },
     {
       "slug": "from-install-to-deploy",
@@ -823,6 +830,16 @@
       "module": "instrumentation"
     },
     {
+      "name": "cacheMigration",
+      "kind": "value",
+      "module": "cache"
+    },
+    {
+      "name": "cacheRateLimitStore",
+      "kind": "value",
+      "module": "rate-limit"
+    },
+    {
       "name": "CacheStore",
       "kind": "type",
       "module": "cache"
@@ -1138,6 +1155,26 @@
       "module": "health"
     },
     {
+      "name": "DatabaseDriver",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "DatabaseDriverOptions",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "DatabaseFlagStore",
+      "kind": "value",
+      "module": "flags"
+    },
+    {
+      "name": "DatabaseStore",
+      "kind": "value",
+      "module": "cache"
+    },
+    {
       "name": "db",
       "kind": "value",
       "module": "database"
@@ -1373,6 +1410,16 @@
       "module": "queue"
     },
     {
+      "name": "FailedJobRecord",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "FailedJobStore",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
       "name": "fakeDisk",
       "kind": "value",
       "module": "storage"
@@ -1406,6 +1453,21 @@
       "name": "FakeStorage",
       "kind": "value",
       "module": "storage"
+    },
+    {
+      "name": "feature",
+      "kind": "value",
+      "module": "flags"
+    },
+    {
+      "name": "features",
+      "kind": "value",
+      "module": "flags"
+    },
+    {
+      "name": "Features",
+      "kind": "value",
+      "module": "flags"
     },
     {
       "name": "fetchTransport",
@@ -1443,6 +1505,26 @@
       "module": "console"
     },
     {
+      "name": "FlagResolver",
+      "kind": "type",
+      "module": "flags"
+    },
+    {
+      "name": "FlagScope",
+      "kind": "type",
+      "module": "flags"
+    },
+    {
+      "name": "flagScopeKey",
+      "kind": "value",
+      "module": "flags"
+    },
+    {
+      "name": "flagsMigration",
+      "kind": "value",
+      "module": "flags"
+    },
+    {
       "name": "FlagSpec",
       "kind": "type",
       "module": "console"
@@ -1451,6 +1533,11 @@
       "name": "FlagsSpec",
       "kind": "type",
       "module": "console"
+    },
+    {
+      "name": "FlagStore",
+      "kind": "type",
+      "module": "flags"
     },
     {
       "name": "flushTelemetry",
@@ -1748,6 +1835,16 @@
       "module": "crypto"
     },
     {
+      "name": "KvNamespaceLike",
+      "kind": "type",
+      "module": "cache"
+    },
+    {
+      "name": "kvStore",
+      "kind": "value",
+      "module": "cache"
+    },
+    {
       "name": "LengthRequiredException",
       "kind": "value",
       "module": "exceptions"
@@ -1918,9 +2015,19 @@
       "module": "telemetry"
     },
     {
+      "name": "MemoryFlagStore",
+      "kind": "value",
+      "module": "flags"
+    },
+    {
       "name": "MemoryLockStore",
       "kind": "value",
       "module": "lock"
+    },
+    {
+      "name": "MemoryRateLimitStore",
+      "kind": "value",
+      "module": "rate-limit"
     },
     {
       "name": "MemoryRedis",
@@ -2328,12 +2435,27 @@
       "module": "queue"
     },
     {
+      "name": "queueMigration",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "RateLimitBucket",
+      "kind": "type",
+      "module": "rate-limit"
+    },
+    {
       "name": "rateLimiter",
       "kind": "value",
       "module": "rate-limit"
     },
     {
       "name": "RateLimiterOptions",
+      "kind": "type",
+      "module": "rate-limit"
+    },
+    {
+      "name": "RateLimitStore",
       "kind": "type",
       "module": "rate-limit"
     },
@@ -2383,6 +2505,21 @@
       "module": "redis"
     },
     {
+      "name": "RedisDriver",
+      "kind": "value",
+      "module": "queue"
+    },
+    {
+      "name": "RedisDriverOptions",
+      "kind": "type",
+      "module": "queue"
+    },
+    {
+      "name": "redisRateLimitStore",
+      "kind": "value",
+      "module": "rate-limit"
+    },
+    {
       "name": "redisStore",
       "kind": "value",
       "module": "redis"
@@ -2391,6 +2528,11 @@
       "name": "RegisteredPage",
       "kind": "type",
       "module": "pages"
+    },
+    {
+      "name": "registerJobs",
+      "kind": "value",
+      "module": "queue"
     },
     {
       "name": "registerMorphType",
@@ -2766,6 +2908,11 @@
       "name": "setDisk",
       "kind": "value",
       "module": "storage"
+    },
+    {
+      "name": "setFeatures",
+      "kind": "value",
+      "module": "flags"
     },
     {
       "name": "setI18n",
@@ -3346,6 +3493,25 @@
         "-r, --resource"
       ],
       "note": "A controller class resolved from the container. `-r` scaffolds all seven RESTful actions."
+    },
+    {
+      "command": "make:model <name>",
+      "produces": "app/Models/<Name>.ts",
+      "flags": [
+        "-m, --migration",
+        "-f, --factory",
+        "-c, --controller"
+      ],
+      "note": "An active-record model. Flags also scaffold its create-table migration, factory, and resource controller."
+    },
+    {
+      "command": "make:migration <name>",
+      "produces": "database/migrations/<NNNN>_<name>.ts",
+      "flags": [
+        "--create <table>",
+        "--table <table>"
+      ],
+      "note": "A migration. Names like create_posts or add_slug_to_posts shape the stub; flags override the inference."
     },
     {
       "command": "make:provider <name>",

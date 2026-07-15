@@ -85,7 +85,8 @@ right imports and target path. Then wire it up.
 | Controller | `keel make:controller Post` (`-r` for REST) | add a route in `routes/web.ts` |
 | Provider | `keel make:provider Billing` | register in `bootstrap/providers.ts` |
 | Middleware | `keel make:middleware Auth` | attach in `app/Http/Kernel.ts` or per-route |
-| Model | *(no generator — extend `Model`)* | set `static table`; add relations |
+| Model | `keel make:model Post` (`-m` migration, `-f` factory, `-c` controller) | set `fillable`; add relations |
+| Migration | `keel make:migration create_posts` (name shapes the stub) | fill in the columns |
 | Factory | `keel make:factory User` | reference the model |
 | Seeder | `keel make:seeder Database` | call factories in `run()` |
 | Job | `keel make:job SendWelcome` | `dispatch(new SendWelcomeJob())` |
@@ -116,6 +117,7 @@ npm run dev            # example app on http://localhost:3000 (tsx watch)
 npm run serve          # keel serve
 npm run keel -- routes # list registered routes
 npm run keel -- migrate # run pending app + package migrations (also migrate:status, migrate:rollback)
+npm run keel -- queue:work --once # drain due jobs (also queue:failed, queue:retry, queue:flush)
 npm run keel -- make:controller Foo
 npm run mcp            # start the MCP server over stdio (dev)
 npm test               # node --test over tests/*.test.ts

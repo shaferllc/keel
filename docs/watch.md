@@ -53,6 +53,21 @@ Clicking any entry shows its full detail and **everything else in its batch** �
 the request it belonged to and every query, log, and exception that request
 produced.
 
+## Failed jobs
+
+The **Failed jobs** tab is the one place Watch *acts* instead of observing: it
+lists the queue's failed jobs — class, queue, attempts, the full error — with
+**Retry** and **Delete** per row, plus retry-all and flush-all. It drives the
+same bookkeeping as `keel queue:failed` / `queue:retry` / `queue:flush`, so a
+retry from the dashboard is exactly a retry from the console.
+
+What it can show depends on the queue driver: the
+[database](./queues.md#the-database-driver) and
+[redis](./queues.md#the-redis-driver) drivers persist failures (a retry
+survives a restart and any worker can pick it up); the in-memory drivers expose
+their per-process `failed` list, where a retry re-pushes the live instance. A
+driver that keeps no failure list gets an explanatory empty state.
+
 ## Configuration
 
 `config/watch.ts` (publish it, then edit):

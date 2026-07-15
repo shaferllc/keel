@@ -30,6 +30,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Errors & Exceptions](https://github.com/shaferllc/keel/blob/main/docs/errors.md): Throw an exception anywhere — a handler, middleware, or a service deep in the container — and Keel's HTTP kernel turns it into the right response.
 - [Events](https://github.com/shaferllc/keel/blob/main/docs/events.md): A tiny event emitter for decoupling — fire an event in one place, handle it in another.
 - [Factories & Seeders](https://github.com/shaferllc/keel/blob/main/docs/factories.md): Populate the database with realistic fixtures for tests and demos.
+- [Feature Flags](https://github.com/shaferllc/keel/blob/main/docs/flags.md): Ship the code dark, turn it on when you're ready — per user, per team, or for everyone.
 - [From install to deploy](https://github.com/shaferllc/keel/blob/main/docs/from-install-to-deploy.md): One path from zero to a live Keel app — locally, on Cloudflare yourself, or on Keel Cloud with an AI agent.
 - [Gates](https://github.com/shaferllc/keel/blob/main/docs/gates.md): Keel Gates is a signup gate for private alpha / waitlist apps: an email allowlist, invite codes with use limits and expiry, and a single check that answers "may this person register?".
 - [Getting Started](https://github.com/shaferllc/keel/blob/main/docs/getting-started.md): Keel is a house framework for Node.js — a small, legible MVC layer over Hono.

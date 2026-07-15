@@ -43,8 +43,8 @@ export type {
   PayloadOf,
   RecordedEvent,
 } from "./events.js";
-export { Cache, MemoryStore } from "./cache.js";
-export type { CacheStore, RememberOptions, PutOptions } from "./cache.js";
+export { Cache, MemoryStore, DatabaseStore, cacheMigration, kvStore } from "./cache.js";
+export type { CacheStore, RememberOptions, PutOptions, KvNamespaceLike } from "./cache.js";
 export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
 export {
@@ -120,8 +120,13 @@ export type {
 export { dump, dd } from "./debug.js";
 export { hash, encryption, jwt } from "./crypto.js";
 export type { JwtPayload, JwtSignOptions, JwtVerifyOptions, EncryptOptions } from "./crypto.js";
-export { rateLimiter } from "./rate-limit.js";
-export type { RateLimiterOptions } from "./rate-limit.js";
+export {
+  rateLimiter,
+  MemoryRateLimitStore,
+  redisRateLimitStore,
+  cacheRateLimitStore,
+} from "./rate-limit.js";
+export type { RateLimiterOptions, RateLimitStore, RateLimitBucket } from "./rate-limit.js";
 export { cors } from "./cors.js";
 export type { CorsOptions } from "./cors.js";
 export { securityHeaders } from "./shield.js";
@@ -203,6 +208,10 @@ export {
   FakeQueue,
   SyncDriver,
   MemoryDriver,
+  DatabaseDriver,
+  RedisDriver,
+  registerJobs,
+  queueMigration,
   dispatch,
   work,
   setQueue,
@@ -223,6 +232,10 @@ export type {
   Drainable,
   QueuedJob,
   FailedJob,
+  FailedJobRecord,
+  FailedJobStore,
+  DatabaseDriverOptions,
+  RedisDriverOptions,
   Backoff,
 } from "./queue.js";
 export { Scheduler, ScheduledTask, scheduler, setScheduler, schedule, cronMatches } from "./scheduler.js";
@@ -236,6 +249,17 @@ export {
   clearChannels,
 } from "./broadcasting.js";
 export type { Broadcaster, Subscriber, ChannelAuthorizer } from "./broadcasting.js";
+export {
+  Features,
+  MemoryFlagStore,
+  DatabaseFlagStore,
+  flagsMigration,
+  flagScopeKey,
+  features,
+  setFeatures,
+  feature,
+} from "./flags.js";
+export type { FlagStore, FlagScope, FlagResolver } from "./flags.js";
 export { Redis, MemoryRedis, redis, setRedis, redisStore } from "./redis.js";
 export type { RedisConnection, SetOptions } from "./redis.js";
 export {

@@ -139,6 +139,8 @@ async function collectApi(): Promise<ApiEntry[]> {
 
 const GENERATORS = [
   { command: "make:controller <name>", produces: "app/Controllers/<Name>Controller.ts", flags: ["-r, --resource"], note: "A controller class resolved from the container. `-r` scaffolds all seven RESTful actions." },
+  { command: "make:model <name>", produces: "app/Models/<Name>.ts", flags: ["-m, --migration", "-f, --factory", "-c, --controller"], note: "An active-record model. Flags also scaffold its create-table migration, factory, and resource controller." },
+  { command: "make:migration <name>", produces: "database/migrations/<NNNN>_<name>.ts", flags: ["--create <table>", "--table <table>"], note: "A migration. Names like create_posts or add_slug_to_posts shape the stub; flags override the inference." },
   { command: "make:provider <name>", produces: "app/Providers/<Name>ServiceProvider.ts", flags: [], note: "A service provider with register()/boot() lifecycle hooks." },
   { command: "make:middleware <name>", produces: "app/Http/Middleware/<name>.ts", flags: [], note: "A Hono middleware handler (before/after next())." },
   { command: "make:factory <model>", produces: "database/factories/<Model>Factory.ts", flags: [], note: "A model factory for seeding/testing." },

@@ -4,6 +4,70 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.84.0] — 2026-07-15
+
+The theme of this release: the pluggable seams grew **shipped, durable
+drivers**, with a database-backed variant as the portable default — a queue, a
+cache, and a rate limit you can restart.
+
+### Added
+
+- **A database queue driver.** Jobs are rows now, if you want them to be:
+  `setQueue(new DatabaseDriver())` + `queueMigration()` and a dispatched job
+  survives a deploy, a crash, and a Worker eviction. Workers claim jobs with an
+  atomic conditional update (several can share the table), a claim held past
+  `staleAfter` is released, and exhausted jobs land in a **failed-jobs table**
+  instead of vanishing with the process. Because jobs cross a process boundary
+  as data, closures are refused with a pointed error and job classes are
+  rebuilt via `registerJobs()` — in the worker too, which is never the process
+  you thought it was.
+
+- **A redis queue driver.** The same durability contract as the database
+  driver, in Redis: pending jobs in a sorted set scored by when they're due
+  (delays and backoffs are just future scores), claims via atomic `ZREM` (one
+  winner per member, no Lua — HTTP adapters like Upstash stay in play), a
+  reserved set with deadlines for crash recovery, failures in a hash. The
+  sorted-set/hash commands it needs are **optional** additions to
+  `RedisConnection` — a minimal adapter keeps working everywhere else, and the
+  queue names exactly which commands are missing. `MemoryRedis` implements
+  them all, so tests exercise the real driver.
+
+- **Queue console commands.** `queue:work` (poll; `--once` to drain and exit,
+  the right shape for a cron trigger), `queue:failed`, `queue:retry <id|all>`,
+  and `queue:flush`. They drive any driver implementing `FailedJobStore`.
+
+- **A Failed jobs panel in Watch** — the dashboard's first tab that *acts*:
+  retry and delete per row, retry-all, flush-all, against the same bookkeeping
+  as the console commands.
+
+- **Shared cache stores.** `DatabaseStore` (+ `cacheMigration()`) persists
+  entries as rows anywhere a `Connection` runs; `kvStore(env.CACHE)` makes a
+  Cloudflare KV namespace the shared cache for Workers (KV's 60-second TTL
+  floor is absorbed by the envelope's own expiry — never a stale read, only
+  later garbage collection). Tags, namespaces, grace, and stampede protection
+  work unchanged on both, as they always did on `redisStore()`.
+
+- **Rate limiting that counts somewhere shared.** `rateLimiter()` takes a
+  `store`: `redisRateLimitStore()` counts with INCR (atomic — a burst across
+  nodes can't slip past), `cacheRateLimitStore()` counts through any `Cache`
+  (best-effort). The default stays in-memory, which is exactly as strong as a
+  single-node deploy and no stronger — the docs now say so.
+
+- **Feature flags.** `features().define("new-billing", (user) => …)`, asked
+  anywhere with `feature(name, scope)` — per user, per team, or globally. The
+  first resolution per scope is persisted, so a rollout doesn't flap
+  experiences; `activate`/`deactivate`/`forget` are the explicit levers. Values
+  are JSON (a flag can carry a variant), an undefined flag is off rather than
+  an error, and `DatabaseFlagStore` (+ `flagsMigration()`) shares decisions
+  across processes. New guide: `docs/flags.md`.
+
+- **`make:model` and `make:migration`.** The two generators everyone reached
+  for first. `make:model Post -m -f -c` scaffolds the model plus its
+  create-table migration, factory, and resource controller; `make:migration`
+  numbers itself into the existing sequence and shapes the stub from the name
+  (`create_posts` creates, `add_slug_to_posts` alters). Both are in the MCP
+  `keel_scaffold` tool too.
+
 ## [0.83.17] — 2026-07-13
 
 ### Added
@@ -60,6 +124,8 @@ adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **The `saas` "personal team" test** asserted `/Solo's team/` against HTML reading
   `Solo&#39;s team` — JSX escapes the apostrophe, so it could never match.
+
+[0.84.0]: https://github.com/shaferllc/keel/releases/tag/v0.84.0
 
 [0.83.17]: https://github.com/shaferllc/keel/releases/tag/v0.83.17
 

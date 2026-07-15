@@ -92,8 +92,24 @@ The store self-prunes: once it holds more than 10,000 keys it sweeps expired
 buckets on the next request, so a large key space (e.g. per-IP) won't grow
 unbounded.
 
-For distributed limiting, wrap your own middleware that counts in Redis/KV and
-returns `429` the same way.
+On anything horizontal, share the tally by passing a `store`:
+
+```ts
+import { rateLimiter, redisRateLimitStore, cacheRateLimitStore } from "@shaferllc/keel/core";
+
+// Redis: counts with INCR — atomic, so a burst across nodes can't slip past.
+this.use(rateLimiter({ max: 60, window: 60, store: redisRateLimitStore() }));
+
+// Any Cache (database, KV): read-modify-write — simultaneous hits can
+// under-count by a request or two. Fine for traffic shaping, not for billing.
+this.use(rateLimiter({ max: 60, window: 60, store: cacheRateLimitStore() }));
+```
+
+Pass the *same* store instance to several `rateLimiter()` calls and they share
+one tally; the backends namespace their keys under `ratelimit:`, so a shared
+Redis or cache doesn't collide with your own entries. A custom backend is one
+method — implement `RateLimitStore.hit(key, windowMs)` and return the running
+`{ count, reset }` for the window.
 
 ---
 
@@ -132,6 +148,7 @@ interface RateLimiterOptions {
   window?: number;                  // window length in seconds; default 60
   key?: (c: Context) => string;     // bucket key; default: client IP
   message?: string;                 // 429 body message; default "Too Many Requests"
+  store?: RateLimitStore;           // where counters live; default: in-memory
 }
 ```
 
@@ -153,3 +170,21 @@ rateLimiter(perUser);
 **Notes:** `window` is **seconds**, not milliseconds (it's multiplied by 1000
 internally). `key` is called on every request, so keep it cheap and pure. Returning
 a constant string collapses all clients into one shared bucket.
+
+#### `RateLimitStore` / `RateLimitBucket`
+
+```ts
+interface RateLimitStore {
+  hit(key: string, windowMs: number): Promise<RateLimitBucket> | RateLimitBucket;
+}
+interface RateLimitBucket {
+  count: number;  // hits so far in the current window, including this one
+  reset: number;  // epoch ms when the window rolls over
+}
+```
+
+The storage seam. `hit` records one request against `key`, rotating the window
+if it lapsed, and returns the running tally. Shipped implementations:
+`MemoryRateLimitStore` (the default), `redisRateLimitStore(client?)` (atomic),
+and `cacheRateLimitStore(cache?)` (best-effort over any `Cache`) — the latter
+two default to the app's `redis()` client and `cache()` singleton.

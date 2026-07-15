@@ -34,6 +34,30 @@ export interface RedisConnection {
   ttl(key: string): Promise<number>;
   keys(pattern: string): Promise<string[]>;
   flushAll(): Promise<void>;
+
+  /*
+   * Sorted sets and hashes — what the queue's RedisDriver runs on. Optional so
+   * an existing minimal adapter keeps working; the queue checks at construction
+   * and says exactly which commands are missing. Every one maps 1:1 onto a
+   * standard Redis command, so an adapter is a passthrough.
+   */
+
+  /** ZADD. Returns how many members were newly added. */
+  zadd?(key: string, score: number, member: string): Promise<number>;
+  /** ZRANGEBYSCORE, ordered by score then member; `limit` caps the result. */
+  zrangebyscore?(key: string, min: number, max: number, limit?: number): Promise<string[]>;
+  /** ZREM. Returns how many members were removed — the queue's claim check. */
+  zrem?(key: string, member: string): Promise<number>;
+  /** ZCARD. */
+  zcard?(key: string): Promise<number>;
+  /** HSET one field. */
+  hset?(key: string, field: string, value: string): Promise<void>;
+  /** HGET. */
+  hget?(key: string, field: string): Promise<string | null>;
+  /** HGETALL. Empty object when the key is unset. */
+  hgetall?(key: string): Promise<Record<string, string>>;
+  /** HDEL. Returns how many fields were removed. */
+  hdel?(key: string, ...fields: string[]): Promise<number>;
 }
 
 /* ------------------------------ memory driver ----------------------------- */
@@ -41,6 +65,9 @@ export interface RedisConnection {
 /** An in-memory `RedisConnection` with TTL support — the default; ideal for tests. */
 export class MemoryRedis implements RedisConnection {
   private store = new Map<string, { value: string; expires: number }>();
+  // Sorted sets and hashes live apart from the string store, as in Redis itself.
+  private zsets = new Map<string, Map<string, number>>();
+  private hashes = new Map<string, Map<string, string>>();
 
   private live(key: string): { value: string; expires: number } | undefined {
     const entry = this.store.get(key);
@@ -63,7 +90,11 @@ export class MemoryRedis implements RedisConnection {
 
   async del(...keys: string[]): Promise<number> {
     let n = 0;
-    for (const key of keys) if (this.store.delete(key)) n++;
+    for (const key of keys) {
+      if (this.store.delete(key)) n++;
+      else if (this.zsets.delete(key)) n++;
+      else if (this.hashes.delete(key)) n++;
+    }
     return n;
   }
 
@@ -107,6 +138,62 @@ export class MemoryRedis implements RedisConnection {
 
   async flushAll(): Promise<void> {
     this.store.clear();
+    this.zsets.clear();
+    this.hashes.clear();
+  }
+
+  /* ------------------------- sorted sets & hashes ------------------------- */
+
+  async zadd(key: string, score: number, member: string): Promise<number> {
+    let z = this.zsets.get(key);
+    if (!z) this.zsets.set(key, (z = new Map()));
+    const added = z.has(member) ? 0 : 1;
+    z.set(member, score);
+    return added;
+  }
+
+  async zrangebyscore(key: string, min: number, max: number, limit?: number): Promise<string[]> {
+    const z = this.zsets.get(key);
+    if (!z) return [];
+    const hits = [...z.entries()]
+      .filter(([, score]) => score >= min && score <= max)
+      .sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .map(([member]) => member);
+    return limit === undefined ? hits : hits.slice(0, limit);
+  }
+
+  async zrem(key: string, member: string): Promise<number> {
+    const z = this.zsets.get(key);
+    if (!z?.delete(member)) return 0;
+    if (!z.size) this.zsets.delete(key);
+    return 1;
+  }
+
+  async zcard(key: string): Promise<number> {
+    return this.zsets.get(key)?.size ?? 0;
+  }
+
+  async hset(key: string, field: string, value: string): Promise<void> {
+    let h = this.hashes.get(key);
+    if (!h) this.hashes.set(key, (h = new Map()));
+    h.set(field, value);
+  }
+
+  async hget(key: string, field: string): Promise<string | null> {
+    return this.hashes.get(key)?.get(field) ?? null;
+  }
+
+  async hgetall(key: string): Promise<Record<string, string>> {
+    return Object.fromEntries(this.hashes.get(key) ?? []);
+  }
+
+  async hdel(key: string, ...fields: string[]): Promise<number> {
+    const h = this.hashes.get(key);
+    if (!h) return 0;
+    let n = 0;
+    for (const field of fields) if (h.delete(field)) n++;
+    if (!h.size) this.hashes.delete(key);
+    return n;
   }
 }
 

@@ -65,9 +65,101 @@ setQueue(new MemoryDriver()); // holds jobs; a worker drains them
 |--------|----------|
 | `SyncDriver` | Runs each job the instant it's dispatched. The default; great for dev and tests. |
 | `MemoryDriver` | Enqueues jobs in memory; `work()` runs them. Inspect `.jobs` / `.size`. |
+| `DatabaseDriver` | Jobs are rows — they survive a restart, workers claim them atomically, failures persist. |
+| `RedisDriver` | The same durability contract in Redis — sorted sets and a failed hash, claims via atomic `ZREM`. |
 
 With the sync driver, a job that throws surfaces the error to whoever called
 `dispatch` — so failures are visible in development.
+
+## The database driver
+
+Memory empties on every restart. When a queued job must *survive* — a deploy, a
+crash, a Worker eviction — make it a row. The driver is built on the `db()`
+layer, so it runs anywhere a `Connection` does (Postgres, D1, libSQL, SQLite):
+
+```ts
+import { setQueue, DatabaseDriver, registerJobs, queueMigration } from "@shaferllc/keel/core";
+
+// database/migrations/0005_queue_tables.ts — the jobs + failed_jobs tables
+export default queueMigration();
+
+// a provider's register(), in BOTH the web process and the worker
+registerJobs(SendWelcome, ChargeCard);
+setQueue(new DatabaseDriver());
+```
+
+Run the worker with `keel queue:work` (poll forever) or `keel queue:work --once`
+(drain what's due and exit — the right shape for a cron trigger or a scheduled
+task). Several workers can share the table: a job is claimed with an atomic
+conditional update, so exactly one gets it, and a claim held past `staleAfter`
+seconds (default 300) is released — the escape hatch for a worker that died
+mid-job.
+
+Two constraints follow from jobs being rows:
+
+- **Only `Job` subclasses can be dispatched** — a closure can't be serialized,
+  and the driver says so rather than storing something it can't run. A job's
+  payload is its constructor state (its own enumerable properties), rebuilt on
+  the worker via `registerJobs()` — which is why registration must happen in the
+  worker process too.
+- **A per-dispatch `backoff` override can't cross the process boundary** (a
+  function isn't data). Backoff comes from the job class; `maxRetries`
+  overrides are stored and honored.
+
+Failed jobs land in the `failed_jobs` table, where the console can see them:
+
+```bash
+keel queue:failed        # list them
+keel queue:retry 42      # back on the queue (keel queue:retry all for every one)
+keel queue:flush         # delete them (or one: keel queue:flush 42)
+```
+
+[Keel Watch](./watch.md) shows the same list under **Failed jobs**, with retry
+and delete buttons.
+
+Options: `new DatabaseDriver({ table, failedTable, connection, staleAfter })` —
+all optional; the defaults are `jobs`, `failed_jobs`, the default connection,
+and 300 seconds.
+
+## The redis driver
+
+The same durability contract as the database driver — jobs survive a restart,
+several workers share the backlog, exhausted jobs are retryable — with Redis's
+latency instead of a SQL round-trip. No migration; just a client:
+
+```ts
+import { setQueue, RedisDriver, registerJobs, setRedis } from "@shaferllc/keel/core";
+
+setRedis(myAdapter);            // ioredis, node-redis, Upstash… (see the redis guide)
+registerJobs(SendWelcome);      // in BOTH the web process and the worker
+setQueue(new RedisDriver());    // or new RedisDriver({ client, prefix, staleAfter })
+```
+
+How it's laid out: pending jobs live in a sorted set (`queue:jobs`) scored by
+when they become due — delays and backoffs are just future scores. A claim is
+`ZREM`: atomic per command, so exactly one worker removes any member, and no
+Lua script is required — which keeps HTTP adapters like Upstash in play. A
+claimed job sits in `queue:reserved` scored by its deadline; a worker that dies
+mid-job leaves a member behind, and the next drain re-queues anything past
+`staleAfter` (default 300 seconds). Failures land in the `queue:failed` hash,
+so `queue:failed` / `queue:retry` / `queue:flush` and the Watch panel work
+exactly as they do for the database driver.
+
+The driver needs eight commands beyond the basic `RedisConnection` set —
+`zadd`, `zrangebyscore`, `zrem`, `zcard`, `hset`, `hget`, `hgetall`, `hdel` —
+each a passthrough to one standard Redis command. The built-in `MemoryRedis`
+implements them (so tests run against the real driver); a custom adapter that
+lacks any of them is refused at first use with the missing ones named.
+
+The serialization rules are the database driver's: **`Job` subclasses only**
+(a closure can't cross a process boundary), classes rebuilt via
+`registerJobs()`, class-level backoff, stored `maxRetries` overrides.
+
+**Which one?** Same durability, different trade: the database driver needs no
+extra infrastructure and joins your existing backups and transactions; the
+redis driver keeps queue chatter off your database and polls cheaper under
+load. If you already run Redis for cache or rate limiting, the queue can share
+it — the keys are prefixed.
 
 ## Running queued jobs
 
@@ -677,3 +769,53 @@ running them. `restoreQueue()` puts the real one back.
 
 `{ id, job, options, attempts, error }` — a job that exhausted its retries. Read
 them from `driver.failed` or `getQueue().failed`.
+
+### The database driver
+
+#### `DatabaseDriver`
+
+`class DatabaseDriver implements QueueDriver, FailedJobStore`
+
+Jobs as rows; see [The database driver](#the-database-driver) above.
+`new DatabaseDriver(options?: DatabaseDriverOptions)` with
+`{ table?, failedTable?, connection?, staleAfter? }`.
+
+| Method | Signature |
+|--------|-----------|
+| `push` | `(job, options) => Promise<void>` — inserts a row; refuses closures |
+| `work` | `() => Promise<number>` — releases stale claims, then runs every due job |
+| `pending` | `() => Promise<number>` — waiting (unreserved) jobs |
+| `failedJobs` | `() => Promise<FailedJobRecord[]>` |
+| `retryFailed` | `(id) => Promise<boolean>` — move a failed job back onto the queue |
+| `flushFailed` | `(id?) => Promise<number>` — delete one failed job, or all of them |
+
+#### `registerJobs(...classes)`
+
+`registerJobs(...classes: JobClass[]): void`
+
+Registers job classes by name so a worker can rebuild them from their stored
+payload. Call at boot in every process that runs `queue:work`.
+
+#### `queueMigration(table?, failedTable?)`
+
+`queueMigration(table = "jobs", failedTable = "failed_jobs"): Migration`
+
+The schema for the driver's two tables — add it to your migrations.
+
+#### `RedisDriver`
+
+`class RedisDriver implements QueueDriver, FailedJobStore`
+
+Jobs in Redis; see [The redis driver](#the-redis-driver) above.
+`new RedisDriver(options?: RedisDriverOptions)` with
+`{ client?, prefix?, staleAfter? }` — defaults: the `redis()` global, `"queue"`,
+300 seconds. Same method surface as `DatabaseDriver` (`push` / `work` /
+`pending` / `failedJobs` / `retryFailed` / `flushFailed`).
+
+#### `FailedJobRecord` / `FailedJobStore`
+
+`FailedJobRecord` is `{ id, queue, job, payload, attempts, error, failedAt }` —
+`job` is the class name, `failedAt` epoch ms. `FailedJobStore` is the interface
+(`failedJobs` / `retryFailed` / `flushFailed`) the console's `queue:failed`,
+`queue:retry`, and `queue:flush` commands drive; implement it on a custom driver
+to get those commands (and the Watch panel's buttons) for free.

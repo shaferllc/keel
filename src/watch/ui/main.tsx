@@ -62,6 +62,7 @@ function parseHash(): Route {
   const raw = location.hash.replace(/^#\/?/, "");
   const [seg, value] = raw.split("/");
   if (seg === "entry" && value) return { type: currentType(), uuid: value };
+  if (seg === "failed-jobs") return { type: "failed-jobs" };
   const [type, tagPart] = raw.split("?");
   const tag = new URLSearchParams(tagPart ?? "").get("tag") ?? undefined;
   return { type: type || boot.types[0]!, ...(tag ? { tag } : {}) };
@@ -178,6 +179,12 @@ function App() {
               <span class="count">{counts[t] ?? 0}</span>
             </button>
           ))}
+          <button
+            class={`tab ${route.type === "failed-jobs" ? "active" : ""}`}
+            onClick={() => go("failed-jobs")}
+          >
+            <span>Failed jobs</span>
+          </button>
         </nav>
         <div class="controls">
           <label class="live">
@@ -190,7 +197,13 @@ function App() {
         </div>
       </aside>
       <main class="content">
-        {route.uuid ? <Detail uuid={route.uuid} /> : <List route={route} live={live} />}
+        {route.uuid ? (
+          <Detail uuid={route.uuid} />
+        ) : route.type === "failed-jobs" ? (
+          <FailedJobs live={live} />
+        ) : (
+          <List route={route} live={live} />
+        )}
       </main>
     </div>
   );
@@ -260,6 +273,111 @@ function List({ route, live }: { route: Route; live: boolean }) {
                 </td>
                 <td class="metacol">{meta(e)}</td>
                 <td class="timecol">{timeAgo(e.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+}
+
+interface FailedRow {
+  id: string;
+  job: string;
+  queue: string;
+  attempts: number;
+  error: string;
+  failedAt: number | null;
+}
+
+function FailedJobs({ live }: { live: boolean }) {
+  const [rows, setRows] = useState<FailedRow[] | null | undefined>(undefined);
+  const [open, setOpen] = useState<string | null>(null);
+
+  const load = () =>
+    api<{ failed: FailedRow[] | null }>("/queue/failed")
+      .then((r) => setRows(r.failed))
+      .catch(() => {});
+
+  useEffect(() => {
+    load();
+    if (!live) return;
+    const id = setInterval(load, 3000);
+    return () => clearInterval(id);
+  }, [live]);
+
+  const retry = async (id: string) => {
+    await api(`/queue/failed/${encodeURIComponent(id)}/retry`, { method: "POST" }).catch(() => {});
+    load();
+  };
+  const remove = async (id: string) => {
+    await api(`/queue/failed/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    load();
+  };
+  const flushAll = async () => {
+    if (!confirm("Delete every failed job?")) return;
+    await remove("all");
+  };
+
+  return (
+    <>
+      <header class="head">
+        <h1>Failed jobs</h1>
+        {!!rows?.length && (
+          <span class="tags">
+            <button class="chip" onClick={() => retry("all")}>
+              Retry all
+            </button>
+            <button class="chip removable" onClick={flushAll}>
+              Flush all
+            </button>
+          </span>
+        )}
+      </header>
+      {rows === undefined ? (
+        <p class="empty">Loading…</p>
+      ) : rows === null ? (
+        <p class="empty">
+          The queue driver keeps no failed-job list. Use the database driver (or a driver with a
+          `failed` array) to retry from here.
+        </p>
+      ) : !rows.length ? (
+        <p class="empty">Nothing has failed. May it stay that way.</p>
+      ) : (
+        <table class="list">
+          <tbody>
+            {rows.map((f) => (
+              <tr key={f.id} onClick={() => setOpen(open === f.id ? null : f.id)}>
+                <td class="summary">
+                  <span class="text">
+                    {f.job} · {f.error.split("\n")[0]}
+                  </span>
+                  <span class="tags">
+                    <span class="chip">{f.queue}</span>
+                    <span class="chip">{f.attempts} attempt{f.attempts === 1 ? "" : "s"}</span>
+                    <button
+                      class="chip"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        retry(f.id);
+                      }}
+                    >
+                      Retry
+                    </button>
+                    <button
+                      class="chip removable"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        remove(f.id);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </span>
+                  {open === f.id && <pre class="json">{f.error}</pre>}
+                </td>
+                <td class="timecol">{f.failedAt ? timeAgo(f.failedAt) : ""}</td>
               </tr>
             ))}
           </tbody>

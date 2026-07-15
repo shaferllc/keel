@@ -25,6 +25,8 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `serve` | `--port <n>` | Start the HTTP server |
 | `routes` | — | List every registered route |
 | `make:controller` | `<name>` `[-r]` | `app/Controllers/<Name>Controller.ts` |
+| `make:model` | `<name>` `[-m] [-f] [-c]` | `app/Models/<Name>.ts` (+ migration, factory, controller) |
+| `make:migration` | `<name>` `[--create <t>] [--table <t>]` | `database/migrations/<NNNN>_<name>.ts` |
 | `make:provider` | `<name>` | `app/Providers/<Name>ServiceProvider.ts` |
 | `make:middleware` | `<name>` | `app/Http/Middleware/<name>Middleware.ts` |
 | `make:factory` | `<model>` | `database/factories/<Model>Factory.ts` |
@@ -32,6 +34,10 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `make:job` | `<name>` | `app/Jobs/<Name>Job.ts` |
 | `make:notification` | `<name>` | `app/Notifications/<Name>Notification.ts` |
 | `make:transformer` | `<name>` `[-m <model>]` | `app/Transformers/<Name>Transformer.ts` |
+| `queue:work` | `[--once] [--sleep <s>]` | Process jobs on the default queue |
+| `queue:failed` | — | List jobs that exhausted their retries |
+| `queue:retry` | `<id\|all>` | Put a failed job back on the queue |
+| `queue:flush` | `[id]` | Delete failed jobs — one, or all of them |
 | `mcp` | — | Start the [MCP server](./ai.md) for AI agents (stdio) |
 
 Every generator normalizes the name you pass and refuses to overwrite an existing
@@ -99,6 +105,25 @@ npm run keel mcp        # or the shipped `keel-mcp` bin in a consuming app
 See [Building with AI](./ai.md) for how to connect it to Claude Code, Cursor, or
 any MCP client, and the tools it provides.
 
+### Queue commands
+
+Run and operate the [queue](./queues.md) from the console:
+
+```bash
+npm run keel queue:work            # poll for jobs every 3s (Ctrl-C to stop)
+npm run keel queue:work -- --once  # drain what's due and exit (cron-friendly)
+npm run keel queue:failed          # list jobs that exhausted their retries
+npm run keel queue:retry 42        # back on the queue (or: queue:retry all)
+npm run keel queue:flush           # delete failed jobs (or one: queue:flush 42)
+```
+
+`queue:work` drives whatever driver `setQueue()` registered at boot;
+`queue:failed` / `queue:retry` / `queue:flush` need a driver that persists
+failures (`DatabaseDriver`, `RedisDriver`, or anything implementing
+`FailedJobStore`) —
+with the in-memory drivers, `queue:failed` still lists what the process has
+seen, but there is nothing durable to retry.
+
 ## Generators
 
 Each `make:*` command normalizes the name you give it and writes a single file.
@@ -159,6 +184,53 @@ export class PostController {
 ```
 
 Wire it up with `Route.resource(...)` — see [Controllers](./controllers.md).
+
+### `make:model`
+
+Generate an active-record model in `app/Models/`. The table name follows from
+the class: `Post` → `posts`, `UserProfile` → `user_profiles`.
+
+```bash
+npm run keel make:model Post
+# -> app/Models/Post.ts
+```
+
+```ts
+import { Model } from "@shaferllc/keel/core";
+
+export class Post extends Model {
+  static override table = "posts";
+  static override fillable = [];
+  static override timestamps = true;
+
+  declare id: number;
+}
+```
+
+A model rarely travels alone — flags scaffold its companions in one command:
+
+```bash
+npm run keel make:model Post -- -m -f -c
+# -> app/Models/Post.ts
+# -> database/migrations/0004_create_posts.ts   (-m: a create-table migration)
+# -> database/factories/PostFactory.ts          (-f: a factory)
+# -> app/Controllers/PostController.ts          (-c: a resource controller)
+```
+
+### `make:migration`
+
+Generate a migration in `database/migrations/`, numbered to continue whatever
+sequence is already there (`0001_…`, `0002_…`).
+
+```bash
+npm run keel make:migration create_posts
+# -> database/migrations/0004_create_posts.ts
+```
+
+The stub is shaped by what the name says it does: `create_posts` gets a full
+`createTable`/`dropTable` pair for `posts`; `add_slug_to_posts` gets
+`alterTable` both ways; anything else is left open. The `--create <table>` and
+`--table <table>` flags override the inference.
 
 ### `make:provider`
 

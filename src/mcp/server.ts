@@ -27,6 +27,9 @@ import { z } from "zod";
 import {
   controllerStub,
   resourceControllerStub,
+  modelStub,
+  migrationStub,
+  tableName,
   providerStub,
   middlewareStub,
   factoryStub,
@@ -124,6 +127,8 @@ function className(name: string, suffix: string): string {
 
 const GENERATOR_KINDS = [
   "controller",
+  "model",
+  "migration",
   "provider",
   "middleware",
   "factory",
@@ -147,6 +152,19 @@ function scaffold(
         path: `app/Controllers/${cls}.ts`,
         code: opts.resource ? resourceControllerStub(cls) : controllerStub(cls),
       };
+    }
+    case "model": {
+      const cls = className(name, "");
+      return { path: `app/Models/${cls}.ts`, code: modelStub(cls, tableName(cls)) };
+    }
+    case "migration": {
+      // The console numbers migrations from what's on disk; a stateless scaffold
+      // can't, so the prefix is a placeholder for the caller to renumber.
+      const slug = name.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
+      const create = /^create_(.+?)(?:_table)?$/.exec(slug)?.[1];
+      const alter = create ? undefined : /_(?:to|from|in)_(.+?)(?:_table)?$/.exec(slug)?.[1];
+      const file = `NNNN_${slug}`;
+      return { path: `database/migrations/${file}.ts`, code: migrationStub(file, create, alter) };
     }
     case "provider": {
       const cls = className(name, "ServiceProvider");
@@ -411,7 +429,7 @@ export async function createServer(): Promise<McpServer> {
     {
       title: "Scaffold Keel code",
       description:
-        "Generate the stub for a Keel construct (controller, provider, middleware, factory, seeder, job, notification, transformer) and return the code plus its target path. Does NOT write to disk — write the returned code yourself. Mirrors `keel make:*`.",
+        "Generate the stub for a Keel construct (controller, model, migration, provider, middleware, factory, seeder, job, notification, transformer) and return the code plus its target path. Does NOT write to disk — write the returned code yourself. Mirrors `keel make:*`. For migrations, replace the NNNN filename prefix with the next number in database/migrations/.",
       inputSchema: {
         kind: z.enum(GENERATOR_KINDS).describe("What to generate"),
         name: z.string().describe("Base name, e.g. 'User', 'SendWelcome' — suffixes are normalized"),

@@ -24,6 +24,7 @@
  */
 
 import { instrument, currentRequestId } from "./instrumentation.js";
+import { db } from "./database.js";
 
 export interface CacheStore {
   get(key: string): Promise<unknown> | unknown;
@@ -312,4 +313,139 @@ export class Cache {
     this.inflight.set(key, run);
     return run;
   }
+}
+
+/* ----------------------------- database store ----------------------------- */
+
+/**
+ * Postgres refuses NUL bytes in text, and the cache's internal tag-version keys
+ * start with one precisely so they can't collide with user keys. Escaping it
+ * keeps that property (a user key would need a literal backslash-zero prefix)
+ * while storing clean text everywhere.
+ */
+function storableKey(key: string): string {
+  return key.replaceAll("\u0000", "\\0");
+}
+
+/**
+ * A cache whose entries are rows — the durable, shared store that works
+ * anywhere a `Connection` does (Postgres, D1, libSQL, SQLite). Add
+ * `cacheMigration()` to your migrations, then:
+ *
+ *   app.singleton(Cache, () => new Cache(new DatabaseStore()));
+ *
+ * Expired rows are skipped (and dropped) on read; call `prune()` from a
+ * scheduled task to sweep the ones nothing reads again.
+ */
+export class DatabaseStore implements CacheStore {
+  constructor(private options: { table?: string; connection?: string } = {}) {}
+
+  private query() {
+    return db(this.options.table ?? "cache", this.options.connection);
+  }
+
+  async get(key: string): Promise<unknown> {
+    const row = await this.query().where("cache_key", storableKey(key)).first();
+    if (!row) return undefined;
+    const expires = row.expires_at == null ? 0 : Number(row.expires_at);
+    if (expires && expires < Date.now()) {
+      await this.query().where("cache_key", storableKey(key)).delete();
+      return undefined;
+    }
+    return JSON.parse(String(row.payload));
+  }
+
+  async set(key: string, value: unknown, ttlMs?: number): Promise<void> {
+    await this.query().updateOrInsert(
+      { cache_key: storableKey(key) },
+      { payload: JSON.stringify(value), expires_at: ttlMs ? Date.now() + ttlMs : null },
+    );
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.query().where("cache_key", storableKey(key)).delete();
+  }
+
+  async clear(): Promise<void> {
+    await this.query().delete();
+  }
+
+  /** Delete expired rows; returns how many went. Reads already skip them. */
+  async prune(): Promise<number> {
+    const { rowsAffected } = await this.query()
+      .whereNotNull("expires_at")
+      .where("expires_at", "<", Date.now())
+      .delete();
+    return rowsAffected;
+  }
+}
+
+/** Schema for the database store's table — add it to your migrations. */
+export function cacheMigration(table = "cache"): import("./migrations.js").Migration {
+  return {
+    name: `cache_00_${table}`,
+    async up(schema) {
+      await schema.createTable(table, (t) => {
+        t.string("cache_key").unique();
+        t.text("payload");
+        t.bigInteger("expires_at").nullable();
+        t.index(["expires_at"]);
+      });
+    },
+    async down(schema) {
+      await schema.dropTable(table);
+    },
+  };
+}
+
+/* -------------------------------- KV store -------------------------------- */
+
+/** The slice of a Cloudflare KV namespace binding the cache needs. */
+export interface KvNamespaceLike {
+  get(key: string, type: "text"): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(options?: { cursor?: string }): Promise<{
+    keys: { name: string }[];
+    list_complete: boolean;
+    cursor?: string;
+  }>;
+}
+
+/**
+ * Expose a Cloudflare KV namespace as a `CacheStore` — the shared cache for
+ * Workers, where every isolate sees the same entries.
+ *
+ *   app.singleton(Cache, () => new Cache(kvStore(env.CACHE)));
+ *
+ * KV enforces a 60-second minimum TTL; shorter-lived entries carry their real
+ * expiry inside the envelope, so rounding up only delays garbage collection —
+ * it never serves a stale value.
+ */
+export function kvStore(namespace: KvNamespaceLike): CacheStore {
+  return {
+    get: async (key) => {
+      const raw = await namespace.get(storableKey(key), "text");
+      return raw == null ? undefined : (JSON.parse(raw) as unknown);
+    },
+    set: async (key, value, ttlMs) => {
+      const expirationTtl = ttlMs ? Math.max(60, Math.ceil(ttlMs / 1000)) : undefined;
+      await namespace.put(
+        storableKey(key),
+        JSON.stringify(value),
+        expirationTtl ? { expirationTtl } : undefined,
+      );
+    },
+    delete: async (key) => {
+      await namespace.delete(storableKey(key));
+    },
+    clear: async () => {
+      for (;;) {
+        const page = await namespace.list();
+        if (!page.keys.length) return;
+        await Promise.all(page.keys.map((entry) => namespace.delete(entry.name)));
+        if (page.list_complete) return;
+      }
+    },
+  };
 }

@@ -26,11 +26,15 @@ import type { Ui } from "../console-ui.js";
 import { HttpKernel } from "../http/kernel.js";
 import { Router } from "../http/router.js";
 import { getConnection } from "../database.js";
+import { getQueue, Job, type FailedJob, type FailedJobStore } from "../queue.js";
 import { Migrator, type Migration } from "../migrations.js";
 import { MigrationRegistry, CommandRegistry, PublishRegistry } from "../package.js";
 import {
   controllerStub,
   resourceControllerStub,
+  modelStub,
+  migrationStub,
+  tableName,
   providerStub,
   middlewareStub,
   factoryStub,
@@ -342,6 +346,72 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     },
   });
 
+  /**
+   * The next migration file's numeric prefix, continuing whatever sequence is
+   * already in database/migrations/ (0001, 0002, …).
+   */
+  async function nextMigrationPrefix(): Promise<string> {
+    const files = await readdir(join(basePath, "database/migrations")).catch(() => [] as string[]);
+    let max = 0;
+    for (const file of files) {
+      const m = /^(\d+)_/.exec(file);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+    return String(max + 1).padStart(4, "0");
+  }
+
+  const makeModel = defineCommand({
+    name: "make:model",
+    description: "Generate a model (with its migration, factory, controller via flags)",
+    args: { name: arg.string({ description: "e.g. Post" }) },
+    flags: {
+      migration: flag.boolean({ alias: "m", description: "also create a create-table migration" }),
+      factory: flag.boolean({ alias: "f", description: "also create a factory" }),
+      controller: flag.boolean({ alias: "c", description: "also create a resource controller" }),
+    },
+    async run({ args, flags, ui }) {
+      const cls = className(args.name, "");
+      const table = tableName(cls);
+      await generate(`app/Models/${cls}.ts`, modelStub(cls, table), "Model", ui);
+
+      if (flags.migration) {
+        const name = `${await nextMigrationPrefix()}_create_${table}`;
+        await generate(`database/migrations/${name}.ts`, migrationStub(name, table), "Migration", ui);
+      }
+      if (flags.factory) {
+        await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory", ui);
+      }
+      if (flags.controller) {
+        const controller = `${cls}Controller`;
+        await generate(`app/Controllers/${controller}.ts`, resourceControllerStub(controller), "Controller", ui);
+      }
+    },
+  });
+
+  const makeMigration = defineCommand({
+    name: "make:migration",
+    description: "Generate a database migration",
+    args: { name: arg.string({ description: "e.g. create_posts or add_slug_to_posts" }) },
+    flags: {
+      create: flag.string({ description: "table this migration creates" }),
+      table: flag.string({ description: "existing table this migration alters" }),
+    },
+    async run({ args, flags, ui }) {
+      const name = args.name
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .toLowerCase();
+
+      // Infer intent from the conventional names: create_posts creates the
+      // posts table; add_slug_to_posts alters it. Flags win over inference.
+      const create = flags.create ?? /^create_(.+?)(?:_table)?$/.exec(name)?.[1];
+      const alter = flags.table ?? (create ? undefined : /_(?:to|from|in)_(.+?)(?:_table)?$/.exec(name)?.[1]);
+
+      const full = `${await nextMigrationPrefix()}_${name}`;
+      await generate(`database/migrations/${full}.ts`, migrationStub(full, create, alter), "Migration", ui);
+    },
+  });
+
   const makeFactory = defineCommand({
     name: "make:factory",
     description: "Generate a model factory",
@@ -423,6 +493,109 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
       const slug = args.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
       const cls = slug.charAt(0).toUpperCase() + slug.slice(1);
       await generate(`packages/${slug}/${cls}ServiceProvider.ts`, packageProviderStub(slug), "Package", ui);
+    },
+  });
+
+  /* ---------------------------------- queue ----------------------------------- */
+
+  /** The failed jobs a driver tracks, whichever shape it tracks them in. */
+  async function failedFor(driver: unknown): Promise<{ id: string; job: string; queue: string; attempts: number; error: string }[]> {
+    const store = driver as Partial<FailedJobStore> & { failed?: FailedJob[] };
+    if (typeof store.failedJobs === "function") {
+      return (await store.failedJobs()).map((f) => ({
+        id: String(f.id),
+        job: f.job,
+        queue: f.queue,
+        attempts: f.attempts,
+        error: f.error.split("\n")[0] ?? "",
+      }));
+    }
+    return (store.failed ?? []).map((f) => ({
+      id: f.id,
+      job: f.job instanceof Job ? f.job.constructor.name : "fn",
+      queue: f.options.queue ?? "default",
+      attempts: f.attempts,
+      error: f.error instanceof Error ? f.error.message : String(f.error),
+    }));
+  }
+
+  const queueWork = defineCommand({
+    name: "queue:work",
+    description: "Process jobs on the default queue",
+    flags: {
+      once: flag.boolean({ description: "drain what's due and exit" }),
+      sleep: flag.number({ description: "seconds to wait between polls", default: 3 }),
+    },
+    async run({ flags, ui }) {
+      requireApp();
+      const queue = getQueue();
+
+      if (flags.once) {
+        const ran = await queue.work();
+        ui.info(`Processed ${ran} job(s).`);
+        return;
+      }
+
+      ui.info(`Waiting for jobs (polling every ${flags.sleep}s). Ctrl-C to stop.`);
+      for (;;) {
+        const ran = await queue.work();
+        if (ran) ui.success(`Processed ${ran} job(s).`);
+        await new Promise((resolve) => setTimeout(resolve, flags.sleep * 1000));
+      }
+    },
+  });
+
+  const queueFailed = defineCommand({
+    name: "queue:failed",
+    description: "List jobs that exhausted their retries",
+    async run({ ui }) {
+      requireApp();
+      const rows = await failedFor(getQueue().driver);
+      if (!rows.length) return void ui.info("No failed jobs.");
+
+      const table = ui.table(["Id", "Job", "Queue", "Attempts", "Error"]);
+      for (const row of rows) table.row([row.id, row.job, row.queue, String(row.attempts), row.error]);
+      table.render();
+    },
+  });
+
+  const queueRetry = defineCommand({
+    name: "queue:retry",
+    description: "Put a failed job back on the queue (`queue:retry all` for every one)",
+    args: { id: arg.string({ description: "a failed job's id, or \"all\"" }) },
+    async run({ args, ui }) {
+      requireApp();
+      const store = getQueue().driver as Partial<FailedJobStore>;
+      if (typeof store.retryFailed !== "function" || typeof store.failedJobs !== "function") {
+        ui.error("The current queue driver doesn't persist failed jobs — nothing to retry.");
+        process.exitCode = 1;
+        return;
+      }
+
+      const ids = args.id === "all" ? (await store.failedJobs()).map((f) => f.id) : [args.id];
+      if (!ids.length) return void ui.info("No failed jobs.");
+
+      for (const id of ids) {
+        if (await store.retryFailed(id)) ui.success(`Queued ${id} for another run`);
+        else ui.error(`No failed job with id ${id}`);
+      }
+    },
+  });
+
+  const queueFlush = defineCommand({
+    name: "queue:flush",
+    description: "Delete failed jobs — one by id, or all of them",
+    args: { id: arg.string({ description: "a failed job's id (omit for all)", required: false }) },
+    async run({ args, ui }) {
+      requireApp();
+      const store = getQueue().driver as Partial<FailedJobStore>;
+      if (typeof store.flushFailed !== "function") {
+        ui.error("The current queue driver doesn't persist failed jobs — nothing to flush.");
+        process.exitCode = 1;
+        return;
+      }
+      const removed = await store.flushFailed(args.id);
+      ui.info(`Removed ${removed} failed job(s).`);
     },
   });
 
@@ -540,6 +713,8 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     mcp as AnyCommand,
     routes as AnyCommand,
     makeController as AnyCommand,
+    makeModel as AnyCommand,
+    makeMigration as AnyCommand,
     makeProvider as AnyCommand,
     makeMiddleware as AnyCommand,
     makeFactory as AnyCommand,
@@ -550,6 +725,10 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     makeNotification as AnyCommand,
     makeTransformer as AnyCommand,
     makePackage as AnyCommand,
+    queueWork as AnyCommand,
+    queueFailed as AnyCommand,
+    queueRetry as AnyCommand,
+    queueFlush as AnyCommand,
     migrate as AnyCommand,
     migrateRollback as AnyCommand,
     migrateStatus as AnyCommand,
