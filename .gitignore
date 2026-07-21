@@ -19,3 +19,8 @@ public/assets/
 database/*.sqlite
 
 .cursor/hooks/state/
+
+# Agent worktrees. These are real git worktrees, so git records one as a gitlink
+# (mode 160000) if it is ever added — and a gitlink with no .gitmodules entry makes
+# actions/checkout fail its cleanup with "No url found for submodule path".
+.claude/worktrees/

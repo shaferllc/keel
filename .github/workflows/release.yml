@@ -74,30 +74,12 @@ jobs:
       # version is already on the registry so framework tags don't fail the job.
       - name: Publish create-keeljs
         working-directory: packages/create-keeljs
-        continue-on-error: true
-        run: |
-          ver="$(node -p 'require("./package.json").version')"
-          if npm view "create-keeljs@${ver}" version >/dev/null 2>&1; then
-            echo "create-keeljs@${ver} already on npm — skip"
-            exit 0
-          fi
-          npm publish --access public
-          echo "::notice::Published create-keeljs@${ver}"
-          # If this 404s, the package needs a trusted publisher on npm (same workflow
-          # as @shaferllc/keel) or a local `npm publish --otp=…` from a maintainer.
+        run: bash "${GITHUB_WORKSPACE}/scripts/publish-side-package.sh"
 
       # Thin bin so `npx -y keel-mcp` resolves (forwards to @shaferllc/keel).
       - name: Publish keel-mcp
         working-directory: packages/keel-mcp
-        continue-on-error: true
-        run: |
-          ver="$(node -p 'require("./package.json").version')"
-          if npm view "keel-mcp@${ver}" version >/dev/null 2>&1; then
-            echo "keel-mcp@${ver} already on npm — skip"
-            exit 0
-          fi
-          npm publish --access public
-          echo "::notice::Published keel-mcp@${ver}"
+        run: bash "${GITHUB_WORKSPACE}/scripts/publish-side-package.sh"
 
       # keeljs.com renders the guides out of the published package, so a release it
       # doesn't hear about is a docs site that quietly lags the framework — which
@@ -110,8 +92,11 @@ jobs:
       # the automatic GITHUB_TOKEN cannot trigger a workflow in another repo — and
       # a long-lived cross-repo credential is a real cost for a 30-minute saving,
       # so not setting one is a perfectly good answer.
+      # Not `continue-on-error`. The site polls npm on its own, so a failed
+      # dispatch costs at most half an hour and must not fail a release that has
+      # already published — but it should still be *visible*, which a swallowed
+      # red X is not. So the failure modes are handled explicitly and warn.
       - name: Tell the site to deploy
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
         run: |
@@ -120,7 +105,10 @@ jobs:
             exit 0
           fi
           version="$(node -p 'require("./package.json").version')"
-          gh api /repos/shaferllc/keel-site/dispatches \
-            -f event_type=keel-released \
-            -F "client_payload[version]=${version}"
-          echo "dispatched keel-released ${version}"
+          if gh api /repos/shaferllc/keel-site/dispatches \
+               -f event_type=keel-released \
+               -F "client_payload[version]=${version}"; then
+            echo "dispatched keel-released ${version}"
+          else
+            echo "::warning title=Site dispatch failed::Could not notify keel-site (is SITE_DISPATCH_TOKEN expired?). Not fatal — the site's 30-minute npm poll still picks up ${version}."
+          fi
