@@ -45,6 +45,20 @@ export type {
 } from "./events.js";
 export { Cache, MemoryStore, DatabaseStore, cacheMigration, kvStore } from "./cache.js";
 export type { CacheStore, RememberOptions, PutOptions, KvNamespaceLike } from "./cache.js";
+export {
+  search,
+  SearchQuery,
+  MemoryDriver as MemorySearchDriver,
+  DatabaseDriver as DatabaseSearchDriver,
+  searchMigration,
+  setSearchDriver,
+  searchDriver,
+  registerSearchable,
+  reindex,
+  indexFor,
+  documentText,
+} from "./search.js";
+export type { SearchDriver, SearchDocument, SearchOptions, SearchHit } from "./search.js";
 export { serveStatic } from "./static.js";
 export type { StaticOptions } from "./static.js";
 export {

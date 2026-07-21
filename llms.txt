@@ -62,6 +62,7 @@ Userland imports everything from `@shaferllc/keel/core`.
 - [Request & Response](https://github.com/shaferllc/keel/blob/main/docs/request-response.md): Beyond the terse param() / json() shortcuts, the request and response accessors give you the full input/output surface — no context threading.
 - [Routing](https://github.com/shaferllc/keel/blob/main/docs/routing.md): Routes live in routes/web.ts. The default export receives the Router and registers routes on it. The HTTP kernel later compiles them onto Hono.
 - [Task Scheduling](https://github.com/shaferllc/keel/blob/main/docs/scheduling.md): Declare recurring work with a fluent cadence, then let a single cron trigger drive it — a code-defined scheduler, edge-first.
+- [Search](https://github.com/shaferllc/keel/blob/main/docs/search.md): Full-text search over a pluggable driver — the same seam as the cache, queue, and storage layers, so the core imports no engine and runs on Node and the edge.
 - [Securing SSR apps](https://github.com/shaferllc/keel/blob/main/docs/security.md): Two middlewares harden server-rendered apps: securityHeaders() sets the defensive HTTP headers browsers act on, and csrf() blocks cross-site form submissions.
 - [Sessions](https://github.com/shaferllc/keel/blob/main/docs/sessions.md): Keel ships a cookie-backed session store. There's no external service to run, so it works the same on Node and on the edge. Session data lives in an HTTP-only cookie: the middleware reads it before your handler runs and writes it back afterward.
 - [Social authentication](https://github.com/shaferllc/keel/blob/main/docs/social-auth.md): "Sign in with GitHub / Google / Discord" — OAuth 2.0, without an SDK.
@@ -131,6 +132,7 @@ Every topic has a runnable, type-checked example:
 - [Request & Response example](https://github.com/shaferllc/keel/blob/main/docs/examples/request-response.ts)
 - [Routing example](https://github.com/shaferllc/keel/blob/main/docs/examples/routing.ts)
 - [Task Scheduling example](https://github.com/shaferllc/keel/blob/main/docs/examples/scheduling.ts)
+- [Search example](https://github.com/shaferllc/keel/blob/main/docs/examples/search.ts)
 - [Securing SSR apps example](https://github.com/shaferllc/keel/blob/main/docs/examples/security.ts)
 - [Sessions example](https://github.com/shaferllc/keel/blob/main/docs/examples/sessions.ts)
 - [Social authentication example](https://github.com/shaferllc/keel/blob/main/docs/examples/social-auth.ts)

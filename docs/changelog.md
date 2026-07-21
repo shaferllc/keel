@@ -4,6 +4,59 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.86.0] — 2026-07-21
+
+Full-text search — the largest remaining gap against Laravel, and the last core
+capability with no seam at all.
+
+### Added
+
+- **Search, over a pluggable driver.** Same shape as the cache, queue, and
+  storage layers: the core imports no engine, so it runs unchanged on Node and
+  the edge.
+
+      class Post extends Model {
+        static table = "posts";
+        static searchable = ["title", "body"];
+      }
+
+      registerSearchable(Post);                       // in a service provider
+      const posts = await search(Post, "edge runtime").get();
+
+  `registerSearchable` wires the model's `saved` and `deleted` events to the
+  index, so ordinary writes stay in sync without anyone remembering to reindex.
+
+- **Results are ordinary models.** `get()` resolves the driver's ids back
+  *through the model's own query builder*, so casts, global scopes, relations,
+  and soft deletes all still apply — then re-sorts the rows into relevance order,
+  because `WHERE id IN (…)` has no obligation to preserve it. A hit whose row has
+  since been deleted is skipped rather than returned as a hole, so an index that
+  has drifted degrades quietly instead of handing you `undefined`.
+
+- **Two drivers.** `MemorySearchDriver` is the default — no database, no
+  migration, and scoring simple enough to assert ordering against, which is what
+  you want in tests. `DatabaseSearchDriver` stores documents in one
+  `search_index` table (`searchMigration()`) that serves every model, and
+  searches it with whatever full-text machinery the dialect actually has: SQLite
+  FTS5, a generated Postgres `tsvector` with a GIN index, MySQL `FULLTEXT`, and a
+  `LIKE` fallback so a dialect with none of that still works.
+
+  All drivers agree on the semantics, so swapping one doesn't change results:
+  terms are AND-ed, terms match on prefix, and an empty query matches nothing
+  rather than everything.
+
+- **User input is never query syntax.** A search box feeding a query language is
+  the shape of an injection bug, so the SQLite driver quotes each term for FTS5
+  (`OR`, `NEAR`, `*`, a stray `"` are words to search for, not operators) and the
+  Postgres driver builds its `tsquery` from parsed terms rather than handing the
+  raw string to `to_tsquery`, which would raise on malformed input. You can pass a
+  raw search box straight through.
+
+- **`search:index <Model>`** (rebuild from the table, `--chunk` to size the
+  batches) and **`search:flush <Model>`**. `reindex()` is the same thing in code
+  and returns the document count. Both flush first, so they are a rebuild rather
+  than a top-up and rows deleted behind the index's back don't linger.
+
 ## [0.85.1] — 2026-07-21
 
 **Security release. Upgrade if you use `sessionMiddleware()`.**

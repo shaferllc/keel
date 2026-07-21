@@ -32,6 +32,8 @@ import { getConnection } from "../database.js";
 import { getQueue, Job, type FailedJob, type FailedJobStore } from "../queue.js";
 import { Migrator, type Migration } from "../migrations.js";
 import { seed, type Seeder } from "../factory.js";
+import { reindex, searchDriver, indexFor } from "../search.js";
+import type { Model } from "../model.js";
 import { MigrationRegistry, CommandRegistry, PublishRegistry } from "../package.js";
 import {
   controllerStub,
@@ -141,6 +143,30 @@ async function loadSeeder(name: string): Promise<new () => Seeder> {
     `No seeder class "${cls}" exported from database/seeders. ` +
       `Create one with: keel make:seeder ${name}`,
   );
+}
+
+/**
+ * Load a model class out of `app/Models/`, by class name. Same shape as
+ * `loadSeeder` — found by what a module exports, not by what the file is called.
+ */
+async function loadModel(name: string): Promise<typeof Model & { table: string }> {
+  const dir = join(basePath, "app/Models");
+  const cls = className(name, "");
+
+  const files = await readdir(dir).catch(() => null);
+  if (!files) throw new Error(`No app/Models directory. Create a model with: keel make:model ${name}`);
+
+  for (const file of files.sort()) {
+    if (!/\.(ts|js|mjs)$/.test(file)) continue;
+    const module = (await import(pathToFileURL(join(dir, file)).href)) as Record<string, unknown>;
+
+    const candidate = module[cls] ?? (file.startsWith(`${cls}.`) ? module.default : undefined);
+    if (typeof candidate === "function") {
+      return candidate as typeof Model & { table: string };
+    }
+  }
+
+  throw new Error(`No model class "${cls}" exported from app/Models.`);
 }
 
 /** A `Migrator` on the default connection, or a friendly error if none is set. */
@@ -779,6 +805,44 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     },
   });
 
+  /* ---------------------------------- search ---------------------------------- */
+
+  const searchIndexCmd = defineCommand({
+    name: "search:index",
+    description: "Rebuild a model's search index from its table",
+    args: { model: arg.string({ description: "e.g. Post" }) },
+    flags: { chunk: flag.string({ description: "rows to read per batch (default 500)" }) },
+    async run({ args, flags, ui }) {
+      requireApp();
+      const model = await loadModel(args.model);
+      const chunk = flags.chunk ? Number(flags.chunk) : undefined;
+
+      if (chunk !== undefined && (!Number.isInteger(chunk) || chunk < 1)) {
+        ui.error(`--chunk must be a positive integer, got "${flags.chunk}".`);
+        return 1;
+      }
+
+      // reindex() flushes first, so an interrupted run leaves a partial index —
+      // say what is happening rather than looking like it hung on a big table.
+      ui.info(`Reindexing ${model.name} into "${indexFor(model)}"…`);
+      const total = await reindex(model as never, chunk ? { chunk } : {});
+      ui.success(`Indexed ${total} document(s).`);
+    },
+  });
+
+  const searchFlushCmd = defineCommand({
+    name: "search:flush",
+    description: "Empty a model's search index",
+    args: { model: arg.string({ description: "e.g. Post" }) },
+    async run({ args, ui }) {
+      requireApp();
+      const model = await loadModel(args.model);
+      const index = indexFor(model);
+      await searchDriver().flush(index);
+      ui.success(`Flushed "${index}".`);
+    },
+  });
+
   const vendorPublish = defineCommand({
     name: "vendor:publish",
     description: "Copy package-published files (config, assets) into this app",
@@ -878,6 +942,8 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     migrateRefresh as AnyCommand,
     migrateFresh as AnyCommand,
     dbSeed as AnyCommand,
+    searchIndexCmd as AnyCommand,
+    searchFlushCmd as AnyCommand,
     vendorPublish as AnyCommand,
     kitSync as AnyCommand,
   );

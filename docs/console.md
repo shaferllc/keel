@@ -45,6 +45,8 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `migrate:refresh` | `[--seed] [--force]` | Roll everything back, then migrate again |
 | `migrate:fresh` | `[--seed] [--force]` | Drop every table, then migrate from scratch |
 | `db:seed` | `[-c <class>]` | Run a [seeder](./factories.md#seeders) (default `DatabaseSeeder`) |
+| `search:index` | `<model>` `[--chunk <n>]` | Rebuild a model's [search index](./search.md) |
+| `search:flush` | `<model>` | Empty a model's search index |
 | `vendor:publish` | `[--tag <t>] [--force]` | Copy package-published files into the app |
 | `kit:sync` | `[-p <preset>] [--force]` | Refresh untouched starter-kit files |
 | `mcp` | — | Start the [MCP server](./ai.md) for AI agents (stdio) |
@@ -165,6 +167,20 @@ named for the class.
 `migrate:fresh` doesn't call them at all — it drops every table and starts over,
 which is what you want when a `down()` is wrong, missing, or refers to a table a
 half-applied migration never created.
+
+### Search commands
+
+Rebuild a model's [search index](./search.md) from its table:
+
+```bash
+npm run keel search:index Post              # flush, then index every row
+npm run keel search:index Post -- --chunk 1000
+npm run keel search:flush Post              # empty the index
+```
+
+`search:index` is a rebuild, not a top-up — it flushes first, so rows deleted
+behind the index's back don't linger. Models are found by class name in
+`app/Models/`, whichever module exports them.
 
 ## Generators
 
