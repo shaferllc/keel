@@ -38,6 +38,15 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `queue:failed` | — | List jobs that exhausted their retries |
 | `queue:retry` | `<id\|all>` | Put a failed job back on the queue |
 | `queue:flush` | `[id]` | Delete failed jobs — one, or all of them |
+| `migrate` | `[--seed]` | Run pending [migrations](./migrations.md) |
+| `migrate:status` | — | Show which migrations have run and which are pending |
+| `migrate:rollback` | — | Roll back the most recent batch |
+| `migrate:reset` | `[--force]` | Roll back every migration |
+| `migrate:refresh` | `[--seed] [--force]` | Roll everything back, then migrate again |
+| `migrate:fresh` | `[--seed] [--force]` | Drop every table, then migrate from scratch |
+| `db:seed` | `[-c <class>]` | Run a [seeder](./factories.md#seeders) (default `DatabaseSeeder`) |
+| `vendor:publish` | `[--tag <t>] [--force]` | Copy package-published files into the app |
+| `kit:sync` | `[-p <preset>] [--force]` | Refresh untouched starter-kit files |
 | `mcp` | — | Start the [MCP server](./ai.md) for AI agents (stdio) |
 
 Every generator normalizes the name you pass and refuses to overwrite an existing
@@ -123,6 +132,39 @@ failures (`DatabaseDriver`, `RedisDriver`, or anything implementing
 `FailedJobStore`) —
 with the in-memory drivers, `queue:failed` still lists what the process has
 seen, but there is nothing durable to retry.
+
+### Database commands
+
+Run [migrations](./migrations.md) and [seeders](./factories.md#seeders):
+
+```bash
+npm run keel migrate                 # run what's pending
+npm run keel migrate -- --seed       # …then run DatabaseSeeder
+npm run keel migrate:status          # which have run, which haven't
+npm run keel migrate:rollback        # undo the last batch
+npm run keel migrate:reset           # undo every batch
+npm run keel migrate:refresh --seed  # reset, migrate, seed
+npm run keel migrate:fresh --seed    # drop every table, migrate, seed
+npm run keel db:seed                 # run database/seeders/DatabaseSeeder.ts
+npm run keel db:seed -- -c User      # run UserSeeder instead
+```
+
+They all need a registered connection (`setConnection()`), and pick up migrations
+from `database/migrations/` plus any a [package](./packages.md) contributed.
+
+`db:seed` finds a seeder by class name — `-c User` resolves `UserSeeder` from
+whichever module in `database/seeders/` exports it, so the file doesn't have to be
+named for the class.
+
+> **The destructive ones are guarded.** `migrate:reset`, `migrate:refresh`, and
+> `migrate:fresh` refuse to run when `NODE_ENV` (or `APP_ENV`) is `production`
+> unless you pass `--force`. Wiping a development database is the point; wiping
+> production never is.
+
+`migrate:refresh` rolls back through your `down()` methods and migrates up again.
+`migrate:fresh` doesn't call them at all — it drops every table and starts over,
+which is what you want when a `down()` is wrong, missing, or refers to a table a
+half-applied migration never created.
 
 ## Generators
 

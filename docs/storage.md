@@ -25,6 +25,8 @@ const url = storage().url("avatars/1.png"); // a public URL for the object
 ```
 
 The default disk is a `MemoryDisk`, so `storage()` works out of the box in tests.
+For production, see [the shipped disks](#the-shipped-disks) — the local
+filesystem, S3-compatible buckets, and Cloudflare R2.
 
 ## Writing files
 
@@ -78,9 +80,9 @@ const url = await storage().signedUrl("invoices/42.pdf", { expiresIn: 300 });
 
 How it's signed depends on the disk:
 
-- **A disk with backend presigning** (S3, R2, GCS — see the recipes below) returns
-  the backend's own presigned URL. The file is served straight from the bucket;
-  your app isn't in the path at all.
+- **A disk with backend presigning** (`s3Disk`, and any disk you write with a
+  `signedUrl` of its own) returns the backend's own presigned URL. The file is
+  served straight from the bucket; your app isn't in the path at all.
 - **Any other disk** gets a URL signed with `config('app.key')`, pointing at your
   app. Serve those with `serveStorage({ signed: true })`.
 
@@ -114,7 +116,8 @@ file.
 > 403 every request — which reads as "your link expired" and sends you hunting in
 > the wrong place — `serveStorage` **throws** with the two paths and how to line
 > them up. Give the disk the matching base (`new MemoryDisk("/private")`, or
-> `localDisk("./storage", "/private")`), or keep both on the default `/storage`.
+> `localDisk({ root: "storage/app", baseUrl: "/private" })`), or keep both on the
+> default `/storage`.
 
 ## Direct browser uploads
 
@@ -172,11 +175,118 @@ Failed assertions throw with the path and what was actually there.
 Register disks by name and pick one with `storage(name)`:
 
 ```ts
-setDisk(localDisk("./storage"), "local");
-setDisk(r2Disk(env.BUCKET), "r2");
+setDisk(localDisk({ root: "storage/app" }), "local");
+setDisk(s3Disk({ bucket: "uploads", ...credentials }), "s3");
 
 await storage("local").put("cache/x", data);
-await storage("r2").put("public/logo.svg", svg);
+await storage("s3").put("public/logo.svg", svg);
+```
+
+## The shipped disks
+
+Three disks come with Keel, each in its own entry point so nothing you don't use
+is imported. Pick by where the app runs and where the bytes should live:
+
+| Disk | Import | Runs on | Presigns? |
+| --- | --- | --- | --- |
+| `MemoryDisk` | `@shaferllc/keel/core` | anywhere | no (app-signed fallback) |
+| `localDisk` | `@shaferllc/keel/storage/local` | Node | no (app-signed fallback) |
+| `s3Disk` | `@shaferllc/keel/storage/s3` | Node + edge | **yes**, SigV4 |
+| `r2Disk` | `@shaferllc/keel/storage/r2` | Workers | no (app-signed fallback) |
+
+### `localDisk` — the local filesystem
+
+```ts
+import { localDisk } from "@shaferllc/keel/storage/local";
+import { setDisk, serveStorage } from "@shaferllc/keel/core";
+
+setDisk(localDisk({ root: "storage/app" }));
+this.use(serveStorage()); // hand the files out over HTTP
+```
+
+`root` resolves from the working directory. `baseUrl` (default `/storage`) is the
+prefix `url()` hands out — keep it in step with where you mount `serveStorage()`.
+
+The filesystem has nowhere to put an object's content type or custom metadata, so
+this disk stores what it can and infers the rest: `contentType` comes from the
+extension on read, `visibility` maps onto the file mode (`public` → 0644,
+`private` → 0600) and is read back from it, and `cacheControl` / `metadata` are
+accepted and ignored — set cache headers with `serveStorage({ maxAge })` instead.
+
+Paths that resolve outside `root` are refused, so a hostile upload filename can't
+walk up into the rest of the machine.
+
+### `s3Disk` — S3, R2, MinIO, Spaces, B2
+
+The one that presigns. It signs its own SigV4 requests over `fetch` and Web
+Crypto, imports no SDK, and runs unchanged on Node and the edge:
+
+```ts
+import { s3Disk } from "@shaferllc/keel/storage/s3";
+
+setDisk(
+  s3Disk({
+    bucket: "uploads",
+    region: "us-east-1",
+    accessKeyId: env("AWS_ACCESS_KEY_ID"),
+    secretAccessKey: env("AWS_SECRET_ACCESS_KEY"),
+  }),
+);
+```
+
+For R2, MinIO, or Spaces, give it the endpoint — the bucket then goes in the path
+rather than the hostname, which is what those expect:
+
+```ts
+s3Disk({
+  bucket: "uploads",
+  region: "auto",
+  endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+  accessKeyId: env("R2_ACCESS_KEY_ID"),
+  secretAccessKey: env("R2_SECRET_ACCESS_KEY"),
+  publicUrl: "https://cdn.example.com", // where `url()` points
+});
+```
+
+Set `publicUrl` whenever you serve files directly: without it `url()` returns the
+signing endpoint, which is usually *not* publicly readable. `forcePathStyle`
+overrides the addressing choice, and `sessionToken` covers temporary STS
+credentials.
+
+Because the backend signs, `signedUrl()` and `signedUploadUrl()` are real
+presigned URLs rather than the app-key fallback — a browser `PUT`s straight to the
+bucket and the bytes never transit your app. An upload URL signs the content type
+too, so a URL minted for an image can't be reused to upload a script.
+
+`visibility` becomes a canned ACL (`public-read` / `private`), and only when you
+pass one — buckets with ACLs disabled (the modern S3 default, and R2 always)
+reject the header outright.
+
+### `r2Disk` — a Cloudflare R2 binding
+
+When the app runs on Workers and the bucket is bound to it, the binding skips
+HTTP and auth entirely:
+
+```jsonc
+// wrangler.jsonc
+"r2_buckets": [{ "binding": "BUCKET", "bucket_name": "uploads" }]
+```
+
+```ts
+import { r2Disk } from "@shaferllc/keel/storage/r2";
+
+setDisk(r2Disk(env.BUCKET, { publicUrl: "https://cdn.example.com" }));
+```
+
+The binding talks to R2 over Cloudflare's internal RPC, which has no notion of a
+presigned URL — so `signedUrl()` falls back to app-key signing (serve it with
+`serveStorage({ signed: true })`) and `signedUploadUrl()` throws. If you need
+direct browser uploads, use `s3Disk` against R2's S3 endpoint instead; it can
+presign because it signs its own requests. Nothing stops you registering both:
+
+```ts
+setDisk(r2Disk(env.BUCKET), "r2"); // fast reads and writes from the Worker
+setDisk(s3Disk({ ... }), "uploads"); // presigned URLs for the browser
 ```
 
 ## Writing a disk
@@ -186,174 +296,32 @@ A disk is the `Disk` interface. Six methods are required — `put` / `get` /
 implement `metadata`, `copy`, `move`, `signedUrl`, or `signedUploadUrl` when your
 backend can do better than the generic fallback, and `Storage` will use them.
 
-### Local filesystem (Node)
-
 ```ts
-import { mkdir, readFile, writeFile, rm, readdir, stat } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import type { Disk } from "@shaferllc/keel/core";
 
-const localDisk = (root: string, baseUrl = "/storage"): Disk => ({
-  async put(path, bytes) {
-    const full = join(root, path);
-    await mkdir(dirname(full), { recursive: true });
-    await writeFile(full, bytes);
+const gcsDisk = (bucket: string): Disk => ({
+  async put(path, bytes, options) {
+    /* … */
   },
   async get(path) {
-    try {
-      return new Uint8Array(await readFile(join(root, path)));
-    } catch {
-      return null;
-    }
+    /* … return null when missing */
   },
   async exists(path) {
-    return (await this.get(path)) !== null;
+    /* … */
   },
   async delete(path) {
-    await rm(join(root, path), { force: true });
+    /* … */
   },
   async list(prefix = "") {
-    const all = await readdir(root, { recursive: true });
-    return all.filter((p) => p.startsWith(prefix));
+    /* … */
   },
-  async metadata(path) {
-    const s = await stat(join(root, path)).catch(() => null);
-    return s ? { size: s.size, lastModified: s.mtime } : null;
-  },
-  url: (path) => `${baseUrl}/${path}`,
+  url: (path) => `https://storage.googleapis.com/${bucket}/${path}`,
 });
 ```
 
-This disk has no backend presigning, so `signedUrl()` falls back to an app-signed
-URL — pair it with `serveStorage({ signed: true })`.
-
-### Cloudflare R2 (edge, via the binding)
-
-```ts
-import type { Disk } from "@shaferllc/keel/core";
-
-const r2Disk = (bucket: R2Bucket, baseUrl: string): Disk => ({
-  async put(path, bytes, options) {
-    await bucket.put(path, bytes, {
-      httpMetadata: {
-        contentType: options?.contentType,
-        cacheControl: options?.cacheControl,
-      },
-      customMetadata: options?.metadata,
-    });
-  },
-  async get(path) {
-    const obj = await bucket.get(path);
-    return obj ? new Uint8Array(await obj.arrayBuffer()) : null;
-  },
-  async exists(path) {
-    return (await bucket.head(path)) !== null;
-  },
-  async delete(path) {
-    await bucket.delete(path);
-  },
-  async list(prefix) {
-    const { objects } = await bucket.list({ prefix });
-    return objects.map((o) => o.key);
-  },
-  async metadata(path) {
-    const obj = await bucket.head(path);
-    if (!obj) return null;
-    return {
-      size: obj.size,
-      contentType: obj.httpMetadata?.contentType,
-      cacheControl: obj.httpMetadata?.cacheControl,
-      lastModified: obj.uploaded,
-      metadata: obj.customMetadata,
-    };
-  },
-  url: (path) => `${baseUrl}/${path}`,
-});
-```
-
-The R2 binding writes through the Worker, so it can't presign. For direct browser
-uploads, use R2's S3-compatible API below.
-
-### S3 / R2 presigned URLs
-
-S3 and R2 speak the same SigV4-signed HTTP API, so one disk covers both, and it's
-the disk that gives you `signedUrl` and `signedUploadUrl` for real. Sign with
-[`aws4fetch`](https://github.com/mhart/aws4fetch) — a ~2 KB library that runs on
-Workers because it's built on Web Crypto:
-
-```ts
-import { AwsClient } from "aws4fetch";
-import type { Disk } from "@shaferllc/keel/core";
-
-const s3Disk = (options: {
-  endpoint: string; // https://<account>.r2.cloudflarestorage.com/<bucket>
-  accessKeyId: string;
-  secretAccessKey: string;
-  baseUrl: string; // your public bucket / CDN origin
-}): Disk => {
-  const aws = new AwsClient({
-    accessKeyId: options.accessKeyId,
-    secretAccessKey: options.secretAccessKey,
-    service: "s3",
-  });
-  const object = (path: string) => `${options.endpoint}/${path}`;
-
-  /** A SigV4 URL with the credentials in the query string, valid for `expiresIn`. */
-  const presign = async (path: string, method: string, expiresIn: number, contentType?: string) => {
-    const url = new URL(object(path));
-    url.searchParams.set("X-Amz-Expires", String(expiresIn));
-    const signed = await aws.sign(new Request(url, { method, headers: contentType ? { "Content-Type": contentType } : {} }), {
-      aws: { signQuery: true },
-    });
-    return signed.url;
-  };
-
-  return {
-    async put(path, bytes, opts) {
-      await aws.fetch(object(path), {
-        method: "PUT",
-        body: bytes,
-        headers: {
-          "Content-Type": opts?.contentType ?? "application/octet-stream",
-          ...(opts?.cacheControl ? { "Cache-Control": opts.cacheControl } : {}),
-        },
-      });
-    },
-    async get(path) {
-      const res = await aws.fetch(object(path));
-      return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
-    },
-    async exists(path) {
-      return (await aws.fetch(object(path), { method: "HEAD" })).ok;
-    },
-    async delete(path) {
-      await aws.fetch(object(path), { method: "DELETE" });
-    },
-    async list(prefix = "") {
-      const url = new URL(options.endpoint);
-      url.searchParams.set("list-type", "2");
-      url.searchParams.set("prefix", prefix);
-      const xml = await (await aws.fetch(url)).text();
-      return [...xml.matchAll(/<Key>(.*?)<\/Key>/g)].map((m) => m[1]!);
-    },
-    async metadata(path) {
-      const res = await aws.fetch(object(path), { method: "HEAD" });
-      if (!res.ok) return null;
-      return {
-        size: Number(res.headers.get("Content-Length") ?? 0),
-        contentType: res.headers.get("Content-Type") ?? undefined,
-        cacheControl: res.headers.get("Cache-Control") ?? undefined,
-        lastModified: new Date(res.headers.get("Last-Modified") ?? Date.now()),
-      };
-    },
-    url: (path) => `${options.baseUrl}/${path}`,
-
-    // The capabilities that matter: the bucket signs, so the bytes skip your app.
-    signedUrl: (path, o) => presign(path, "GET", o?.expiresIn ?? 3600),
-    signedUploadUrl: (path, o) => presign(path, "PUT", o?.expiresIn ?? 3600, o?.contentType),
-  };
-};
-```
+The three shipped disks are worth reading as worked examples —
+`src/storage/local.ts` for the filesystem shape, `src/storage/s3.ts` for a
+signing HTTP backend, and `src/storage/r2.ts` for a duck-typed platform binding.
 
 ## API reference
 
@@ -422,6 +390,39 @@ path and query, not the host.
 
 `class MemoryDisk implements Disk` — in-memory, the default and ideal for tests.
 `new MemoryDisk(baseUrl?)` sets the `url()` prefix. Not shared across processes.
+
+### `localDisk(options)`
+
+`localDisk(options: LocalDiskOptions): Disk` — from `@shaferllc/keel/storage/local`.
+
+`LocalDiskOptions` is `{ root, baseUrl?, publicMode?, privateMode? }`. `root` is
+required and resolves from the working directory; `baseUrl` defaults to
+`"/storage"`; the modes default to `0o644` and `0o600` and are how `visibility` is
+stored and read back. Implements `metadata`, `copy`, and `move`; no presigning.
+
+### `s3Disk(options)`
+
+`s3Disk(options: S3DiskOptions): Disk` — from `@shaferllc/keel/storage/s3`.
+
+`S3DiskOptions` is `{ bucket, accessKeyId, secretAccessKey, region?, sessionToken?,
+endpoint?, forcePathStyle?, publicUrl?, fetch? }`. `region` defaults to `"auto"`;
+`endpoint` defaults to the AWS host for the region and, when set, flips
+`forcePathStyle` on. `publicUrl` is what `url()` returns. `fetch` overrides the
+global for tests or a Worker's bound fetcher.
+
+Implements every optional capability, presigning included. `list()` follows the
+ListObjectsV2 continuation token, so it doesn't truncate at 1000 keys.
+
+### `r2Disk(bucket, options?)`
+
+`r2Disk(bucket: R2BucketLike, options?: R2DiskOptions): Disk` — from
+`@shaferllc/keel/storage/r2`.
+
+`bucket` is duck-typed against the R2 binding (`put` / `get` / `head` / `delete` /
+`list`), so no Cloudflare types are imported. `R2DiskOptions` is `{ publicUrl? }`,
+defaulting to `"/storage"`. Implements `metadata` and `copy`; `list()` follows the
+cursor. A binding can't presign, so `signedUrl()` falls back to app-key signing and
+`signedUploadUrl()` throws.
 
 ### Interfaces & types
 

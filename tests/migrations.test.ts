@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { DatabaseSync } from "node:sqlite";
+
 import { Migrator, SchemaBuilder, type Migration } from "../src/core/migrations.js";
-import type { Connection } from "../src/core/database.js";
+import type { Connection, Row } from "../src/core/database.js";
 
 /** A fake connection that actually tracks the migrations table in memory. */
 function fakeDb() {
@@ -92,4 +94,122 @@ test("schema builder emits dialect-aware SQL", async () => {
   assert.match(sqls[0]!, /title VARCHAR\(255\) NOT NULL/);
   assert.match(sqls[0]!, /published BOOLEAN NOT NULL DEFAULT false/);
   assert.match(sqls[0]!, /views INTEGER/);
+});
+
+/* ------------------------- reset & dropAllTables -------------------------- */
+
+/** A real in-memory SQLite connection, so the schema changes are real. */
+function sqliteConnection(): Connection {
+  const sdb = new DatabaseSync(":memory:");
+  return {
+    async select(sql, bindings) {
+      return sdb.prepare(sql).all(...(bindings as never[])) as Row[];
+    },
+    async write(sql, bindings) {
+      const r = sdb.prepare(sql).run(...(bindings as never[]));
+      return { rowsAffected: Number(r.changes), insertId: Number(r.lastInsertRowid) };
+    },
+  };
+}
+
+/** Three migrations, each applied in its own batch, each with a working down(). */
+function threeTables(): Migration[] {
+  return ["users", "posts", "comments"].map((table, i) => ({
+    name: `0${i + 1}_create_${table}`,
+    async up(schema: SchemaBuilder) {
+      await schema.createTable(table, (t) => {
+        t.id();
+        t.string("label");
+      });
+    },
+    async down(schema: SchemaBuilder) {
+      await schema.dropTable(table);
+    },
+  }));
+}
+
+const tablesIn = async (conn: Connection): Promise<string[]> =>
+  (
+    (await conn.select(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+      [],
+    )) as { name: string }[]
+  )
+    .map((r) => r.name)
+    .sort();
+
+test("migrator: reset rolls back every batch, newest first", async () => {
+  const conn = sqliteConnection();
+  const migrator = new Migrator(conn, "sqlite");
+  const migrations = threeTables();
+
+  // One batch per call, so there are three to unwind.
+  for (const m of migrations) await migrator.up([m]);
+  assert.deepEqual(await tablesIn(conn), ["comments", "migrations", "posts", "users"]);
+
+  const rolled = await migrator.reset(migrations);
+  assert.deepEqual(rolled, ["03_create_comments", "02_create_posts", "01_create_users"]);
+  assert.deepEqual(await tablesIn(conn), ["migrations"]);
+  assert.deepEqual(await migrator.ran(), []);
+});
+
+test("migrator: reset is a no-op on a database with nothing applied", async () => {
+  const migrator = new Migrator(sqliteConnection(), "sqlite");
+  assert.deepEqual(await migrator.reset(threeTables()), []);
+});
+
+test("migrator: reset can be followed by up, which is what migrate:refresh does", async () => {
+  const conn = sqliteConnection();
+  const migrator = new Migrator(conn, "sqlite");
+  const migrations = threeTables();
+
+  await migrator.up(migrations);
+  await migrator.reset(migrations);
+  const applied = await migrator.up(migrations);
+
+  assert.deepEqual(applied, migrations.map((m) => m.name));
+  assert.deepEqual(await tablesIn(conn), ["comments", "migrations", "posts", "users"]);
+});
+
+test("migrator: dropAllTables clears everything, migrations table included", async () => {
+  const conn = sqliteConnection();
+  const migrator = new Migrator(conn, "sqlite");
+
+  await migrator.up(threeTables());
+  const dropped = await migrator.dropAllTables();
+
+  assert.deepEqual(dropped.sort(), ["comments", "migrations", "posts", "users"]);
+  assert.deepEqual(await tablesIn(conn), []);
+});
+
+test("migrator: dropAllTables gets back to empty when a down() is broken", async () => {
+  const conn = sqliteConnection();
+  const migrator = new Migrator(conn, "sqlite");
+
+  // The case migrate:fresh exists for: reset() can't finish, but fresh can.
+  const broken: Migration[] = [
+    {
+      name: "01_create_users",
+      async up(schema) {
+        await schema.createTable("users", (t) => t.id());
+      },
+      async down() {
+        throw new Error("this down() was never right");
+      },
+    },
+  ];
+
+  await migrator.up(broken);
+  await assert.rejects(() => migrator.reset(broken), /never right/);
+
+  await migrator.dropAllTables();
+  assert.deepEqual(await tablesIn(conn), []);
+
+  // And the database is genuinely reusable afterwards.
+  assert.deepEqual(await migrator.up(broken), ["01_create_users"]);
+});
+
+test("migrator: dropAllTables on an untouched database is a no-op", async () => {
+  const migrator = new Migrator(sqliteConnection(), "sqlite");
+  assert.deepEqual(await migrator.dropAllTables(), []);
 });

@@ -15,6 +15,9 @@ import {
   type Disk,
   type FileMetadata,
 } from "@shaferllc/keel/core";
+import { localDisk } from "@shaferllc/keel/storage/local";
+import { s3Disk } from "@shaferllc/keel/storage/s3";
+import { r2Disk, type R2BucketLike } from "@shaferllc/keel/storage/r2";
 
 declare const bytes: Uint8Array;
 declare const data: string;
@@ -95,13 +98,63 @@ export async function testing() {
   restoreDisk();
 }
 
-export function named(local: Disk, r2: Disk) {
+export function named(local: Disk, s3: Disk) {
   setDisk(local, "local");
-  setDisk(r2, "r2");
+  setDisk(s3, "s3");
   return Promise.all([
     storage("local").put("cache/x", data),
-    storage("r2").put("public/logo.svg", svg),
+    storage("s3").put("public/logo.svg", svg),
   ]);
+}
+
+/* ----------------------------- the shipped disks ---------------------------- */
+
+export function local() {
+  setDisk(localDisk({ root: "storage/app" }));
+  setDisk(localDisk({ root: "storage/private", baseUrl: "/private" }), "private");
+}
+
+declare const accountId: string;
+declare const credentials: { accessKeyId: string; secretAccessKey: string };
+
+export function s3() {
+  setDisk(
+    s3Disk({
+      bucket: "uploads",
+      region: "us-east-1",
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+    }),
+  );
+
+  // R2, MinIO, Spaces: give it the endpoint and the bucket moves into the path.
+  setDisk(
+    s3Disk({
+      bucket: "uploads",
+      region: "auto",
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      publicUrl: "https://cdn.example.com",
+    }),
+    "r2-s3",
+  );
+}
+
+export async function s3Presigning(): Promise<[string, string]> {
+  return Promise.all([
+    storage().signedUrl("invoices/42.pdf", { expiresIn: 300 }),
+    storage().signedUploadUrl("uploads/clip.mp4", {
+      expiresIn: 600,
+      contentType: "video/mp4",
+    }),
+  ]);
+}
+
+declare const bucket: R2BucketLike;
+
+export function r2() {
+  setDisk(r2Disk(bucket, { publicUrl: "https://cdn.example.com" }));
 }
 
 // A minimal custom disk (the shape of the local/R2 examples)

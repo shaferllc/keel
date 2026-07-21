@@ -4,6 +4,63 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.85.0] — 2026-07-21
+
+Last release the drivers were queue, cache, and rate limiting. This one finishes
+the set: **storage gets shipped disks**, and the migration commands stop having a
+hole in the middle where `db:seed` should be.
+
+### Added
+
+- **Three shipped storage disks.** `storage()` has always been a pluggable seam
+  with exactly one implementation behind it — `MemoryDisk` — and a docs page full
+  of recipes to copy. Those recipes are now adapters:
+
+  - `localDisk({ root })` from `@shaferllc/keel/storage/local`, for Node. Stores
+    `visibility` in the file mode (0644 / 0600) and reads it back, walks
+    directories for `list()`, and refuses any path that resolves outside its root
+    — a hostile upload filename can't walk up into the rest of the machine.
+  - `s3Disk({ bucket, ... })` from `@shaferllc/keel/storage/s3`, for S3, R2,
+    MinIO, Spaces, and B2. It signs its own SigV4 requests over `fetch` and Web
+    Crypto, so it imports no SDK and runs unchanged on Node and the edge — and,
+    because it signs, it's the disk that makes `signedUrl()` and
+    `signedUploadUrl()` *real* presigned URLs rather than the app-key fallback.
+    A browser `PUT`s straight to the bucket; the bytes never transit your app.
+    Its signatures are verified against AWS's published SigV4 test vector.
+  - `r2Disk(env.BUCKET)` from `@shaferllc/keel/storage/r2`, for a Cloudflare R2
+    binding — duck-typed, so no Cloudflare types are imported. A binding can't
+    presign, so `signedUrl()` falls back to app-key signing and
+    `signedUploadUrl()` says so plainly instead of handing back a URL that
+    wouldn't work.
+
+  Both bucket disks follow their pagination cursor, so `list()` doesn't quietly
+  truncate at 1000 objects.
+
+- **`db:seed`.** `make:seeder` has generated seeders since v0.36, and nothing in
+  the console could run one — `seed()` was reachable only from your own code.
+  Now: `keel db:seed`, or `keel db:seed -c User` to run `UserSeeder`, resolved by
+  class name from whichever module in `database/seeders/` exports it.
+
+- **`migrate:reset`, `migrate:refresh`, `migrate:fresh`**, plus `--seed` on
+  `migrate`, `migrate:refresh`, and `migrate:fresh`. `refresh` unwinds through
+  your `down()` methods and migrates up again; `fresh` ignores them entirely and
+  drops every table first, which is the way back to empty when a `down()` is
+  wrong, missing, or names a table a half-applied migration never created. All
+  three refuse to run under `NODE_ENV=production` without `--force`.
+
+- **`Migrator.reset(migrations)`** (roll back every batch) and
+  **`Migrator.dropAllTables()`** (drop every table in the schema, bookkeeping
+  included — one `DROP TABLE … CASCADE` on Postgres, foreign keys suspended on
+  SQLite), which the two commands are built on.
+
+### Fixed
+
+- **`make:*` exited 0 when it refused to overwrite a file.** The generators set
+  `process.exitCode = 1` on a conflict, but the console kernel sets the exit code
+  from whatever a command's `run()` *returns* — so the failure was overwritten
+  with 0 on the way out, and a scaffolding step in CI reported success while
+  having written nothing. `generate()` now reports through its return value.
+
 ## [0.84.0] — 2026-07-15
 
 The theme of this release: the pluggable seams grew **shipped, durable

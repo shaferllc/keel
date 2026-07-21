@@ -378,4 +378,58 @@ export class Migrator {
     }
     return rolled;
   }
+
+  /**
+   * Roll back every batch, newest first — what `migrate:reset` and the rollback
+   * half of `migrate:refresh` run. Returns the names rolled back, in the order
+   * they came off.
+   */
+  async reset(migrations: Migration[]): Promise<string[]> {
+    const rolled: string[] = [];
+    for (;;) {
+      const batch = await this.down(migrations);
+      if (!batch.length) return rolled;
+      rolled.push(...batch);
+    }
+  }
+
+  /**
+   * Drop every table in the database, migrations table included — the escape
+   * hatch for when a `down()` is wrong or missing and `reset()` can't get you
+   * back to empty. `migrate:fresh` runs this and then migrates up.
+   */
+  async dropAllTables(): Promise<string[]> {
+    const tables = await this.tableNames();
+    const schema = new SchemaBuilder(this.conn, this.dialect);
+
+    if (this.dialect === "postgres") {
+      // One statement, so the order of the drops (and any FKs between them)
+      // stops mattering.
+      if (tables.length) {
+        const quoted = tables.map((t) => `"${t.replace(/"/g, '""')}"`).join(", ");
+        await this.conn.write(`DROP TABLE IF EXISTS ${quoted} CASCADE`, []);
+      }
+      return tables;
+    }
+
+    // SQLite has no CASCADE, so suspend FK enforcement for the duration instead
+    // of trying to find a safe drop order.
+    await this.conn.write("PRAGMA foreign_keys = OFF", []).catch(() => {});
+    try {
+      for (const table of tables) await schema.dropTable(table);
+    } finally {
+      await this.conn.write("PRAGMA foreign_keys = ON", []).catch(() => {});
+    }
+    return tables;
+  }
+
+  /** Every user table in the current database, for `dropAllTables()`. */
+  private async tableNames(): Promise<string[]> {
+    const sql =
+      this.dialect === "postgres"
+        ? "SELECT tablename AS name FROM pg_tables WHERE schemaname = current_schema()"
+        : "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'";
+    const rows = (await this.conn.select(sql, [])) as { name: string }[];
+    return rows.map((r) => String(r.name));
+  }
 }

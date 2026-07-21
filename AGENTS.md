@@ -117,6 +117,8 @@ npm run dev            # example app on http://localhost:3000 (tsx watch)
 npm run serve          # keel serve
 npm run keel -- routes # list registered routes
 npm run keel -- migrate # run pending app + package migrations (also migrate:status, migrate:rollback)
+npm run keel -- migrate:fresh --seed # drop every table, migrate, seed (also migrate:reset, migrate:refresh)
+npm run keel -- db:seed # run database/seeders/DatabaseSeeder.ts (-c <Class> for another)
 npm run keel -- queue:work --once # drain due jobs (also queue:failed, queue:retry, queue:flush)
 npm run keel -- make:controller Foo
 npm run mcp            # start the MCP server over stdio (dev)

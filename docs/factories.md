@@ -92,11 +92,24 @@ class DatabaseSeeder extends Seeder {
 }
 ```
 
-Run one with the `seed` helper (after your connection is registered):
+Run one from the console:
+
+```bash
+npm run keel db:seed            # runs DatabaseSeeder
+npm run keel db:seed -- -c User # runs UserSeeder instead
+```
+
+`db:seed` boots your app first, so models and the connection are wired up. It
+finds the class by name in `database/seeders/`, whichever module exports it. You
+can also fold seeding into a migration run — `keel migrate --seed`,
+`keel migrate:fresh --seed` — which is the usual way to reset a development
+database.
+
+To run one in-process (a test, a script), use the `seed` helper after your
+connection is registered:
 
 ```ts
-import { seed } from "@shaferllc/keel/core";
-import { setConnection } from "@shaferllc/keel/core";
+import { seed, setConnection } from "@shaferllc/keel/core";
 
 setConnection(myConnection, "postgres");
 await seed(DatabaseSeeder);

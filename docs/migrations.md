@@ -124,7 +124,9 @@ const migrator = new Migrator(connection, "postgres");
 
 await migrator.up(migrations);    // runs pending migrations (idempotent)
 await migrator.down(migrations);  // rolls back the last batch
+await migrator.reset(migrations); // rolls back every batch
 await migrator.ran();             // names already applied
+await migrator.dropAllTables();   // drops every table, bookkeeping included
 ```
 
 `up()` records each applied migration in a `migrations` table
@@ -154,18 +156,36 @@ ensure `migrations` exists before touching it, so a fresh database Just Works.
 - **Dialect default:** the `Migrator` constructor defaults to `"sqlite"` if you
   omit the second argument.
 
-## Wiring a console command
+### Starting over
 
-Migrations are usually driven from your app's console. Load your migration files
-and call the migrator:
+`reset()` calls `down()` until no batch is left, so it only unwinds as far as your
+`down()` methods actually reach. `dropAllTables()` doesn't call them at all — it
+finds every table in the current schema and drops it — which is the escape hatch
+for when a `down()` is wrong, missing, or refers to a table a half-applied
+migration never created. Postgres gets one `DROP TABLE ... CASCADE`, so the drop
+order and any foreign keys between them stop mattering; SQLite has no `CASCADE`,
+so foreign-key enforcement is suspended for the duration instead.
 
-```ts
-// bin/console.ts
-program.command("migrate").action(async () => {
-  const applied = await new Migrator(connection, dialect).up(migrations);
-  console.log(applied.length ? `Ran: ${applied.join(", ")}` : "Nothing to migrate.");
-});
+Both are destructive by design. The console commands that call them refuse to run
+when `NODE_ENV=production` unless you pass `--force`.
+
+## From the console
+
+You rarely call the `Migrator` yourself — the console has the commands:
+
+```bash
+npm run keel migrate                 # run what's pending
+npm run keel migrate -- --seed       # …then run DatabaseSeeder
+npm run keel migrate:status          # which have run, which haven't
+npm run keel migrate:rollback        # undo the last batch
+npm run keel migrate:reset           # undo every batch
+npm run keel migrate:refresh --seed  # reset, migrate, seed
+npm run keel migrate:fresh --seed    # drop every table, migrate, seed
 ```
+
+`migrate:refresh` unwinds through your `down()` methods; `migrate:fresh` ignores
+them and drops the tables outright. Reach for `fresh` when `refresh` can't get you
+back to empty. Both take `--force` to override the production guard.
 
 ## Dialect notes
 
@@ -227,6 +247,38 @@ const rolled = await migrator.down(migrations);
 **Notes:** returns `[]` when there's no batch to reverse. A recorded name absent
 from `migrations` has its bookkeeping row deleted but no `down()` invoked, so its
 schema change is not undone.
+
+#### `reset(migrations)`
+
+`reset(migrations: Migration[]): Promise<string[]>`
+
+Rolls back every batch, newest first, by calling `down()` until nothing is left;
+returns the names rolled back in the order they came off.
+
+```ts
+const rolled = await migrator.reset(migrations); // ["03_x", "02_y", "01_z"]
+```
+
+**Notes:** what `migrate:reset` and the first half of `migrate:refresh` run. It
+only unwinds as far as your `down()` methods reach — for a guaranteed empty
+database use `dropAllTables()`.
+
+#### `dropAllTables()`
+
+`dropAllTables(): Promise<string[]>`
+
+Drops every table in the current schema, the `migrations` bookkeeping table
+included; returns the names dropped.
+
+```ts
+await migrator.dropAllTables();
+await migrator.up(migrations); // …what `migrate:fresh` does
+```
+
+**Notes:** never calls a migration's `down()`, which is the point — it's the way
+back to empty when a `down()` is wrong or missing. Postgres uses a single
+`DROP TABLE … CASCADE`; SQLite suspends foreign-key enforcement for the duration.
+Destructive: the console command guards it behind `--force` in production.
 
 #### `ran()`
 

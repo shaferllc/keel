@@ -18,7 +18,10 @@
       "@shaferllc/keel/watch": ["dist/watch/index.d.ts"],
       "@shaferllc/keel/gates": ["dist/gates/index.d.ts"],
       "@shaferllc/keel/hosting": ["dist/hosting/index.d.ts"],
-      "@shaferllc/keel/ui": ["dist/ui/index.d.ts"]
+      "@shaferllc/keel/ui": ["dist/ui/index.d.ts"],
+      "@shaferllc/keel/storage/local": ["dist/storage/local.d.ts"],
+      "@shaferllc/keel/storage/s3": ["dist/storage/s3.d.ts"],
+      "@shaferllc/keel/storage/r2": ["dist/storage/r2.d.ts"]
     }
   },
   "include": ["docs/examples"]

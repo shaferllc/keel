@@ -11,6 +11,9 @@
  *   keel make:job SendWelcome   generate app/Jobs/SendWelcomeJob.ts
  *   keel make:notification Paid generate app/Notifications/PaidNotification.ts
  *   keel make:transformer User  generate app/Transformers/UserTransformer.ts
+ *   keel migrate                run pending migrations
+ *   keel migrate:fresh --seed   drop every table, migrate, seed
+ *   keel db:seed                run database/seeders/DatabaseSeeder.ts
  *   keel routes                 list registered routes
  *   keel vendor:publish         copy package-published files into this app
  *   keel kit:sync               refresh untouched starter-kit files from the package
@@ -28,6 +31,7 @@ import { Router } from "../http/router.js";
 import { getConnection } from "../database.js";
 import { getQueue, Job, type FailedJob, type FailedJobStore } from "../queue.js";
 import { Migrator, type Migration } from "../migrations.js";
+import { seed, type Seeder } from "../factory.js";
 import { MigrationRegistry, CommandRegistry, PublishRegistry } from "../package.js";
 import {
   controllerStub,
@@ -51,20 +55,31 @@ import { PRESETS as KIT_PRESETS, syncKit, readKitLock, type KitPreset } from "./
 
 const basePath = process.cwd();
 
-async function generate(relPath: string, contents: string, label: string, ui: Ui): Promise<void> {
+/**
+ * Write a generated file, refusing to clobber one that already exists. Returns
+ * the exit code — `process.exitCode` would be no good here, because the console
+ * kernel sets it from whatever a command's `run()` returns, so a failure set
+ * inside the command gets overwritten with 0 on the way out.
+ */
+async function generate(
+  relPath: string,
+  contents: string,
+  label: string,
+  ui: Ui,
+): Promise<0 | 1> {
   const full = join(basePath, relPath);
   try {
     await access(full);
     // Never clobber a file someone has written code in.
     ui.error(`${label} already exists: ${relPath}`);
-    process.exitCode = 1;
-    return;
+    return 1;
   } catch {
     // does not exist — proceed
   }
   await mkdir(dirname(full), { recursive: true });
   await writeFile(full, contents);
   ui.action("create", relPath);
+  return 0;
 }
 
 /** Normalize "foo" / "FooController" into a canonical suffixed class name. */
@@ -97,6 +112,35 @@ async function discoverMigrations(): Promise<Migration[]> {
 /** Every migration to run: the app's discovered ones, then package-contributed. */
 async function collectMigrations(app: Application): Promise<Migration[]> {
   return [...(await discoverMigrations()), ...app.make(MigrationRegistry).all()];
+}
+
+/**
+ * Load a seeder class out of `database/seeders/`. `db:seed` runs `DatabaseSeeder`
+ * by default — the one `make:seeder Database` writes — and `--class` picks
+ * another. The file is found by class name, whichever module in the directory
+ * exports it, so a seeder can live wherever you filed it.
+ */
+async function loadSeeder(name: string): Promise<new () => Seeder> {
+  const dir = join(basePath, "database/seeders");
+  const cls = className(name, "Seeder");
+
+  const files = await readdir(dir).catch(() => null);
+  if (!files) {
+    throw new Error(`No database/seeders directory. Create a seeder with: keel make:seeder ${name}`);
+  }
+
+  for (const file of files.sort()) {
+    if (!/\.(ts|js|mjs)$/.test(file)) continue;
+    const module = (await import(pathToFileURL(join(dir, file)).href)) as Record<string, unknown>;
+
+    const candidate = module[cls] ?? (file.startsWith(`${cls}.`) ? module.default : undefined);
+    if (typeof candidate === "function") return candidate as new () => Seeder;
+  }
+
+  throw new Error(
+    `No seeder class "${cls}" exported from database/seeders. ` +
+      `Create one with: keel make:seeder ${name}`,
+  );
 }
 
 /** A `Migrator` on the default connection, or a friendly error if none is set. */
@@ -321,7 +365,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     async run({ args, flags, ui }) {
       const cls = className(args.name, "Controller");
       const stub = flags.resource ? resourceControllerStub(cls) : controllerStub(cls);
-      await generate(`app/Controllers/${cls}.ts`, stub, "Controller", ui);
+      return generate(`app/Controllers/${cls}.ts`, stub, "Controller", ui);
     },
   });
 
@@ -331,7 +375,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     args: { name: arg.string() },
     async run({ args, ui }) {
       const cls = className(args.name, "ServiceProvider");
-      await generate(`app/Providers/${cls}.ts`, providerStub(cls), "Provider", ui);
+      return generate(`app/Providers/${cls}.ts`, providerStub(cls), "Provider", ui);
     },
   });
 
@@ -342,7 +386,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     async run({ args, ui }) {
       const cls = className(args.name, "Middleware");
       const file = cls.charAt(0).toLowerCase() + cls.slice(1);
-      await generate(`app/Http/Middleware/${file}.ts`, middlewareStub(cls), "Middleware", ui);
+      return generate(`app/Http/Middleware/${file}.ts`, middlewareStub(cls), "Middleware", ui);
     },
   });
 
@@ -372,19 +416,22 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     async run({ args, flags, ui }) {
       const cls = className(args.name, "");
       const table = tableName(cls);
-      await generate(`app/Models/${cls}.ts`, modelStub(cls, table), "Model", ui);
+      // Generate everything asked for, then fail if any one of them couldn't be
+      // written — a half-scaffolded model is still worth reporting in full.
+      let failed = await generate(`app/Models/${cls}.ts`, modelStub(cls, table), "Model", ui);
 
       if (flags.migration) {
         const name = `${await nextMigrationPrefix()}_create_${table}`;
-        await generate(`database/migrations/${name}.ts`, migrationStub(name, table), "Migration", ui);
+        failed ||= await generate(`database/migrations/${name}.ts`, migrationStub(name, table), "Migration", ui);
       }
       if (flags.factory) {
-        await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory", ui);
+        failed ||= await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory", ui);
       }
       if (flags.controller) {
         const controller = `${cls}Controller`;
-        await generate(`app/Controllers/${controller}.ts`, resourceControllerStub(controller), "Controller", ui);
+        failed ||= await generate(`app/Controllers/${controller}.ts`, resourceControllerStub(controller), "Controller", ui);
       }
+      return failed;
     },
   });
 
@@ -408,7 +455,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
       const alter = flags.table ?? (create ? undefined : /_(?:to|from|in)_(.+?)(?:_table)?$/.exec(name)?.[1]);
 
       const full = `${await nextMigrationPrefix()}_${name}`;
-      await generate(`database/migrations/${full}.ts`, migrationStub(full, create, alter), "Migration", ui);
+      return generate(`database/migrations/${full}.ts`, migrationStub(full, create, alter), "Migration", ui);
     },
   });
 
@@ -418,7 +465,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     args: { model: arg.string({ description: "e.g. User" }) },
     async run({ args, ui }) {
       const cls = className(args.model, "");
-      await generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory", ui);
+      return generate(`database/factories/${cls}Factory.ts`, factoryStub(cls), "Factory", ui);
     },
   });
 
@@ -428,7 +475,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     args: { name: arg.string() },
     async run({ args, ui }) {
       const cls = className(args.name, "Seeder");
-      await generate(`database/seeders/${cls}.ts`, seederStub(cls), "Seeder", ui);
+      return generate(`database/seeders/${cls}.ts`, seederStub(cls), "Seeder", ui);
     },
   });
 
@@ -438,7 +485,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     args: { name: arg.string() },
     async run({ args, ui }) {
       const cls = className(args.name, "Job");
-      await generate(`app/Jobs/${cls}.ts`, jobStub(cls), "Job", ui);
+      return generate(`app/Jobs/${cls}.ts`, jobStub(cls), "Job", ui);
     },
   });
 
@@ -449,7 +496,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     async run({ args, ui }) {
       // The path IS the route, so it's used verbatim — no class-name munging.
       const file = args.path.replace(/^\/+/, "").replace(/\.(tsx|jsx)$/, "");
-      await generate(`resources/pages/${file}.tsx`, pageStub(file), "Page", ui);
+      return generate(`resources/pages/${file}.tsx`, pageStub(file), "Page", ui);
     },
   });
 
@@ -459,7 +506,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     args: { name: arg.string() },
     async run({ args, ui }) {
       const file = args.name.replace(/[^a-zA-Z0-9:_-]/g, "");
-      await generate(`app/Commands/${file.replace(/:/g, "-")}.ts`, commandStub(file), "Command", ui);
+      return generate(`app/Commands/${file.replace(/:/g, "-")}.ts`, commandStub(file), "Command", ui);
     },
   });
 
@@ -469,7 +516,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     args: { name: arg.string() },
     async run({ args, ui }) {
       const cls = className(args.name, "Notification");
-      await generate(`app/Notifications/${cls}.ts`, notificationStub(cls), "Notification", ui);
+      return generate(`app/Notifications/${cls}.ts`, notificationStub(cls), "Notification", ui);
     },
   });
 
@@ -481,7 +528,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     async run({ args, flags, ui }) {
       const cls = className(args.name, "Transformer");
       const model = flags.model ? className(flags.model, "") : cls.replace(/Transformer$/, "");
-      await generate(`app/Transformers/${cls}.ts`, transformerStub(cls, model), "Transformer", ui);
+      return generate(`app/Transformers/${cls}.ts`, transformerStub(cls, model), "Transformer", ui);
     },
   });
 
@@ -492,7 +539,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     async run({ args, ui }) {
       const slug = args.name.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
       const cls = slug.charAt(0).toUpperCase() + slug.slice(1);
-      await generate(`packages/${slug}/${cls}ServiceProvider.ts`, packageProviderStub(slug), "Package", ui);
+      return generate(`packages/${slug}/${cls}ServiceProvider.ts`, packageProviderStub(slug), "Package", ui);
     },
   });
 
@@ -601,13 +648,36 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
 
   /* -------------------------------- migrations -------------------------------- */
 
+  /**
+   * Guard the commands that destroy data. Wiping a development database is the
+   * point; wiping production is never what you meant, so there it takes an
+   * explicit `--force`.
+   */
+  const refusedInProduction = (force: boolean, ui: Ui): boolean => {
+    const environment = process.env.NODE_ENV ?? process.env.APP_ENV;
+    if (environment !== "production" || force) return false;
+    ui.error("Refusing to drop data in production. Pass --force if you really mean it.");
+    return true;
+  };
+
+  /** Run a seeder and report it, shared by `db:seed` and the `--seed` flags. */
+  const runSeeder = async (name: string, ui: Ui): Promise<void> => {
+    const SeederClass = await loadSeeder(name);
+    await seed(SeederClass);
+    ui.success(`Seeded ${SeederClass.name}`);
+  };
+
   const migrate = defineCommand({
     name: "migrate",
     description: "Run pending database migrations (app + package)",
-    async run({ ui }) {
+    flags: {
+      seed: flag.boolean({ description: "run DatabaseSeeder afterwards" }),
+    },
+    async run({ flags, ui }) {
       const applied = await migratorFor().up(await collectMigrations(requireApp()));
-      if (!applied.length) return void ui.info("Nothing to migrate.");
+      if (!applied.length) ui.info("Nothing to migrate.");
       for (const name of applied) ui.success(`Migrated ${name}`);
+      if (flags.seed) await runSeeder("Database", ui);
     },
   });
 
@@ -634,6 +704,78 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
       const table = ui.table(["Status", "Migration"]);
       for (const m of migrations) table.row([ran.has(m.name) ? "ran" : "pending", m.name]);
       table.render();
+    },
+  });
+
+  const migrateReset = defineCommand({
+    name: "migrate:reset",
+    description: "Roll back every migration",
+    flags: { force: flag.boolean({ description: "allow this in production" }) },
+    async run({ flags, ui }) {
+      if (refusedInProduction(flags.force ?? false, ui)) return 1;
+      const rolled = await migratorFor().reset(await collectMigrations(requireApp()));
+      if (!rolled.length) return void ui.info("Nothing to roll back.");
+      for (const name of rolled) ui.success(`Rolled back ${name}`);
+    },
+  });
+
+  const migrateRefresh = defineCommand({
+    name: "migrate:refresh",
+    description: "Roll every migration back, then run them all again",
+    flags: {
+      seed: flag.boolean({ description: "run DatabaseSeeder afterwards" }),
+      force: flag.boolean({ description: "allow this in production" }),
+    },
+    async run({ flags, ui }) {
+      if (refusedInProduction(flags.force ?? false, ui)) return 1;
+      const migrations = await collectMigrations(requireApp());
+      const migrator = migratorFor();
+
+      const rolled = await migrator.reset(migrations);
+      ui.info(`Rolled back ${rolled.length} migration(s).`);
+      for (const name of await migrator.up(migrations)) ui.success(`Migrated ${name}`);
+
+      if (flags.seed) await runSeeder("Database", ui);
+    },
+  });
+
+  const migrateFresh = defineCommand({
+    name: "migrate:fresh",
+    description: "Drop every table, then run all migrations from scratch",
+    flags: {
+      seed: flag.boolean({ description: "run DatabaseSeeder afterwards" }),
+      force: flag.boolean({ description: "allow this in production" }),
+    },
+    async run({ flags, ui }) {
+      if (refusedInProduction(flags.force ?? false, ui)) return 1;
+      const migrations = await collectMigrations(requireApp());
+      const migrator = migratorFor();
+
+      // Unlike `refresh`, this never calls a migration's `down()` — which is the
+      // point. It's what gets you back to empty when a `down()` is wrong, missing,
+      // or refers to a table that a half-applied migration never created.
+      const dropped = await migrator.dropAllTables();
+      ui.info(`Dropped ${dropped.length} table(s).`);
+      for (const name of await migrator.up(migrations)) ui.success(`Migrated ${name}`);
+
+      if (flags.seed) await runSeeder("Database", ui);
+    },
+  });
+
+  /* ---------------------------------- seeding --------------------------------- */
+
+  const dbSeed = defineCommand({
+    name: "db:seed",
+    description: "Run a database seeder (default: DatabaseSeeder)",
+    flags: {
+      class: flag.string({
+        alias: "c",
+        description: "the seeder class to run; defaults to DatabaseSeeder",
+      }),
+    },
+    async run({ flags, ui }) {
+      requireApp(); // seeders use models, so the app has to be booted
+      await runSeeder(flags.class ?? "Database", ui);
     },
   });
 
@@ -732,6 +874,10 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     migrate as AnyCommand,
     migrateRollback as AnyCommand,
     migrateStatus as AnyCommand,
+    migrateReset as AnyCommand,
+    migrateRefresh as AnyCommand,
+    migrateFresh as AnyCommand,
+    dbSeed as AnyCommand,
     vendorPublish as AnyCommand,
     kitSync as AnyCommand,
   );
