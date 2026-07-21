@@ -70,14 +70,23 @@ jobs:
       # create-keeljs is a separate unscoped package (npm create keeljs@latest).
       # Templates live in @shaferllc/keel; this package is only the thin copier.
       # Versioned independently — bump packages/create-keeljs/package.json when the
-      # generator itself changes, not on every framework release. Skip when that
-      # version is already on the registry so framework tags don't fail the job.
+      # generator itself changes, not on every framework release; a tag whose
+      # version is already on the registry skips.
+      #
+      # `if: always()` on this and everything after it, so one side package
+      # failing still lets the others — and the site dispatch — run. They are
+      # independent, and a job that stops at the first one turns a single
+      # provisioning gap into "nothing after this point happened". The steps can
+      # still fail, so the job still goes red; it just gets there having done all
+      # the work it could.
       - name: Publish create-keeljs
+        if: always()
         working-directory: packages/create-keeljs
         run: bash "${GITHUB_WORKSPACE}/scripts/publish-side-package.sh"
 
       # Thin bin so `npx -y keel-mcp` resolves (forwards to @shaferllc/keel).
       - name: Publish keel-mcp
+        if: always()
         working-directory: packages/keel-mcp
         run: bash "${GITHUB_WORKSPACE}/scripts/publish-side-package.sh"
 
@@ -92,11 +101,12 @@ jobs:
       # the automatic GITHUB_TOKEN cannot trigger a workflow in another repo — and
       # a long-lived cross-repo credential is a real cost for a 30-minute saving,
       # so not setting one is a perfectly good answer.
-      # Not `continue-on-error`. The site polls npm on its own, so a failed
-      # dispatch costs at most half an hour and must not fail a release that has
-      # already published — but it should still be *visible*, which a swallowed
-      # red X is not. So the failure modes are handled explicitly and warn.
+      #
+      # Not `continue-on-error` either: the failure modes are handled explicitly
+      # and warn, so a dead token is visible without failing a release that has
+      # already published.
       - name: Tell the site to deploy
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
         run: |
