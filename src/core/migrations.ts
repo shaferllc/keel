@@ -299,8 +299,21 @@ export class SchemaBuilder {
     await this.conn.write(`DROP TABLE IF EXISTS ${name}`, []);
   }
 
+  /**
+   * Run SQL the builder doesn't cover. Bindings use `?` like everywhere else in
+   * Keel and are rewritten to `$1, $2, …` on Postgres — without that, a migration
+   * with bindings worked on SQLite and failed only on Postgres, which is the
+   * worst place to find out.
+   */
   async raw(sql: string, bindings: unknown[] = []): Promise<void> {
-    await this.conn.write(sql, bindings);
+    await this.conn.write(this.placeholders(sql), bindings);
+  }
+
+  /** `?` → `$n` for Postgres; every other dialect takes `?` as-is. */
+  private placeholders(sql: string): string {
+    if (this.dialect !== "postgres") return sql;
+    let i = 0;
+    return sql.replace(/\?/g, () => `$${++i}`);
   }
 }
 

@@ -25,6 +25,7 @@ import type { MiddlewareHandler } from "hono";
 import { getMimeType } from "hono/utils/mime";
 
 import { config } from "./helpers.js";
+import { hmacHex, timingSafeEqual } from "./crypto.js";
 
 /* --------------------------------- types ---------------------------------- */
 
@@ -118,31 +119,10 @@ export function contentTypeFor(path: string): string {
 
 /* -------------------------------- signing --------------------------------- */
 
-/** HMAC-SHA256 hex — Web Crypto, so it works on Node and the edge. */
-async function hmac(key: string, data: string): Promise<string> {
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(key),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(data));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 function appKey(): string {
   const key = config<string>("app.key", "");
   if (!key) throw new Error("Signed storage URLs require config('app.key'). Set APP_KEY.");
   return key;
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 /**
@@ -170,7 +150,7 @@ export async function signStorageUrl(url: string, expiresIn = 3600): Promise<str
   const params = new URLSearchParams(mark === -1 ? "" : url.slice(mark + 1));
   params.set("expires", String(Math.floor(Date.now() / 1000) + expiresIn));
 
-  const signature = await hmac(appKey(), canonical(base, params));
+  const signature = await hmacHex(canonical(base, params), appKey());
   params.set("signature", signature);
   return `${base}?${params}`;
 }
@@ -185,7 +165,7 @@ export async function verifyStorageUrl(url: string): Promise<boolean> {
   const expires = Number(parsed.searchParams.get("expires"));
   if (!expires || expires < Math.floor(Date.now() / 1000)) return false;
 
-  const expected = await hmac(appKey(), canonical(parsed.pathname, parsed.searchParams));
+  const expected = await hmacHex(canonical(parsed.pathname, parsed.searchParams), appKey());
   return timingSafeEqual(signature, expected);
 }
 

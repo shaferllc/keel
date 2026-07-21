@@ -8,9 +8,11 @@
  *   session().flash("status", "Saved!");   // available on the next request
  */
 
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { ctx } from "./request.js";
+import { config } from "./helpers.js";
+import { hmacHex, timingSafeEqual } from "./crypto.js";
 
 type SessionData = Record<string, unknown>;
 type CookieOptions = Parameters<typeof setCookie>[3];
@@ -30,6 +32,67 @@ function b64decode(raw: string): string {
   const bytes = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
   return new TextDecoder().decode(bytes);
+}
+
+/* -------------------------------- signing --------------------------------- */
+
+/**
+ * The whole session lives in the cookie, so the cookie is the only thing
+ * stopping a visitor from simply declaring who they are. Base64 is an encoding,
+ * not a secret: without a signature, `{"auth_id":"7"}` can be edited to
+ * `{"auth_id":"1"}` and the server has no way to tell. So every cookie is
+ * `payload.signature`, and a payload whose signature doesn't verify is not
+ * "slightly wrong" — it is discarded entirely and the request starts with an
+ * empty session.
+ */
+function sessionKey(): string {
+  const key = config<string>("app.key", "");
+  if (!key) {
+    throw new Error(
+      "Sessions require config('app.key') to sign the session cookie. Set APP_KEY " +
+        "in your environment (the starter kits ship one in .env.example). Without a " +
+        "key the cookie could not be signed, and an unsigned session cookie lets " +
+        "anyone edit their own session — including who they are logged in as.",
+    );
+  }
+  return key;
+}
+
+/** `payload.signature`, where the signature covers the exact payload string. */
+async function sign(payload: string): Promise<string> {
+  return `${payload}.${await hmacHex(payload, sessionKey())}`;
+}
+
+/** The payload of a correctly-signed cookie, or null for anything else. */
+async function unsign(value: string): Promise<string | null> {
+  // A legacy unsigned cookie has no separator and lands here as null — which is
+  // the intended outcome. Everyone is logged out once on upgrade; the
+  // alternative is honouring forgeable cookies forever.
+  const split = value.lastIndexOf(".");
+  if (split <= 0) return null;
+
+  const payload = value.slice(0, split);
+  const signature = value.slice(split + 1);
+  const expected = await hmacHex(payload, sessionKey());
+
+  return timingSafeEqual(signature, expected) ? payload : null;
+}
+
+/**
+ * Whether this response should mark the cookie `Secure`. Inferred rather than
+ * configured: defaulting it on would break every `http://localhost` dev server,
+ * and defaulting it off is how a session cookie ends up crossing the public
+ * internet in the clear. The forwarded header covers the usual production shape
+ * — a proxy terminating TLS and speaking plain http to the app.
+ */
+function isSecureRequest(c: Context): boolean {
+  const forwarded = c.req.header("x-forwarded-proto");
+  if (forwarded) return forwarded.split(",")[0]!.trim() === "https";
+  try {
+    return new URL(c.req.url).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export class Session {
@@ -110,13 +173,21 @@ export interface SessionOptions {
 export function sessionMiddleware(options: SessionOptions = {}): MiddlewareHandler {
   const name = options.cookieName ?? "keel_session";
   return async (c, next) => {
+    // Read the key before doing anything else, so a missing APP_KEY fails the
+    // request outright rather than later, on the way out, once handlers have
+    // already run and written to a session that can never be persisted.
+    sessionKey();
+
     let data: SessionData = {};
     const raw = getCookie(c, name);
     if (raw) {
-      try {
-        data = JSON.parse(b64decode(raw)) as SessionData;
-      } catch {
-        /* tampered/expired — start fresh */
+      const payload = await unsign(raw);
+      if (payload !== null) {
+        try {
+          data = JSON.parse(b64decode(payload)) as SessionData;
+        } catch {
+          /* signed but not decodable — start fresh */
+        }
       }
     }
 
@@ -129,10 +200,11 @@ export function sessionMiddleware(options: SessionOptions = {}): MiddlewareHandl
 
     const toStore: SessionData = { ...data };
     delete toStore[OLD];
-    setCookie(c, name, b64encode(JSON.stringify(toStore)), {
+    setCookie(c, name, await sign(b64encode(JSON.stringify(toStore))), {
       httpOnly: true,
       path: "/",
       sameSite: "Lax",
+      secure: isSecureRequest(c),
       ...options.cookie,
     });
   };

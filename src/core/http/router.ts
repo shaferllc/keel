@@ -11,20 +11,7 @@ import type { Container, Constructor } from "../container.js";
 import { view, config } from "../helpers.js";
 import { redirect as makeRedirect, request } from "../request.js";
 import { inertia } from "../inertia.js";
-
-/** HMAC-SHA256 hex signature (Web Crypto — works on Node and the edge). */
-async function hmac(key: string, data: string): Promise<string> {
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(key),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(data));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+import { hmacHex, timingSafeEqual } from "../crypto.js";
 
 function appKey(): string {
   const key = config<string>("app.key", "");
@@ -478,7 +465,7 @@ export class Router {
     let url = this.url(name, params);
     const query = qs.toString();
     if (query) url += `?${query}`;
-    const signature = await hmac(appKey(), url);
+    const signature = await hmacHex(url, appKey());
     return `${url}${query ? "&" : "?"}signature=${signature}`;
   }
 
@@ -493,8 +480,10 @@ export class Router {
     if (expires && Number(expires) < Math.floor(Date.now() / 1000)) return false;
 
     const base = url.pathname + (url.search || "");
-    const expected = await hmac(appKey(), base);
-    return signature.length === expected.length && signature === expected;
+    const expected = await hmacHex(base, appKey());
+    // Constant-time: `===` stops at the first differing byte, and that timing
+    // difference is enough to recover a signature a byte at a time.
+    return timingSafeEqual(signature, expected);
   }
 
   /** Turn a route handler into an executable function, resolving controllers. */

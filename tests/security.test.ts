@@ -15,7 +15,8 @@ import { encryption } from "../src/core/crypto.js";
 async function build(
   setup: (kernel: HttpKernel) => void,
   configure: (r: Router) => void,
-  config: Record<string, unknown> = { app: {} },
+  // Sessions sign their cookie with app.key, so the default config needs one.
+  config: Record<string, unknown> = { app: { key: "test-app-key" } },
 ) {
   const app = new Application();
   await app.boot([], { discoverConfig: false, config });

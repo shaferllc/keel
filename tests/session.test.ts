@@ -9,7 +9,7 @@ import { session, sessionMiddleware } from "../src/core/session.js";
 
 async function build(configure: (r: Router) => void) {
   const app = new Application();
-  await app.boot([], { discoverConfig: false, config: { app: {} } });
+  await app.boot([], { discoverConfig: false, config: { app: { key: "test-app-key" } } });
   configure(app.make(Router));
   const kernel = new HttpKernel(app);
   kernel.use(sessionMiddleware());
@@ -89,7 +89,7 @@ test("session flash survives exactly one request", async () => {
 
 test("session() throws without the middleware", async () => {
   const app = new Application();
-  await app.boot([], { discoverConfig: false, config: { app: {} } });
+  await app.boot([], { discoverConfig: false, config: { app: { key: "test-app-key" } } });
   app.make(Router).get("/x", () => json({ v: session().get("a") }));
   const hono = new HttpKernel(app).build(); // no sessionMiddleware
   assert.equal((await hono.request("/x")).status, 500);

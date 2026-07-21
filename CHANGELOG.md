@@ -4,6 +4,59 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.85.1] — 2026-07-21
+
+**Security release. Upgrade if you use `sessionMiddleware()`.**
+
+### Fixed
+
+- **The session cookie was forgeable, which made it an authentication bypass.**
+  The whole session was serialized into the cookie as base64 JSON with no
+  signature, and `auth().login(id)` stores the logged-in user's id there. Base64
+  is an encoding, not a secret — so any visitor could decode their cookie, change
+  `auth_id` to any user, re-encode it, and be that user. No key, no brute force,
+  nothing to break:
+
+      cookie decodes to: {"auth_id":"7"}
+      attacker sends   : {"auth_id":"1"}   ->   server: auth id = 1
+
+  Cookies are now `payload.signature`, the signature being HMAC-SHA256 of the
+  payload under `config('app.key')`, compared in constant time. A cookie that
+  does not verify is discarded whole and the request starts with an empty
+  session.
+
+  Apps authenticating only with bearer tokens (`bearerAuth()`) were not affected
+  — those never consult the session.
+
+  **Two upgrade notes.** `APP_KEY` is now required for sessions: with no key
+  there is nothing to sign with, so the middleware raises rather than silently
+  writing an unsigned cookie. Every starter kit already ships one in
+  `.env.example`. And because existing cookies are unsigned, **everyone is logged
+  out once** on upgrade. Honouring old cookies would have meant honouring
+  forgeable ones.
+
+- **The session cookie is now `Secure` over HTTPS.** It never set the flag, so it
+  crossed the network in the clear wherever the connection was plain HTTP. It is
+  set when the request arrived over HTTPS — directly, or via `X-Forwarded-Proto`
+  from a proxy terminating TLS — and left off otherwise, so `http://localhost`
+  development keeps working. An explicit `cookie: { secure }` still wins.
+
+- **`hasValidSignature()` compared signatures with `===`**, which returns at the
+  first differing byte. That timing difference is enough to reconstruct a
+  signature a byte at a time. Now constant-time, like the storage URL signer
+  already was.
+
+- **`SchemaBuilder.raw()` did not rewrite `?` placeholders to `$n`**, so a
+  migration with bindings worked on SQLite and failed only on Postgres. It now
+  converts them like everything else in Keel.
+
+### Changed
+
+- The three separate HMAC-SHA256 implementations (sessions would have been a
+  fourth) are now one exported `hmacHex`, alongside `timingSafeEqual`, in
+  `crypto.ts`. Signed URLs and signed cookies share the primitive rather than
+  each carrying a copy.
+
 ## [0.85.0] — 2026-07-21
 
 Last release the drivers were queue, cache, and rate limiting. This one finishes

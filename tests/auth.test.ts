@@ -10,7 +10,7 @@ import { auth, authGuard, setUserProvider } from "../src/core/auth.js";
 
 async function build(configure: (r: Router) => void) {
   const app = new Application();
-  await app.boot([], { discoverConfig: false, config: { app: {} } });
+  await app.boot([], { discoverConfig: false, config: { app: { key: "test-app-key" } } });
   configure(app.make(Router));
   const kernel = new HttpKernel(app);
   kernel.use(sessionMiddleware());

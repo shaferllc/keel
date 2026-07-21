@@ -5,10 +5,15 @@ it works the same on Node and on the edge. Session data lives in an HTTP-only
 cookie: the middleware reads it before your handler runs and writes it back
 afterward.
 
-> **The cookie is base64-encoded, not signed or encrypted.** Anyone can decode
-> and forge it. Keep secrets out of the session (store an id, not a password
-> hash or a role you trust for authorization on its own), and set
-> `cookie: { secure: true }` in production so it's only sent over HTTPS.
+> **The cookie is signed, but not encrypted.** Every cookie is
+> `payload.signature`, where the signature is an HMAC-SHA256 of the payload under
+> `config('app.key')` — so a payload that has been edited no longer verifies and
+> is discarded, and the request starts with an empty session. What it is *not* is
+> secret: the payload is still base64 JSON that the client can read. Store an id,
+> not a password hash or anything else you would not show the user.
+>
+> Sessions therefore **require `APP_KEY`**. Without one the middleware raises
+> rather than falling back to an unsigned cookie — see [Signing](#signing).
 
 ## Enable it
 
@@ -27,9 +32,14 @@ export class Kernel extends HttpKernel {
 ```
 
 The cookie is named `keel_session` by default and is written `httpOnly`,
-`path: "/"`, `sameSite: "Lax"`. Anything you pass in `cookie` is merged over
-those defaults, so `cookie: { secure: true }` adds the `Secure` flag while
-keeping the rest.
+`path: "/"`, `sameSite: "Lax"`, and `Secure` **whenever the request arrived over
+HTTPS** (either directly or via an `X-Forwarded-Proto: https` header from a proxy
+terminating TLS). That is inferred rather than configured, because defaulting it
+on breaks every `http://localhost` dev server and defaulting it off is how a
+session cookie ends up crossing the internet in the clear.
+
+Anything you pass in `cookie` is merged over those defaults, so
+`cookie: { secure: true }` forces the flag on even in development.
 
 ## Use it
 
@@ -122,10 +132,27 @@ id, a few flags), not whole objects. For larger sessions, swap in your own
 middleware that persists to a store and stashes the data on the context under the
 `"session"` key the same way.
 
-> **Latin1 only.** Values are serialized with `btoa`, which throws on characters
-> outside the Latin1 range. A flash message or stored string containing an emoji
-> or many non-Latin scripts will throw `InvalidCharacterError` when the cookie is
-> written. Keep session values ASCII/Latin1, or encode them yourself first.
+### Signing
+
+The whole session lives in the cookie, so the cookie is the only thing standing
+between a visitor and simply declaring who they are — `auth()` stores the
+logged-in user's id there. Base64 is an encoding, not a secret: on its own,
+`{"auth_id":"7"}` can be edited to `{"auth_id":"1"}` and the server cannot tell.
+
+So the cookie is `payload.signature`, the signature being HMAC-SHA256 of that
+exact payload string under `config('app.key')`, compared in constant time. A
+cookie whose signature does not verify is not repaired or partially trusted — it
+is dropped, and the request gets an empty session.
+
+Two consequences worth knowing:
+
+- **`APP_KEY` is required.** With no key there is nothing to sign with, so the
+  middleware raises instead of writing an unsigned cookie. Every starter kit
+  ships one in `.env.example`; set a real one in production.
+- **Changing `APP_KEY` logs everyone out.** Existing cookies no longer verify.
+  That is also what makes it a working "log out every session" lever.
+
+Values are UTF-8 encoded, so emoji and non-Latin scripts round-trip fine.
 
 ## Related
 
@@ -164,11 +191,13 @@ and writes it back after. Register it in your HTTP kernel.
 this.use(sessionMiddleware({ cookieName: "sid", cookie: { secure: true } }));
 ```
 
-**Notes:** cookie name defaults to `"keel_session"`. A missing or malformed
-cookie starts an empty session (parse errors are swallowed — "tampered/expired,
-start fresh"). The write applies `httpOnly`, `path: "/"`, `sameSite: "Lax"`,
-merged with (and overridable by) `options.cookie`. Rotates flash on every
-request.
+**Notes:** cookie name defaults to `"keel_session"`. Requires
+`config('app.key')` — it raises without one rather than writing an unsigned
+cookie. A missing cookie, an unsigned one, or one whose signature does not verify
+all start an empty session. The write applies `httpOnly`, `path: "/"`,
+`sameSite: "Lax"`, and `secure` when the request came in over HTTPS (directly or
+via `X-Forwarded-Proto`), merged with (and overridable by) `options.cookie`.
+Rotates flash on every request.
 
 ### `Session`
 
@@ -215,7 +244,7 @@ session().put("userId", user.id).put("theme", "dark");
 ```
 
 **Notes:** chainable. Values must be JSON-serializable (they're `JSON.stringify`d
-into the cookie) and Latin1 once stringified.
+into the cookie); any UTF-8 string is fine.
 
 #### `set(key, value)`
 

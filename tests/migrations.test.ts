@@ -213,3 +213,23 @@ test("migrator: dropAllTables on an untouched database is a no-op", async () => 
   const migrator = new Migrator(sqliteConnection(), "sqlite");
   assert.deepEqual(await migrator.dropAllTables(), []);
 });
+
+test("schema.raw rewrites ? to $n on postgres, and leaves it alone elsewhere", async () => {
+  const seen: { sql: string; bindings: unknown[] }[] = [];
+  const spy = {
+    select: async () => [],
+    write: async (sql: string, bindings: unknown[]) => {
+      seen.push({ sql, bindings });
+      return { rowsAffected: 0 };
+    },
+  } as Connection;
+
+  const sql = "UPDATE users SET active = ?, role = ? WHERE id = ?";
+  await new SchemaBuilder(spy, "postgres").raw(sql, [true, "admin", 1]);
+  await new SchemaBuilder(spy, "sqlite").raw(sql, [true, "admin", 1]);
+
+  assert.equal(seen[0]!.sql, "UPDATE users SET active = $1, role = $2 WHERE id = $3");
+  assert.equal(seen[1]!.sql, sql); // sqlite/mysql take ? as-is
+  // Bindings are passed straight through either way.
+  assert.deepEqual(seen[0]!.bindings, [true, "admin", 1]);
+});

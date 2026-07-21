@@ -277,6 +277,41 @@ async function hmacSha256(data: string, secret: string): Promise<string> {
   return b64url(new Uint8Array(sig));
 }
 
+/**
+ * HMAC-SHA256 as lowercase hex — the shared primitive behind signed cookies and
+ * signed URLs, i.e. anywhere a value leaves the app and has to come back
+ * unmodified. (The JWT signer above wants base64url instead, which is the only
+ * reason there are two.)
+ */
+export async function hmacHex(data: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret) as unknown as ArrayBuffer,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(data) as unknown as ArrayBuffer,
+  );
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Compare two strings without revealing, through how long the comparison took,
+ * how long a prefix matched. Always use this on a signature you are checking
+ * against one you computed: `===` returns at the first differing byte, which
+ * over enough samples is enough to reconstruct a signature a byte at a time.
+ */
+export function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 const JWT_HEADER = b64urlJson({ alg: "HS256", typ: "JWT" });
 
 export const jwt = {

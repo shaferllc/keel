@@ -110,10 +110,8 @@ arbitrary SQL:
 up: (schema) => schema.raw("CREATE INDEX idx_posts_user ON posts (user_id)"),
 ```
 
-> `raw()` writes through the connection **without** placeholder conversion, so
-> its `?` markers are not rewritten to `$1, $2` on the `postgres` dialect
-> (unlike the migrator's own bookkeeping writes). On Postgres, prefer `$n`
-> placeholders — or no bindings — in `raw()`.
+> `raw()` takes `?` placeholders on every dialect and rewrites them to `$1, $2`
+> on `postgres`, so the same migration runs unchanged against either database.
 
 ## Run and roll back
 
@@ -344,9 +342,9 @@ builders don't cover.
 await schema.raw("UPDATE users SET active = ? WHERE active IS NULL", [true]);
 ```
 
-**Notes:** `bindings` defaults to `[]`. Unlike the migrator's bookkeeping writes,
-`raw()` does **not** rewrite `?` to `$n`, so pass `$1, $2, …` yourself on the
-`postgres` dialect.
+**Notes:** `bindings` defaults to `[]`. Placeholders are `?` on every dialect and
+are rewritten to `$1, $2, …` on `postgres`, the same as the rest of Keel — so a
+migration with bindings behaves identically whichever database it runs against.
 
 #### `alterTable(name, build)`
 
