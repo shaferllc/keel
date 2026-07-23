@@ -28,6 +28,41 @@ export const classes = {
   heroInner: "keel-hero-inner",
   muted: "keel-muted",
   rowForm: "keel-row-form",
+
+  // Layout
+  container: "keel-container",
+  containerNarrow: "keel-container keel-container--narrow",
+  containerWide: "keel-container keel-container--wide",
+  bar: "keel-bar",
+  stack: "keel-stack",
+  stackTight: "keel-stack keel-stack--tight",
+  stackLoose: "keel-stack keel-stack--loose",
+  grid: "keel-grid",
+  grid2: "keel-grid keel-grid--2",
+  grid3: "keel-grid keel-grid--3",
+  divider: "keel-divider",
+  footer: "keel-footer",
+
+  // Surfaces
+  card: "keel-card",
+  cardLink: "keel-card keel-card--link",
+  cardFlush: "keel-card keel-card--flush",
+  cardTitle: "keel-card-title",
+  cardBody: "keel-card-body",
+  badge: "keel-badge",
+  badgeSea: "keel-badge keel-badge--sea",
+  badgeBrass: "keel-badge keel-badge--brass",
+  badgeDanger: "keel-badge keel-badge--danger",
+
+  // Text and data
+  code: "keel-code",
+  pre: "keel-pre",
+  table: "keel-table",
+  tableFixed: "keel-table keel-table--fixed",
+  prose: "keel-prose",
+
+  // Theming
+  themeToggle: "keel-theme-toggle",
 } as const;
 
 export type UiClassName = (typeof classes)[keyof typeof classes];

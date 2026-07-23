@@ -20,7 +20,24 @@ import {
   ShellNav,
   classes,
   cx,
+  Container,
+  Bar,
+  Stack,
+  Grid,
+  Divider,
+  Footer,
+  Card,
+  CardTitle,
+  CardBody,
+  Badge,
+  Code,
+  Pre,
+  Prose,
+  Table,
+  ThemeScript,
+  ThemeToggle,
 } from "../src/ui/index.js";
+import { SpecimenPage } from "../src/ui/specimen.js";
 
 const view = new View({ doctype: false });
 const h = createElement;
@@ -101,5 +118,89 @@ describe("keel/ui", () => {
     const grain = await html(h(Grain, null));
     assert.match(grain, /keel-grain/);
     assert.match(grain, /aria-hidden="true"/);
+  });
+
+  it("renders layout primitives", async () => {
+    assert.match(await html(h(Container, null, "x")), /class="keel-container"/);
+    assert.match(await html(h(Container, { size: "narrow" }, "x")), /keel-container--narrow/);
+    assert.match(await html(h(Container, { as: "main" }, "x")), /^<main/);
+    assert.match(await html(h(Bar, null, "x")), /<header class="keel-bar"/);
+    assert.match(await html(h(Stack, { gap: "loose" }, "x")), /keel-stack--loose/);
+    assert.match(await html(h(Grid, { cols: 3 }, "x")), /keel-grid--3/);
+    assert.match(await html(h(Divider, null)), /<hr class="keel-divider"/);
+    assert.match(await html(h(Footer, null, "x")), /<footer class="keel-footer"/);
+  });
+
+  it("renders Card as a div, or as a lifting link", async () => {
+    const card = await html(h(Card, null, h(CardTitle, null, "T"), h(CardBody, null, "B")));
+    assert.match(card, /<div class="keel-card"/);
+    assert.match(card, /<h3 class="keel-card-title">T</);
+    assert.match(card, /<p class="keel-card-body">B</);
+
+    const link = await html(h(Card, { href: "/docs" }, "x"));
+    assert.match(link, /<a href="\/docs" class="keel-card keel-card--link"/);
+  });
+
+  it("renders Badge tones", async () => {
+    assert.match(await html(h(Badge, null, "x")), /class="keel-badge"/);
+    assert.match(await html(h(Badge, { tone: "danger" }, "x")), /keel-badge--danger/);
+  });
+
+  it("renders text and data primitives", async () => {
+    assert.match(await html(h(Code, null, "npm")), /<code class="keel-code">npm</);
+    assert.match(await html(h(Pre, null, "a < b")), /<pre class="keel-pre">a &lt; b</);
+    assert.match(await html(h(Prose, { as: "article" }, "x")), /<article class="keel-prose"/);
+    assert.match(await html(h(Table, { fixed: true }, "x")), /keel-table--fixed/);
+  });
+
+  it("renders the theme script and toggle", async () => {
+    const script = await html(h(ThemeScript, null));
+    assert.match(script, /^<script>/);
+    assert.match(script, /keel-theme/);
+    assert.match(script, /data-keel-theme-toggle/);
+    assert.match(await html(h(ThemeScript, { nonce: "abc123" })), /<script nonce="abc123">/);
+
+    // Chrome leaves transitioned properties on the old mode's colour unless the
+    // swap happens with transitions off. Both halves of that fix must ship.
+    assert.match(script, /keel-theme-switching/);
+    assert.match(script, /offsetWidth/, "the swap needs a forced reflow");
+    assert.match(script, /matchMedia\("\(prefers-color-scheme: dark\)"\)\.addEventListener/);
+
+    const toggle = await html(h(ThemeToggle, null));
+    assert.match(toggle, /class="keel-theme-toggle"/);
+    assert.match(toggle, /data-keel-theme-toggle/);
+    assert.match(toggle, /aria-label="Switch colour theme"/);
+    // Both icons ship; CSS decides which one is visible.
+    assert.match(toggle, /keel-theme-icon--to-dark/);
+    assert.match(toggle, /keel-theme-icon--to-light/);
+  });
+
+  it("renders a complete specimen document", async () => {
+    // `view` here renders without a doctype; build:specimen adds one.
+    const page = await html(h(SpecimenPage, { stylesheet: "/assets/app.css" }));
+    assert.match(page, /^<html lang="en">/);
+    assert.match(page, /<link rel="stylesheet" href="\/assets\/app.css"/);
+    assert.match(page, /<title>Keel UI — specimen<\/title>/);
+
+    // The specimen exists to exercise the kit — assert it actually does.
+    for (const cls of [
+      "keel-body",
+      "keel-bar",
+      "keel-container",
+      "keel-grid",
+      "keel-card",
+      "keel-badge",
+      "keel-panel",
+      "keel-notice",
+      "keel-alert",
+      "keel-table",
+      "keel-pre",
+      "keel-prose",
+      "keel-divider",
+      "keel-footer",
+      "keel-theme-toggle",
+    ]) {
+      assert.ok(page.includes(cls), `specimen is missing ${cls}`);
+    }
   });
 });

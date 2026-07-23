@@ -1,11 +1,15 @@
 /**
  * Keel UI — named component classes.
  * Stable selectors so apps don't need to Tailwind-scan node_modules.
+ *
+ * Every colour here comes from a token in theme.css, so the whole kit follows
+ * the light/dark mode without a second stylesheet.
  */
 
 .keel-body {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   background:
     radial-gradient(
@@ -18,7 +22,12 @@
       color-mix(in oklab, var(--color-brass) 12%, transparent),
       transparent 55%
     ),
-    linear-gradient(180deg, var(--color-mist) 0%, var(--color-foam) 42%, #e8efec 100%);
+    linear-gradient(
+      180deg,
+      var(--color-mist) 0%,
+      var(--color-foam) 42%,
+      color-mix(in oklab, var(--color-mist) 88%, var(--color-ink)) 100%
+    );
   font-family: var(--font-sans);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
@@ -27,6 +36,11 @@
 
 .keel-body ::selection {
   background: color-mix(in oklab, var(--color-sea) 30%, transparent);
+}
+
+.keel-body :focus-visible {
+  outline: 2px solid var(--color-sea);
+  outline-offset: 2px;
 }
 
 .keel-grain {
@@ -61,6 +75,12 @@
   animation-delay: 240ms;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .keel-rise {
+    animation: none;
+  }
+}
+
 .keel-btn {
   display: inline-flex;
   align-items: center;
@@ -86,33 +106,38 @@
   transform: translateY(1px);
 }
 
-.keel-btn--primary {
-  background: var(--color-ink);
-  color: #fff;
+.keel-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
-.keel-btn--primary:hover {
+.keel-btn--primary {
+  background: var(--color-ink);
+  color: var(--color-on-accent);
+}
+
+.keel-btn--primary:hover:not(:disabled) {
   background: var(--color-sea-deep);
 }
 
 .keel-btn--ghost {
-  background: color-mix(in oklab, white 70%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 70%, transparent);
   color: var(--color-ink);
   border-color: var(--color-line);
   backdrop-filter: blur(4px);
 }
 
-.keel-btn--ghost:hover {
+.keel-btn--ghost:hover:not(:disabled) {
   border-color: color-mix(in oklab, var(--color-sea) 40%, var(--color-line));
-  background: #fff;
+  background: var(--color-surface-strong);
 }
 
 .keel-btn--sea {
   background: var(--color-sea);
-  color: #fff;
+  color: var(--color-on-accent);
 }
 
-.keel-btn--sea:hover {
+.keel-btn--sea:hover:not(:disabled) {
   background: var(--color-sea-deep);
 }
 
@@ -122,7 +147,7 @@
   box-sizing: border-box;
   border-radius: 0.75rem;
   border: 1px solid var(--color-line);
-  background: color-mix(in oklab, white 90%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 90%, transparent);
   padding: 0.625rem 0.875rem;
   font-size: 0.95rem;
   font-family: inherit;
@@ -133,6 +158,10 @@
     box-shadow 0.15s ease;
 }
 
+.keel-field::placeholder {
+  color: color-mix(in oklab, var(--color-ink-soft) 70%, transparent);
+}
+
 .keel-field:focus {
   border-color: var(--color-sea);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-sea) 18%, transparent);
@@ -141,7 +170,7 @@
 .keel-panel {
   border-radius: 1rem;
   border: 1px solid var(--color-line);
-  background: color-mix(in oklab, white 80%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 80%, transparent);
   padding: 1rem 1.25rem;
 }
 
@@ -150,7 +179,7 @@
   max-width: 24rem;
   padding: 2rem;
   border-color: color-mix(in oklab, var(--color-line) 80%, transparent);
-  box-shadow: 0 24px 60px -40px color-mix(in oklab, var(--color-ink) 45%, transparent);
+  box-shadow: 0 24px 60px -40px color-mix(in oklab, var(--color-shadow) 45%, transparent);
   backdrop-filter: blur(12px);
 }
 
@@ -203,7 +232,7 @@
 .keel-notice {
   border-radius: 0.75rem;
   border: 1px solid color-mix(in oklab, var(--color-brass) 35%, transparent);
-  background: color-mix(in oklab, var(--color-brass) 10%, white);
+  background: color-mix(in oklab, var(--color-brass) 10%, var(--color-surface));
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
   color: var(--color-warn);
@@ -212,7 +241,7 @@
 .keel-alert {
   border-radius: 0.75rem;
   border: 1px solid color-mix(in oklab, var(--color-danger) 25%, transparent);
-  background: color-mix(in oklab, var(--color-danger) 8%, white);
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface));
   padding: 0.75rem 0.875rem;
   font-size: 0.875rem;
   color: var(--color-danger);
@@ -222,6 +251,7 @@
   position: relative;
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   flex-direction: column;
   justify-content: flex-end;
   overflow: hidden;
@@ -265,4 +295,406 @@
 .keel-row-form .keel-field {
   min-width: 12rem;
   flex: 1;
+}
+
+/* ---------------------------------- layout ---------------------------------- */
+
+/**
+ * Wide page wrapper. `Shell` is the narrow app frame; this is the marketing /
+ * docs width every Keel site was re-declaring as `.wrap`.
+ */
+.keel-container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 72rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.keel-container--narrow {
+  max-width: 46rem;
+}
+
+.keel-container--wide {
+  max-width: 84rem;
+}
+
+.keel-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 72%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.keel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.keel-stack--tight {
+  gap: 0.5rem;
+}
+
+.keel-stack--loose {
+  gap: 2rem;
+}
+
+.keel-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+}
+
+.keel-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
+}
+
+.keel-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+}
+
+.keel-divider {
+  height: 1px;
+  border: 0;
+  margin: 2rem 0;
+  background: linear-gradient(90deg, var(--color-line), transparent);
+}
+
+.keel-footer {
+  border-top: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  margin-top: 4rem;
+  padding: 2rem 1.5rem 3rem;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+
+/* --------------------------------- surfaces --------------------------------- */
+
+.keel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-surface) 86%, transparent);
+  padding: 1.25rem 1.375rem;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.keel-card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.keel-card-body {
+  font-size: 0.925rem;
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+}
+
+/** Interactive card — apply to an <a> wrapping the card, or to the card itself. */
+.keel-card--link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.keel-card--link:hover {
+  border-color: color-mix(in oklab, var(--color-sea) 45%, var(--color-line));
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px -32px color-mix(in oklab, var(--color-shadow) 60%, transparent);
+}
+
+.keel-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keel-card--link:hover {
+    transform: none;
+  }
+}
+
+.keel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--color-line) 90%, transparent);
+  background: color-mix(in oklab, var(--color-ink-soft) 8%, transparent);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+
+.keel-badge--sea {
+  border-color: color-mix(in oklab, var(--color-sea) 35%, transparent);
+  background: color-mix(in oklab, var(--color-sea) 12%, transparent);
+  color: var(--color-sea);
+}
+
+.keel-badge--brass {
+  border-color: color-mix(in oklab, var(--color-brass) 35%, transparent);
+  background: color-mix(in oklab, var(--color-brass) 12%, transparent);
+  color: var(--color-warn);
+}
+
+.keel-badge--danger {
+  border-color: color-mix(in oklab, var(--color-danger) 30%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
+}
+
+/* ------------------------------- text and data ------------------------------ */
+
+.keel-code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  background: color-mix(in oklab, var(--color-ink) 6%, transparent);
+  padding: 0.1em 0.35em;
+}
+
+.keel-pre {
+  overflow-x: auto;
+  border-radius: 0.875rem;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-ink) 5%, var(--color-surface));
+  padding: 1rem 1.125rem;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+/** A <code> inside a <pre> is already in a block — drop the inline chrome. */
+.keel-pre .keel-code,
+.keel-pre code {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.keel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.keel-table th,
+.keel-table td {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+}
+
+.keel-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.keel-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.keel-table tbody tr:hover td {
+  background: color-mix(in oklab, var(--color-sea) 5%, transparent);
+}
+
+.keel-table--fixed {
+  table-layout: fixed;
+}
+
+/** Long-form body copy — headings, paragraphs, lists and code, unclassed. */
+.keel-prose {
+  max-width: 44rem;
+  line-height: 1.7;
+  color: var(--color-ink);
+}
+
+.keel-prose > * + * {
+  margin-top: 1rem;
+}
+
+.keel-prose h1,
+.keel-prose h2,
+.keel-prose h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin-top: 2.25rem;
+}
+
+.keel-prose h1 {
+  font-size: 1.9rem;
+}
+
+.keel-prose h2 {
+  font-size: 1.4rem;
+}
+
+.keel-prose h3 {
+  font-size: 1.1rem;
+}
+
+.keel-prose > :first-child {
+  margin-top: 0;
+}
+
+.keel-prose a {
+  color: var(--color-sea);
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, var(--color-sea) 45%, transparent);
+}
+
+.keel-prose a:hover {
+  text-decoration-color: currentcolor;
+}
+
+.keel-prose ul,
+.keel-prose ol {
+  padding-left: 1.25rem;
+}
+
+.keel-prose li + li {
+  margin-top: 0.35rem;
+}
+
+.keel-prose blockquote {
+  margin-left: 0;
+  padding-left: 1rem;
+  border-left: 2px solid color-mix(in oklab, var(--color-sea) 45%, transparent);
+  color: var(--color-ink-soft);
+}
+
+.keel-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  background: color-mix(in oklab, var(--color-ink) 6%, transparent);
+  padding: 0.1em 0.35em;
+}
+
+.keel-prose pre {
+  overflow-x: auto;
+  border-radius: 0.875rem;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-ink) 5%, var(--color-surface));
+  padding: 1rem 1.125rem;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.keel-prose pre code {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.keel-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+}
+
+/* ---------------------------------- theming --------------------------------- */
+
+/**
+ * Set by ThemeScript for one frame while the mode changes. Chrome will not
+ * re-resolve a transitioned property when `color-scheme` flips — a button whose
+ * background is a light-dark() token keeps the old mode's colour — so the swap
+ * has to happen with transitions off. It also stops the whole page cross-fading.
+ */
+.keel-theme-switching,
+.keel-theme-switching *,
+.keel-theme-switching *::before,
+.keel-theme-switching *::after {
+  transition: none !important;
+}
+
+.keel-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-surface) 70%, transparent);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.keel-theme-toggle:hover {
+  border-color: color-mix(in oklab, var(--color-sea) 45%, var(--color-line));
+  color: var(--color-sea);
+}
+
+/**
+ * The toggle shows the icon for the mode you'd switch *to* — a moon while
+ * light, a sun while dark. Light is the default, so `--to-dark` shows unless
+ * something says otherwise.
+ */
+.keel-theme-icon--to-light {
+  display: none;
+}
+
+.keel-theme-icon--to-dark {
+  display: inline-flex;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .keel-theme-icon--to-light {
+    display: inline-flex;
+  }
+
+  :root:not([data-theme="light"]) .keel-theme-icon--to-dark {
+    display: none;
+  }
+}
+
+:root[data-theme="dark"] .keel-theme-icon--to-light {
+  display: inline-flex;
+}
+
+:root[data-theme="dark"] .keel-theme-icon--to-dark {
+  display: none;
+}
+
+:root[data-theme="light"] .keel-theme-icon--to-light {
+  display: none;
+}
+
+:root[data-theme="light"] .keel-theme-icon--to-dark {
+  display: inline-flex;
 }

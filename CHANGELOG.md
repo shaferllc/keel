@@ -4,6 +4,75 @@ All notable changes to Keel are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.87.0] — 2026-07-22
+
+The design kit grows up: one set of tokens that covers both colour modes, no
+third-party font request, and a page that shows you the whole thing at once.
+
+### Added
+
+- **Light and dark, from one declaration.** Every colour token is now
+  `light-dark(light, dark)`, so there is no second stylesheet, no `dark:`
+  variant, and nothing to keep in sync. Pages follow the operating system;
+  `ThemeScript` + `ThemeToggle` add a remembered override.
+
+      <head>
+        <ThemeScript />                        {/* sets data-theme before paint */}
+        <link rel="stylesheet" href="/assets/app.css" />
+      </head>
+
+  The script exposes `window.keelTheme` (`get` / `set` / `toggle` / `clear`) and
+  delegates clicks for any `[data-keel-theme-toggle]` element, so a button of
+  your own works without wiring. It takes a `nonce` for strict CSPs.
+
+  It also suppresses transitions for the one frame the mode changes in. Chrome
+  does not re-resolve a *transitioned* property when `color-scheme` flips, so
+  button fills and card borders — the things with a `transition` on them — stay
+  painted in the mode you just left until something forces a recalc. Swapping
+  with transitions off forces it, and stops the page cross-fading at once.
+
+- **Four tokens the modes needed.** `--color-surface`, `--color-surface-strong`,
+  `--color-on-accent` and `--color-shadow`. Panels, fields, buttons and shadows
+  were painted with literal `white` and `#fff`, which is what had pinned the kit
+  to light mode; they now come from tokens like everything else.
+
+- **Self-hosted fonts, opt-in.** `keel ui:fonts` copies Syne and IBM Plex Sans
+  (OFL, latin + latin-ext subsets, ~146 kB) into `public/fonts`, and
+  `@import "@shaferllc/keel/ui/fonts"` declares them. Nothing loads them for
+  you — see *Removed*.
+
+- **Nine more components**, promoted from what every Keel site had been
+  re-declaring by hand: `Container` and `Bar` (page width and sticky nav),
+  `Card` / `CardTitle` / `CardBody`, `Badge`, `Stack`, `Grid`, `Divider`,
+  `Footer`, `Code` / `Pre` / `Table`, and `Prose` — which styles unclassed
+  headings, lists and code, so rendered Markdown drops straight in.
+
+- **A specimen page.** `SpecimenPage` renders every token and every `.keel-*`
+  class on one screen. `npm run build:specimen` writes a standalone
+  `public/specimen.html`; apps can mount it to see their own overrides:
+
+      Route.get("/_ui", () => SpecimenPage({ stylesheet: "/assets/app.css" }));
+
+- **Tests that hold the design honest.** The `:root` and `@theme` blocks are
+  duplicated so the kit works with and without Tailwind — a test now asserts
+  they declare the same values. Another walks the token pairs through an oklab
+  `color-mix` and asserts WCAG contrast in *both* modes, so a palette tweak that
+  makes dark-mode badges unreadable fails the build rather than shipping.
+
+### Changed
+
+- `.keel-rise` and the card hover lift respect `prefers-reduced-motion`.
+- Focus is visible: `:focus-visible` draws a sea outline inside `.keel-body`.
+- Heights use `dvh`, disabled buttons dim instead of pretending to be live, and
+  fields style their placeholder.
+
+### Removed
+
+- **The Google Fonts `@import` in `theme.css`.** It was a render-blocking
+  request to a third party on every page of every Keel app, and it failed
+  entirely under a strict CSP or offline. Apps that want the branded faces run
+  `keel ui:fonts`; apps that do nothing fall back to the system UI stack.
+
 ## [0.86.0] — 2026-07-21
 
 Full-text search — the largest remaining gap against Laravel, and the last core

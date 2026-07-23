@@ -1,2 +1,5 @@
+/* Optional: run `keel ui:fonts` to copy Syne + IBM Plex into public/fonts,
+   then uncomment. Without it the kit falls back to system UI fonts. */
+/* @import "@shaferllc/keel/ui/fonts"; */
 @import "@shaferllc/keel/ui/css";
 @import "tailwindcss";

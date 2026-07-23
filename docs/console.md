@@ -49,6 +49,7 @@ templates live in [`src/core/cli/stubs.ts`](../src/core/cli/stubs.ts).
 | `search:flush` | `<model>` | Empty a model's search index |
 | `vendor:publish` | `[--tag <t>] [--force]` | Copy package-published files into the app |
 | `kit:sync` | `[-p <preset>] [--force]` | Refresh untouched starter-kit files |
+| `ui:fonts` | `[--dir <d>] [--force]` | Copy the [design kit](./ui.md#fonts)'s webfonts into `public/fonts` |
 | `mcp` | — | Start the [MCP server](./ai.md) for AI agents (stdio) |
 
 Every generator normalizes the name you pass and refuses to overwrite an existing

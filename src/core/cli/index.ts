@@ -17,6 +17,7 @@
  *   keel routes                 list registered routes
  *   keel vendor:publish         copy package-published files into this app
  *   keel kit:sync               refresh untouched starter-kit files from the package
+ *   keel ui:fonts               copy the design kit's webfonts into public/fonts
  */
 
 import { mkdir, writeFile, access, readdir, stat, copyFile } from "node:fs/promises";
@@ -54,6 +55,7 @@ import {
 } from "./stubs.js";
 import { findAvailablePort } from "./port.js";
 import { PRESETS as KIT_PRESETS, syncKit, readKitLock, type KitPreset } from "./kit-sync.js";
+import { copyUiFonts, DEFAULT_FONT_DIR } from "./ui-fonts.js";
 
 const basePath = process.cwd();
 
@@ -911,6 +913,37 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     },
   });
 
+  const uiFonts = defineCommand({
+    name: "ui:fonts",
+    description: "Copy the design kit's self-hosted webfonts into this app",
+    flags: {
+      dir: flag.string({ description: `where to write them (default ${DEFAULT_FONT_DIR})` }),
+      force: flag.boolean({ description: "overwrite files that already exist" }),
+    },
+    run({ flags, ui }) {
+      const result = copyUiFonts({ appRoot: basePath, dir: flags.dir, force: flags.force });
+
+      for (const file of result.copied) ui.info(`Copied ${file}`);
+      if (result.skipped.length) {
+        ui.info(`${result.skipped.length} already present — re-run with --force to overwrite.`);
+      }
+      if (!result.copied.length && !result.skipped.length) {
+        ui.error("No font files found in the package.");
+        process.exitCode = 1;
+        return;
+      }
+
+      ui.info(`Fonts are in ${result.target}`);
+      if (flags.dir && flags.dir !== DEFAULT_FONT_DIR) {
+        ui.info(
+          `@shaferllc/keel/ui/fonts points at /fonts/* — a custom --dir needs your own @font-face.`,
+        );
+      } else {
+        ui.info(`Add @import "@shaferllc/keel/ui/fonts"; above the kit import in your app CSS.`);
+      }
+    },
+  });
+
   /* ---------------------------------- dispatch -------------------------------- */
 
   const kernel = new ConsoleKernel({ binary: "keel" }).register(
@@ -946,6 +979,7 @@ export async function run(argv: string[], options: ConsoleOptions): Promise<void
     searchFlushCmd as AnyCommand,
     vendorPublish as AnyCommand,
     kitSync as AnyCommand,
+    uiFonts as AnyCommand,
   );
 
   // Package-contributed commands (a package's `commands([...])`), then the app's —

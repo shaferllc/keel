@@ -1,6 +1,6 @@
 {
   "name": "@shaferllc/keel",
-  "version": "0.86.0",
+  "version": "0.87.0",
   "type": "module",
   "description": "The house framework for Node.js — a service container, providers, routing, JSX views, and a code-generating console.",
   "license": "MIT",
@@ -102,6 +102,8 @@
       "import": "./dist/ui/index.js"
     },
     "./ui/css": "./dist/ui/css.css",
+    "./ui/fonts": "./dist/ui/fonts.css",
+    "./ui/fonts/*": "./dist/ui/fonts/*",
     "./cli": {
       "types": "./dist/core/cli/index.d.ts",
       "import": "./dist/core/cli/index.js"
@@ -134,7 +136,8 @@
     "build:ai": "tsx scripts/build-ai.ts",
     "build:watch-ui": "vite build --config src/watch/ui/vite.config.ts",
     "build:watch-copy": "mkdir -p dist/watch/ui && cp -R src/watch/ui/dist dist/watch/ui/dist && cp src/watch/watch.config.stub dist/watch/ && cp src/openapi/openapi.config.stub dist/openapi/ && cp src/api/api.config.stub dist/api/ && cp src/billing/billing.config.stub dist/billing/ && cp src/accounts/accounts.config.stub dist/accounts/ && cp src/teams/teams.config.stub dist/teams/",
-    "build:ui-css": "mkdir -p dist/ui && cp src/ui/theme.css src/ui/components.css src/ui/css.css dist/ui/",
+    "build:ui-css": "mkdir -p dist/ui/fonts && cp src/ui/theme.css src/ui/components.css src/ui/css.css src/ui/fonts.css dist/ui/ && cp src/ui/fonts/* dist/ui/fonts/",
+    "build:specimen": "tsx scripts/build-specimen.ts",
     "build": "npm run build:ai && npm run build:watch-ui && rm -rf dist && tsc -p tsconfig.build.json && npm run build:watch-copy && npm run build:ui-css",
     "prepare": "npm run build",
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",

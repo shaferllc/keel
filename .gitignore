@@ -7,6 +7,10 @@ dist/
 public/hot
 public/assets/
 
+# `npm run build:specimen` output — regenerate it, don't commit it
+public/specimen.html
+public/fonts/
+
 # Local environment — copy .env.example to .env
 .env
 # ...but the boot test's fixture env IS part of the suite. The blanket `.env` rule
